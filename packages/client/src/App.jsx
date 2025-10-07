@@ -53,6 +53,9 @@ import {
 // Components
 import ActionBar from "./components/ui/ActionBar";
 import FavouritesDropdown from "./components/ui/FavouritesDropdown";
+import ContextMenu from "./components/context-menus/ContextMenu";
+import EmptyAreaContextMenu from "./components/context-menus/EmptyAreaContextMenu";
+import PathContextMenu from "./components/context-menus/PathContextMenu";
 import FilePanel from "./components/panels/FilePanel";
 import ApplicationBrowserModal from "./components/modals/ApplicationBrowserModal";
 import CalculatingSizeModal from "./components/modals/CalculatingSizeModal";
