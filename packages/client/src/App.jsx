@@ -26,37 +26,14 @@ import {
   ChevronDown,
   ListOrdered,
 } from "lucide-react";
-// syntax highlighting imports
-import Prism from "prismjs";
-import "prismjs/themes/prism-okaidia.css"; // Dark theme for highlighting
 
-// Import specific languages you want to support
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-typescript";
-import "prismjs/components/prism-jsx";
-import "prismjs/components/prism-tsx";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-css";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-markdown";
-import "prismjs/components/prism-yaml";
-import "prismjs/components/prism-ini";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-ignore";
-import "prismjs/components/prism-properties";
-
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
-
-import { buildFullPath, formatBytes, isMac } from "./lib/utils";
+import { buildFullPath, isMac, isItemPreviewable } from "./lib/utils";
 import {
   createNewFolder,
   deleteItem,
   fetchDeleteSummary,
   fetchDirectory,
   openFile,
-  parseTrackInfo,
   renameItem,
   startCopyItems,
   cancelCopy,
@@ -77,11 +54,14 @@ import {
 import ActionBar from "./components/ui/ActionBar";
 import FavouritesDropdown from "./components/ui/FavouritesDropdown";
 import FilePanel from "./components/panels/FilePanel";
-import BrowserModal from "./components/modals/BrowserModal";
+import ApplicationBrowserModal from "./components/modals/ApplicationBrowserModal";
 import CalculatingSizeModal from "./components/modals/CalculatingSizeModal";
+import DeleteConfirmModal from "./components/modals/DeleteConfirmModal";
+import ErrorModal from "./components/modals/ErrorModal";
+import FolderBrowserModal from "./components/modals/FolderBrowserModal";
 import HelpModal from "./components/modals/HelpModal";
-
-// Configure the PDF.js worker to use the local file copied by our Vite plugin.
-pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
+import OverwriteConfirmModal from "./components/modals/OverwriteConfirmModal";
+import ProgressModal from "./components/modals/ProgressModal";
+import PreviewModal from "./components/modals/PreviewModal";
 
 //WILL BE UPDATED SOON
