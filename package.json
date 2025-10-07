@@ -1,0 +1,16 @@
+{
+  "name": "web-file-manager",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:client": "npm run dev --workspace=@web-file-manager/client",
+    "dev:server": "npm run dev --workspace=@web-file-manager/server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
