@@ -3,12 +3,12 @@ import { XCircle } from "lucide-react";
 
 import { isMac } from "../../lib/utils";
 
-import SvgActionBarExample from "./help-diagrams/SvgActionBarExample";
-import SvgBreadcrumbsExample from "./help-diagrams/SvgBreadcrumbsExample";
-import SvgContextMenuExample from "./help-diagrams/SvgContextMenuExample";
-import SvgCopyModesExample from "./help-diagrams/SvgCopyModesExample";
-import SvgDualPanelExample from "./help-diagrams/SvgDualPanelExample";
-import SvgFileListExample from "./help-diagrams/SvgFileListExample";
+import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
+import SvgBreadcrumbsExample from "../help-diagrams/SvgBreadcrumbsExample";
+import SvgContextMenuExample from "../help-diagrams/SvgContextMenuExample";
+import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
+import SvgDualPanelExample from "../help-diagrams/SvgDualPanelExample";
+import SvgFileListExample from "../help-diagrams/SvgFileListExample";
 
 const HelpSection = ({ title, children }) => (
   <section className="mb-8">

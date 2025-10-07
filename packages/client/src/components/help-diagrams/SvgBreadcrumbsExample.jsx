@@ -1,3 +1,5 @@
+import SvgUiElement from "./SvgUiElement";
+
 // SVG Example: Breadcrumbs and Path Bar
 const SvgBreadcrumbsExample = () => (
   <SvgUiElement width={450} height={40}>

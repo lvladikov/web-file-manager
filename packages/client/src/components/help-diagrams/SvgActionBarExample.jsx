@@ -1,3 +1,5 @@
+import SvgUiElement from "./SvgUiElement";
+
 // SVG Example: F-Key Action Bar
 const SvgActionBarExample = () => (
   <SvgUiElement width={600} height={50}>

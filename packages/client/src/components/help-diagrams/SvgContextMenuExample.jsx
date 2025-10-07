@@ -1,3 +1,5 @@
+import SvgUiElement from "./SvgUiElement";
+
 // SVG Example: Context Menu
 const SvgContextMenuExample = () => (
   <SvgUiElement width={220} height={280}>

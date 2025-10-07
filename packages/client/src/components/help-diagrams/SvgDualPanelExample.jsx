@@ -1,3 +1,5 @@
+import SvgUiElement from "./SvgUiElement";
+
 // SVG Example: Dual Panel Layout
 const SvgDualPanelExample = () => (
   <SvgUiElement width={600} height={180}>

@@ -1,3 +1,5 @@
+import SvgUiElement from "./SvgUiElement";
+
 // SVG Example: File List with Selection and Truncation
 const SvgFileListExample = () => (
   <SvgUiElement width={400} height={150}>
