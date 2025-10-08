@@ -239,6 +239,8 @@ const copyWithProgress = async (source, destination, job) => {
         job
       );
     }
+    // ✨ Preserve the original timestamps for folders
+    await fse.utimes(destination, sourceStats.atime, sourceStats.mtime);
   } else {
     if (job.ws && job.ws.readyState === 1) {
       job.ws.send(JSON.stringify({ type: "copy_progress", file: destination }));
@@ -260,7 +262,7 @@ const copyWithProgress = async (source, destination, job) => {
         signal: job.controller.signal,
       });
       await fse.move(tempDestination, destination, { overwrite: true });
-      // ✨ Preserve the original timestamps
+      // ✨ Preserve the original timestamps for files
       await fse.utimes(destination, sourceStats.atime, sourceStats.mtime);
     } catch (error) {
       if (await fse.pathExists(tempDestination)) {
