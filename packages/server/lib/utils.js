@@ -260,6 +260,8 @@ const copyWithProgress = async (source, destination, job) => {
         signal: job.controller.signal,
       });
       await fse.move(tempDestination, destination, { overwrite: true });
+      // ✨ Preserve the original timestamps
+      await fse.utimes(destination, sourceStats.atime, sourceStats.mtime);
     } catch (error) {
       if (await fse.pathExists(tempDestination)) {
         await fse.remove(tempDestination);
