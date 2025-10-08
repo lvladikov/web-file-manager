@@ -1,19 +1,94 @@
+import React, { useState, useEffect } from "react";
 import { LoaderCircle, FileAudio, XCircle, Search } from "lucide-react";
+
+import { parseTrackInfo } from "../../../lib/api";
+import { buildFullPath } from "../../../lib/utils";
 
 export default function AudioPreview({
   coverArtUrl,
   audioRef,
   item,
   fullPath,
-  lyrics,
-  lyricsLoading,
-  lyricsError,
+  activePath,
   autoLoadLyrics,
   onToggleAutoLoadLyrics,
-  handleFindLyrics,
-  setLyrics,
-  setLyricsError,
 }) {
+  const [lyrics, setLyrics] = useState(null);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [lyricsError, setLyricsError] = useState(null);
+
+  const handleFindLyrics = async () => {
+    if (!item) return;
+
+    setLyricsLoading(true);
+    setLyricsError(null);
+    setLyrics(null);
+
+    const infoFromFilename = parseTrackInfo(item.name);
+    if (infoFromFilename.artist && infoFromFilename.title) {
+      try {
+        const res = await fetch(
+          `/api/lyrics?artist=${encodeURIComponent(
+            infoFromFilename.artist
+          )}&title=${encodeURIComponent(infoFromFilename.title)}`
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          setLyrics(data.lyrics);
+          setLyricsLoading(false);
+          return;
+        }
+
+        if (res.status !== 404) {
+          const data = await res.json();
+          throw new Error(data.message || "An API error occurred.");
+        }
+      } catch (err) {
+        setLyricsError(err.message);
+        setLyricsLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const fullPath = buildFullPath(activePath, item.name);
+      const metaRes = await fetch(
+        `/api/track-info?path=${encodeURIComponent(fullPath)}`
+      );
+      const metaData = await metaRes.json();
+      if (!metaRes.ok) throw new Error(metaData.message);
+
+      const lyricsRes = await fetch(
+        `/api/lyrics?artist=${encodeURIComponent(
+          metaData.artist
+        )}&title=${encodeURIComponent(metaData.title)}`
+      );
+      const lyricsData = await lyricsRes.json();
+      if (!lyricsRes.ok) throw new Error(lyricsData.message);
+
+      setLyrics(lyricsData.lyrics);
+    } catch (err) {
+      setLyricsError(
+        err.message || "Couldn't find lyrics using filename or metadata."
+      );
+    } finally {
+      setLyricsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLyrics(null);
+    setLyricsError(null);
+    setLyricsLoading(false);
+  }, [item]);
+
+  useEffect(() => {
+    if (autoLoadLyrics) {
+      handleFindLyrics();
+    }
+  }, [item, autoLoadLyrics]);
+
   return (
     <div className="flex flex-col p-6 bg-gray-800 h-full rounded-b-lg overflow-hidden">
       <div className="flex-shrink-0 flex items-center space-x-6 mb-4">
