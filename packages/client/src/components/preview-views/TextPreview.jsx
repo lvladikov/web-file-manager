@@ -1,4 +1,84 @@
-const TextPreview = ({ codeLines, showLineNumbers, wordWrap, language }) => {
+import React, { useEffect } from "react";
+
+// syntax highlighting imports
+import Prism from "prismjs";
+import "prismjs/themes/prism-okaidia.css"; // Dark theme for highlighting
+
+// Import specific languages you want to support
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-jsx";
+import "prismjs/components/prism-tsx";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-css";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-markdown";
+import "prismjs/components/prism-yaml";
+import "prismjs/components/prism-ini";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-ignore";
+import "prismjs/components/prism-properties";
+
+const TextPreview = ({
+  codeLines,
+  showLineNumbers,
+  wordWrap,
+  language,
+  item,
+  previewType,
+  textContent,
+  textError,
+  searchTerm,
+  matches,
+  currentMatchIndex,
+  setCodeLines,
+  getPrismLanguage,
+}) => {
+  useEffect(() => {
+    const language = getPrismLanguage(item?.name);
+    const grammar = Prism.languages[language] || Prism.languages.plaintext;
+    let fullHighlightedHtml;
+
+    if (!searchTerm || matches.length === 0) {
+      fullHighlightedHtml = Prism.highlight(textContent, grammar, language);
+    } else {
+      let lastIndex = 0;
+      const parts = [];
+      matches.forEach((match, index) => {
+        const before = textContent.substring(lastIndex, match.index);
+        parts.push(Prism.highlight(before, grammar, language));
+
+        const matchedText = match[0];
+        const highlightedMatch = Prism.highlight(
+          matchedText,
+          grammar,
+          language
+        );
+        const markClass =
+          index === currentMatchIndex
+            ? "bg-yellow-400 text-black rounded-sm"
+            : "bg-sky-600 bg-opacity-50 rounded-sm";
+        parts.push(
+          `<mark id="match-${index}" class="${markClass}">${highlightedMatch}</mark>`
+        );
+        lastIndex = match.index + matchedText.length;
+      });
+      const after = textContent.substring(lastIndex);
+      parts.push(Prism.highlight(after, grammar, language));
+      fullHighlightedHtml = parts.join("");
+    }
+
+    setCodeLines(fullHighlightedHtml.split("\n"));
+  }, [
+    textContent,
+    textError,
+    searchTerm,
+    matches,
+    currentMatchIndex,
+    item,
+    previewType,
+  ]);
+
   return (
     <div className="bg-gray-800 text-gray-300 font-mono text-sm p-4 h-full overflow-auto">
       <table

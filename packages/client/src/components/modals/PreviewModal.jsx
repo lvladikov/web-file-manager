@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  LoaderCircle,
   XCircle,
   Expand,
   WrapText,
@@ -9,25 +8,6 @@ import {
   ChevronDown,
   ListOrdered,
 } from "lucide-react";
-
-// syntax highlighting imports
-import Prism from "prismjs";
-import "prismjs/themes/prism-okaidia.css"; // Dark theme for highlighting
-
-// Import specific languages you want to support
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-typescript";
-import "prismjs/components/prism-jsx";
-import "prismjs/components/prism-tsx";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-css";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-markdown";
-import "prismjs/components/prism-yaml";
-import "prismjs/components/prism-ini";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-ignore";
-import "prismjs/components/prism-properties";
 
 import {
   buildFullPath,
@@ -44,6 +24,8 @@ import AudioPreview from "./preview-views/AudioPreview";
 import PdfPreview from "./preview-views/PdfPreview";
 import TextPreview from "./preview-views/TextPreview";
 import UnsupportedPreview from "./preview-views/UnsupportedPreview";
+import ImagePreview from "./preview-views/ImagePreview";
+import VideoPreview from "./preview-views/VideoPreview";
 
 const PreviewModal = ({
   isVisible,
@@ -127,50 +109,7 @@ const PreviewModal = ({
       setCodeLines(errorLines);
       return;
     }
-
-    const language = getPrismLanguage(item?.name);
-    const grammar = Prism.languages[language] || Prism.languages.plaintext;
-    let fullHighlightedHtml;
-
-    if (!searchTerm || matches.length === 0) {
-      fullHighlightedHtml = Prism.highlight(textContent, grammar, language);
-    } else {
-      let lastIndex = 0;
-      const parts = [];
-      matches.forEach((match, index) => {
-        const before = textContent.substring(lastIndex, match.index);
-        parts.push(Prism.highlight(before, grammar, language));
-
-        const matchedText = match[0];
-        const highlightedMatch = Prism.highlight(
-          matchedText,
-          grammar,
-          language
-        );
-        const markClass =
-          index === currentMatchIndex
-            ? "bg-yellow-400 text-black rounded-sm"
-            : "bg-sky-600 bg-opacity-50 rounded-sm";
-        parts.push(
-          `<mark id="match-${index}" class="${markClass}">${highlightedMatch}</mark>`
-        );
-        lastIndex = match.index + matchedText.length;
-      });
-      const after = textContent.substring(lastIndex);
-      parts.push(Prism.highlight(after, grammar, language));
-      fullHighlightedHtml = parts.join("");
-    }
-
-    setCodeLines(fullHighlightedHtml.split("\n"));
-  }, [
-    textContent,
-    textError,
-    searchTerm,
-    matches,
-    currentMatchIndex,
-    item,
-    previewType,
-  ]);
+  }, [textContent, textError, item, previewType]);
 
   useEffect(() => {
     if (searchTerm && textContent) {
@@ -475,33 +414,11 @@ const PreviewModal = ({
 
         <div className="flex-1 min-h-0 rounded-b-lg flex flex-col">
           {previewType === "image" && (
-            <div
-              className={`flex justify-center items-center bg-black rounded-b-lg overflow-hidden ${
-                isFullscreen ? "w-full h-full" : ""
-              }`}
-              style={
-                isFullscreen
-                  ? {}
-                  : {
-                      width: "100%",
-                      height: "calc(100vh - 8rem)",
-                      maxWidth: "90vw",
-                      margin: "auto",
-                    }
-              }
-            >
-              <img
-                src={`/api/image-preview?path=${encodeURIComponent(fullPath)}`}
-                alt={item.name}
-                className="object-contain rounded-b-lg"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  width: "auto",
-                  height: "auto",
-                }}
-              />
-            </div>
+            <ImagePreview
+              item={item}
+              fullPath={fullPath}
+              isFullscreen={isFullscreen}
+            />
           )}
 
           {previewType === "pdf" && (
@@ -512,48 +429,14 @@ const PreviewModal = ({
           )}
 
           {previewType === "video" && (
-            <div
-              className={`flex justify-center items-center bg-black rounded-b-lg overflow-hidden ${
-                isFullscreen ? "w-full h-full" : ""
-              }`}
-              style={
-                isFullscreen
-                  ? {}
-                  : {
-                      width: "100%",
-                      height: "calc(100vh - 8rem)",
-                      maxWidth: "90vw",
-                      margin: "auto",
-                    }
-              }
-            >
-              <video
-                key={item.name + (videoHasError ? "-transcoded" : "-native")}
-                ref={videoRef}
-                src={
-                  videoHasError
-                    ? `/api/video-transcode?path=${encodeURIComponent(
-                        fullPath
-                      )}`
-                    : `/api/media-stream?path=${encodeURIComponent(fullPath)}`
-                }
-                controls
-                autoPlay
-                muted
-                onError={handleVideoError}
-                className="object-contain w-full h-full"
-              />
-              {videoHasError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-75 pointer-events-none">
-                  <LoaderCircle className="w-8 h-8 animate-spin text-white mb-4" />
-                  <p className="text-white text-center">
-                    Unsupported format.
-                    <br />
-                    Converting for playback...
-                  </p>
-                </div>
-              )}
-            </div>
+            <VideoPreview
+              item={item}
+              fullPath={fullPath}
+              isFullscreen={isFullscreen}
+              videoRef={videoRef}
+              videoHasError={videoHasError}
+              handleVideoError={handleVideoError}
+            />
           )}
 
           {previewType === "audio" && (
@@ -574,6 +457,15 @@ const PreviewModal = ({
               showLineNumbers={showLineNumbers}
               wordWrap={wordWrap}
               language={language}
+              item={item}
+              previewType={previewType}
+              textContent={textContent}
+              textError={textError}
+              searchTerm={searchTerm}
+              matches={matches}
+              currentMatchIndex={currentMatchIndex}
+              setCodeLines={setCodeLines}
+              getPrismLanguage={getPrismLanguage}
             />
           )}
 
