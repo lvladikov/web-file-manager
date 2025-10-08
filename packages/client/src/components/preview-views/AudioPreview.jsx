@@ -4,7 +4,7 @@ import { LoaderCircle, FileAudio, XCircle, Search } from "lucide-react";
 import { parseTrackInfo } from "../../../lib/api";
 import { buildFullPath } from "../../../lib/utils";
 
-export default function AudioPreview({
+const AudioPreview = ({
   coverArtUrl,
   audioRef,
   item,
@@ -12,7 +12,7 @@ export default function AudioPreview({
   activePath,
   autoLoadLyrics,
   onToggleAutoLoadLyrics,
-}) {
+}) => {
   const [lyrics, setLyrics] = useState(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [lyricsError, setLyricsError] = useState(null);
@@ -179,4 +179,6 @@ export default function AudioPreview({
       </div>
     </div>
   );
-}
+};
+
+export default AudioPreview;
