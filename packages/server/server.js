@@ -1,26 +1,28 @@
 import express from "express";
-import fse from "fs-extra";
-import path from "path";
-import { fileURLToPath } from "url";
-import open from "open";
-import os from "os";
 import http from "http";
-import { WebSocketServer } from "ws";
-import crypto from "crypto";
-import { pipeline } from "stream/promises";
-import { spawn } from "child_process";
-import { parseFile } from "music-metadata";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { initializeWebSocketServer } from "./lib/websocket.js";
+import initializeRoutes from "./routes/index.js";
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+
+// --- In-memory store for active copy jobs ---
+const activeCopyJobs = new Map();
+
+// In-memory store for active size calculation jobs
+const activeSizeJobs = new Map();
+
+// Initialize the WebSocket server
+initializeWebSocketServer(server, activeCopyJobs, activeSizeJobs);
 
 const port = 3001;
-const configPath = path.join(__dirname, "config.json");
 
 app.use(express.json());
 
-//WILL BE UPDATED SOON
+// --- Initialize API Endpoints ---
+initializeRoutes(app, activeCopyJobs, activeSizeJobs);
+
+server.listen(port, () => {
+  console.log(`[dev:server] Server listening at http://localhost:${port}`);
+});
