@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  FileText,
   LoaderCircle,
-  FileAudio,
   XCircle,
   Expand,
   WrapText,
@@ -44,6 +42,8 @@ import {
 
 import AudioPreview from "./preview-views/AudioPreview";
 import PdfPreview from "./preview-views/PdfPreview";
+import TextPreview from "./preview-views/TextPreview";
+import UnsupportedPreview from "./preview-views/UnsupportedPreview";
 
 const PreviewModal = ({
   isVisible,
@@ -569,102 +569,22 @@ const PreviewModal = ({
           )}
 
           {previewType === "text" && (
-            <div className="bg-gray-800 text-gray-300 font-mono text-sm p-4 h-full overflow-auto">
-              <table
-                style={{
-                  tableLayout: "auto",
-                  width: "100%",
-                  borderCollapse: "collapse",
-                }}
-              >
-                <tbody>
-                  {codeLines.map((line, index) => (
-                    <tr key={index}>
-                      {showLineNumbers && (
-                        <td
-                          style={{
-                            verticalAlign: "top",
-                            textAlign: "right",
-                            paddingRight: "1.25rem",
-                            color: "#999",
-                            userSelect: "none",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {index + 1}
-                        </td>
-                      )}
-                      <td
-                        style={{
-                          verticalAlign: "top",
-                          lineHeight: 1.5,
-                          width: "100%",
-                        }}
-                      >
-                        <pre
-                          style={{
-                            margin: 0,
-                            padding: 0,
-                            whiteSpace: wordWrap ? "pre-wrap" : "pre",
-                            wordBreak: wordWrap ? "break-word" : "normal",
-                            overflowWrap: wordWrap ? "break-word" : "normal",
-                          }}
-                        >
-                          <code
-                            className={`language-${language}`}
-                            style={{
-                              display: "block",
-                              whiteSpace: wordWrap ? "pre-wrap" : "pre",
-                              wordBreak: wordWrap ? "break-word" : "normal",
-                              overflowWrap: wordWrap ? "break-word" : "normal",
-                            }}
-                            dangerouslySetInnerHTML={{ __html: line || " " }}
-                          />
-                        </pre>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <TextPreview
+              codeLines={codeLines}
+              showLineNumbers={showLineNumbers}
+              wordWrap={wordWrap}
+              language={language}
+            />
           )}
 
           {previewType === "unsupported" && (
-            <div className="flex flex-col items-center justify-center text-center p-8 h-full relative">
-              <button
-                className="absolute top-2 right-2 p-1 text-gray-300 hover:text-white"
-                onClick={onClose}
-                title="Close (Esc)"
-              >
-                <XCircle className="w-7 h-7" />
-              </button>
-              <FileText className="w-24 h-24 text-gray-500 mb-4" />
-              <p className="text-xl text-gray-300 mb-2">Cannot Preview File</p>
-              <p className="font-mono text-gray-400 mb-6 break-all">
-                {item.name}
-              </p>
-              {item.type === "folder" ? (
-                <button
-                  onClick={() => {
-                    onStartSizeCalculation(item);
-                    onClose();
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg"
-                >
-                  Calculate Size
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    onOpenFile(activePath, item.name);
-                    onClose();
-                  }}
-                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg"
-                >
-                  Open with System
-                </button>
-              )}
-            </div>
+            <UnsupportedPreview
+              item={item}
+              activePath={activePath}
+              onStartSizeCalculation={onStartSizeCalculation}
+              onOpenFile={onOpenFile}
+              onClose={onClose}
+            />
           )}
         </div>
       </div>
