@@ -8,6 +8,7 @@ import FavouritesDropdown from "../ui/FavouritesDropdown";
 import Resizer from "../ui/Resizer";
 import NewFolderItem from "../panels/NewFolderItem";
 import FileItem from "../panels/FileItem";
+import FilterInput from "../ui/FilterInput";
 
 const FilePanel = React.forwardRef(
   (
@@ -50,6 +51,12 @@ const FilePanel = React.forwardRef(
       favourites,
       columnWidths,
       setColumnWidths,
+      filter,
+      isFiltering,
+      filterPanelId,
+      onFilterChange,
+      onCloseFilter,
+      filteredItems,
     },
     ref
   ) => {
@@ -268,7 +275,7 @@ const FilePanel = React.forwardRef(
     return (
       <div
         ref={ref}
-        className={`flex flex-col bg-gray-800 text-gray-200 font-mono w-1/2 p-2 border-2 ${
+        className={`relative flex flex-col bg-gray-800 text-gray-200 font-mono w-1/2 p-2 border-2 ${
           activePanel === panelId ? "border-blue-500" : "border-gray-700"
         } rounded-lg outline-none`}
         onClick={handlePanelClick}
@@ -383,29 +390,38 @@ const FilePanel = React.forwardRef(
               <LoaderCircle className="w-8 h-8 animate-spin text-sky-400" />
             </div>
           )}
-          {panelData.items.map((item) => (
-            <FileItem
-              key={`${panelData.path}-${item.name}`}
-              item={item}
-              isSelected={selectedItems.has(item.name)}
-              isFocused={focusedItem === item.name}
-              isRenaming={
-                renamingItem.panelId === panelId &&
-                renamingItem.name === item.name
-              }
-              renameValue={renamingItem.value}
-              onRenameChange={onRenameChange}
-              onRenameSubmit={onRenameSubmit}
-              onRenameCancel={onRenameCancel}
-              onClick={(e) => handleItemClick(item.name, e)}
-              onDoubleClick={() => handleDoubleClick(item)}
-              onContextMenu={(x, y, file) =>
-                onContextMenu(x, y, file, panelData.path)
-              }
-              style={gridStyle}
-            />
-          ))}
+          {Array.isArray(filteredItems) &&
+            filteredItems.map((item) => (
+              <FileItem
+                key={`${panelData.path}-${item.name}`}
+                item={item}
+                isSelected={selectedItems.has(item.name)}
+                isFocused={focusedItem === item.name}
+                isRenaming={
+                  renamingItem.panelId === panelId &&
+                  renamingItem.name === item.name
+                }
+                renameValue={renamingItem.value}
+                onRenameChange={onRenameChange}
+                onRenameSubmit={onRenameSubmit}
+                onRenameCancel={onRenameCancel}
+                onClick={(e) => handleItemClick(item.name, e)}
+                onDoubleClick={() => handleDoubleClick(item)}
+                onContextMenu={(x, y, file) =>
+                  onContextMenu(x, y, file, panelData.path)
+                }
+                style={gridStyle}
+              />
+            ))}
         </div>
+        {filterPanelId === panelId && (
+          <FilterInput
+            filter={filter}
+            onFilterChange={(newFilter) => onFilterChange(panelId, newFilter)}
+            onClose={() => onCloseFilter(panelId)}
+            isFiltering={isFiltering}
+          />
+        )}
         <div className="text-sm pt-2 border-t border-gray-600 mt-1">
           <p>
             {selectedItems.size} / {panelData.items.length} items selected

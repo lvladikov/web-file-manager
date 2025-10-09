@@ -31,10 +31,46 @@ export default function appState() {
   const [loading, setLoading] = useState({ left: true, right: true });
   const [error, setError] = useState(null);
   const [editingPath, setEditingPath] = useState({ panelId: null, value: "" });
+  const [filter, setFilter] = useState({
+    left: { pattern: "", useRegex: false, caseSensitive: false },
+    right: { pattern: "", useRegex: false, caseSensitive: false },
+  });
+  const [isFiltering, setIsFiltering] = useState({ left: false, right: false });
+  const [filterPanelId, setFilterPanelId] = useState(null);
 
   // --- Core Refs ---
   const wsRef = useRef(null);
   const panelRefs = { left: useRef(null), right: useRef(null) };
+
+  const handleStartFilter = () => {
+    setFilterPanelId(activePanel);
+  };
+
+  const handleCloseFilter = (panelId) => {
+    setFilterPanelId(null);
+    setFilter((prev) => ({ ...prev, [panelId]: { pattern: "", useRegex: false, caseSensitive: false } }));
+  };
+
+  const handleFilterChange = (panelId, newFilter) => {
+    setFilter((prev) => ({ ...prev, [panelId]: newFilter }));
+  };
+
+  const filteredItems = useMemo(() => {
+    const getFiltered = (panelId) => {
+      const items = panels[panelId].items;
+      const currentFilter = filter[panelId];
+      if (!currentFilter.pattern) {
+        return items;
+      }
+      const flags = currentFilter.caseSensitive ? "" : "i";
+      const regex = currentFilter.useRegex ? new RegExp(currentFilter.pattern, flags) : new RegExp(currentFilter.pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
+      return items.filter(item => item.name === ".." || regex.test(item.name));
+    };
+    return {
+      left: getFiltered("left"),
+      right: getFiltered("right"),
+    };
+  }, [panels, filter]);
 
   // --- HOOK INITIALIZATION (Order is Important!) ---
 
@@ -48,6 +84,11 @@ export default function appState() {
     updateItemInPanel: panelOps.updateItemInPanel,
     wsRef,
   });
+
+  const {
+    isCalculatingSize,
+    ...sizeCalculationHandlers
+  } = sizeCalculation;
 
   // 2. Hooks that depend on the hooks above
   const contextMenu = useContextMenu({
@@ -102,27 +143,27 @@ export default function appState() {
   });
 
   const handleSelectAll = useCallback(() => {
-    const panelItems = panels[activePanel]?.items;
-    if (!panelItems) return;
-    const allSelectableItems = panelItems
+    const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel]?.items;
+    if (!items) return;
+    const allSelectableItems = items
       .filter((item) => item.name !== "..")
       .map((item) => item.name);
     setSelections((prev) => ({
       ...prev,
       [activePanel]: new Set(allSelectableItems),
     }));
-  }, [activePanel, panels, setSelections]);
+  }, [activePanel, panels, filter, filteredItems, setSelections]);
 
   const handleUnselectAll = useCallback(() => {
     setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
   }, [activePanel, setSelections]);
 
   const handleInvertSelection = useCallback(() => {
-    const panelItems = panels[activePanel]?.items;
-    if (!panelItems) return;
+    const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel]?.items;
+    if (!items) return;
 
     const currentSelection = selections[activePanel];
-    const allSelectableItems = panelItems
+    const allSelectableItems = items
       .filter((item) => item.name !== "..")
       .map((item) => item.name);
 
@@ -131,7 +172,7 @@ export default function appState() {
     );
 
     setSelections((prev) => ({ ...prev, [activePanel]: newSelection }));
-  }, [activePanel, panels, selections, setSelections]);
+  }, [activePanel, panels, filter, filteredItems, selections, setSelections]);
 
   const handleStartQuickSelect = () => {
     modals.setQuickSelectModal({ isVisible: true, mode: "select" });
@@ -147,14 +188,14 @@ export default function appState() {
     caseSensitive,
     resetSelection
   ) => {
-    const panelItems = panels[activePanel]?.items;
-    if (!panelItems) return;
+    const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel]?.items;
+    if (!items) return;
 
     const currentSelection = resetSelection ? new Set() : new Set(selections[activePanel]);
     const flags = caseSensitive ? "" : "i";
     const regex = useRegex ? new RegExp(pattern, flags) : new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
 
-    panelItems.forEach((item) => {
+    items.forEach((item) => {
       if (item.name === "..") return;
       if (regex.test(item.name)) {
         if (modals.quickSelectModal.mode === "select") {
@@ -357,6 +398,7 @@ export default function appState() {
     previewModal: modals.previewModal,
     setPreviewModal: modals.setPreviewModal,
     copyProgress: copy.copyProgress,
+    overwritePrompt: copy.overwritePrompt,
     handleCancelCopy: copy.handleCancelCopy,
     folderBrowserModal: modals.folderBrowserModal,
     setFolderBrowserModal: modals.setFolderBrowserModal,
@@ -389,6 +431,10 @@ export default function appState() {
     quickSelectModal: modals.quickSelectModal,
     setQuickSelectModal: modals.setQuickSelectModal,
     handleQuickSelectConfirm,
+    handleStartFilter,
+    filterPanelId,
+    handleCloseFilter,
+    handleSelectAll,
   });
 
   return {
@@ -422,7 +468,7 @@ export default function appState() {
     ...copy,
     ...del,
     ...contextMenu,
-    ...sizeCalculation,
+    ...sizeCalculationHandlers,
     ...panelOps,
     // Connector Handlers
     openFolderBrowserForPanel,
@@ -434,6 +480,13 @@ export default function appState() {
     handleStartQuickSelect,
     handleStartQuickUnselect,
     handleQuickSelectConfirm,
+    filter,
+    isFiltering,
+    filterPanelId,
+    handleStartFilter,
+    handleCloseFilter,
+    handleFilterChange,
+    filteredItems,
     // UI Composition
     actionBarButtons,
   };

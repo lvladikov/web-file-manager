@@ -107,7 +107,7 @@ const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
             </div>
           </div>
           <div className="bg-gray-900 border border-gray-700 rounded-md p-3 mt-4 text-sm text-gray-300 space-y-2">
-            <p>The pattern is matched against folder names, filenames, and extensions.</p>
+            <p>The pattern is matched against folder names, filenames, and extensions. Use * as a wildcard (e.g., *.jpg).</p>
             <p><span className="font-semibold text-sky-300">Reset current selection:</span> If checked, any existing selection will be cleared before the new selection is applied, otherwise it will {addOrRemoveText} the current selection.</p>
             <p><span className="font-semibold text-sky-300">Use Regular Expressions:</span> If checked, the pattern will be treated as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">JavaScript regular expression</a>.</p>
             <p><span className="font-semibold text-sky-300">Case Sensitive:</span> If checked, the pattern matching will be case-sensitive.</p>

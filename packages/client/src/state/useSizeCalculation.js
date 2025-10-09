@@ -154,6 +154,7 @@ export default function useSizeCalculation({
   return {
     sizeCalcModal,
     setSizeCalcModal,
+    isCalculatingSize: sizeCalcModal.isVisible,
     handleStartSizeCalculation,
     calculateSizeForMultipleFolders,
   };

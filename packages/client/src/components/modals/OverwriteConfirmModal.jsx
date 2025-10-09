@@ -108,6 +108,7 @@ const OverwriteConfirmModal = ({
               </h4>
             )}
             <button
+              id="overwrite-yes-button"
               onClick={() => onDecision("overwrite")}
               className={`${baseButtonClasses} bg-green-600 hover:bg-green-700 text-white font-bold`}
               title={
@@ -119,6 +120,7 @@ const OverwriteConfirmModal = ({
               {isFolder ? "Yes and Check Inside" : "Yes"}
             </button>
             <button
+              id="overwrite-no-button"
               onClick={() => onDecision("skip")}
               className={`${baseButtonClasses} bg-red-600 hover:bg-red-700 text-white font-bold`}
               title={
@@ -141,6 +143,7 @@ const OverwriteConfirmModal = ({
                 {conditionalButtons.map(
                   ({ label, decision, title, colorClass }) => (
                     <button
+                      id={`overwrite-${decision}-button`}
                       key={decision}
                       onClick={() => onDecision(decision)}
                       className={`${baseButtonClasses} ${
@@ -160,6 +163,7 @@ const OverwriteConfirmModal = ({
         {/* --- Cancel Button --- */}
         <div className="mt-6 border-t border-gray-700 pt-4 flex justify-end">
           <button
+            id="overwrite-cancel-button"
             onClick={onCancel}
             className={`${baseButtonClasses} bg-gray-600 hover:bg-gray-500 text-white`}
           >

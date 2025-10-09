@@ -13,6 +13,7 @@ const EmptyAreaContextMenu = ({
   onInvertSelection,
   onQuickSelect,
   onQuickUnselect,
+  onQuickFilter,
 }) => {
   const menuRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState("none");
@@ -105,6 +106,17 @@ const EmptyAreaContextMenu = ({
         >
           <span>Quick Unselect</span>
           <span className="text-gray-400">-</span>
+        </li>
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+        <li
+          onClick={(e) => {
+            e.stopPropagation();
+            onQuickFilter();
+          }}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Quick Filter</span>
+          <span className="text-gray-400">.</span>
         </li>
         <div className="border-t border-gray-600 mx-2 my-1"></div>
         <li

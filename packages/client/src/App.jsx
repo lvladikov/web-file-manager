@@ -109,6 +109,13 @@ export default function App() {
     handleStartQuickSelect,
     handleStartQuickUnselect,
     handleQuickSelectConfirm,
+    filter,
+    isFiltering,
+    filterPanelId,
+    handleStartFilter,
+    handleCloseFilter,
+    handleFilterChange,
+    filteredItems,
 
     // Derived State
     activePath,
@@ -132,9 +139,10 @@ export default function App() {
             const destPanelId = sourcePanelId === "left" ? "right" : "left";
             const sourcePath = panels[sourcePanelId].path;
             const destinationPath = panels[destPanelId].path;
-            const sources = [...selections[activePanel]].map((name) =>
-              buildFullPath(sourcePath, name)
-            );
+            const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel].items;
+            const sources = items
+              .filter((item) => selections[activePanel].has(item.name))
+              .map((item) => buildFullPath(sourcePath, item.name));
             performCopy(sources, destinationPath);
           }}
           onRename={() => {
@@ -146,8 +154,8 @@ export default function App() {
             }
           }}
           onDelete={() => {
-            const panelItems = panels[activePanel].items;
-            const itemsToDelete = panelItems.filter((item) =>
+            const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel].items;
+            const itemsToDelete = items.filter((item) =>
               selections[activePanel].has(item.name)
             );
             handleDeleteItem(itemsToDelete);
@@ -186,6 +194,7 @@ export default function App() {
           onInvertSelection={handleInvertSelection}
           onQuickSelect={handleStartQuickSelect}
           onQuickUnselect={handleStartQuickUnselect}
+          onQuickFilter={handleStartFilter}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -334,6 +343,10 @@ export default function App() {
             handleStartQuickUnselect();
             closeContextMenus();
           }}
+          onQuickFilter={() => {
+            handleStartFilter();
+            closeContextMenus();
+          }}
           onCalculateSize={async () => {
             const foldersToCalc = contextMenu.targetItems.filter(
               (i) => i.type === "folder"
@@ -413,6 +426,10 @@ export default function App() {
             handleStartQuickUnselect();
             closeContextMenus();
           }}
+          onQuickFilter={() => {
+            handleStartFilter();
+            closeContextMenus();
+          }}
           onClose={closeContextMenus}
         />
       )}
@@ -482,6 +499,12 @@ export default function App() {
             favourites={favourites}
             columnWidths={columnWidths[panelId]}
             setColumnWidths={setColumnWidths}
+            filter={filter[panelId]}
+            isFiltering={isFiltering[panelId]}
+            filterPanelId={filterPanelId}
+            onFilterChange={handleFilterChange}
+            onCloseFilter={handleCloseFilter}
+            filteredItems={filteredItems[panelId]}
           />
         ))}
       </main>

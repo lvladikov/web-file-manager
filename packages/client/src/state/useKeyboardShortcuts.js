@@ -16,6 +16,7 @@ export default function useKeyboardShortcuts(props) {
         previewModal,
         setPreviewModal,
         copyProgress,
+        overwritePrompt,
         handleCancelCopy,
         folderBrowserModal,
         setFolderBrowserModal,
@@ -45,10 +46,48 @@ export default function useKeyboardShortcuts(props) {
         handleInvertSelection,
         handleStartQuickSelect,
         handleStartQuickUnselect,
-        quickSelectModal,
-        setQuickSelectModal,
-        handleQuickSelectConfirm,
+        handleStartFilter,
+        filterPanelId,
+        handleCloseFilter,
+        handleSelectAll,
       } = latestProps.current;
+
+      if (overwritePrompt.isVisible) {
+        e.stopPropagation();
+        const yesButton = document.getElementById("overwrite-yes-button");
+        const noButton = document.getElementById("overwrite-no-button");
+        const overwriteAllButton = document.getElementById("overwrite-overwrite_all-button");
+        const ifNewerButton = document.getElementById("overwrite-if_newer-button");
+        const skipAllButton = document.getElementById("overwrite-skip_all-button");
+        const noZeroLengthButton = document.getElementById("overwrite-no_zero_length-button");
+        const sizeDiffersButton = document.getElementById("overwrite-size_differs-button");
+        const smallerOnlyButton = document.getElementById("overwrite-smaller_only-button");
+        const cancelButton = document.getElementById("overwrite-cancel-button");
+
+        const focusableElements = [
+          yesButton,
+          noButton,
+          overwriteAllButton,
+          ifNewerButton,
+          skipAllButton,
+          noZeroLengthButton,
+          sizeDiffersButton,
+          smallerOnlyButton,
+          cancelButton,
+        ].filter(Boolean);
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          handleCancelCopy();
+        }
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const currentIndex = focusableElements.indexOf(document.activeElement);
+          const nextIndex = e.shiftKey ? (currentIndex - 1 + focusableElements.length) % focusableElements.length : (currentIndex + 1) % focusableElements.length;
+          focusableElements[nextIndex]?.focus();
+        }
+        return;
+      }
 
       if (deleteModalVisible) {
         e.stopPropagation();
@@ -61,7 +100,8 @@ export default function useKeyboardShortcuts(props) {
           e.preventDefault();
           if (document.activeElement === deleteButton) {
             confirmDeletion();
-          } else {
+          }
+          else {
             handleCancelDelete();
           }
         } else if (e.key === "Tab") {
@@ -69,9 +109,10 @@ export default function useKeyboardShortcuts(props) {
           if (e.shiftKey) {
             if (document.activeElement === deleteButton) cancelButton?.focus();
             else deleteButton?.focus();
-          } else {
+          }
+          else {
             if (document.activeElement === cancelButton) deleteButton?.focus();
-            else cancelButton?.focus();
+            else deleteButton?.focus();
           }
         }
         return;
@@ -110,6 +151,46 @@ export default function useKeyboardShortcuts(props) {
         return;
       }
 
+      if (filterPanelId) {
+        const filterInput = document.getElementById("filter-input");
+        if (e.key === "." && document.activeElement !== filterInput) {
+          e.preventDefault();
+          filterInput.focus();
+          return;
+        }
+
+        const isModKey = isMac ? e.metaKey : e.ctrlKey;
+        const isSelectAll = isModKey && e.key === "a";
+        const isUnselectAll = isModKey && e.key === "d";
+        const isInvertSelection = e.key === "*";
+        const isQuickSelect = e.key === "+";
+        const isQuickUnselect = e.key === "-";
+        const allowedFKeys = ["F5", "F6", "F8"]; // F2 might be allowed in the future for multi-rename
+
+        if (isSelectAll || isUnselectAll || isInvertSelection || isQuickSelect || isQuickUnselect || allowedFKeys.includes(e.key)) {
+          // Allow event to propagate for these specific shortcuts
+        } else {
+          e.stopPropagation();
+          const regexButton = document.getElementById("filter-regex-button");
+          const caseButton = document.getElementById("filter-case-button");
+          const closeButton = document.getElementById("filter-close-button");
+
+          const focusableElements = [filterInput, regexButton, caseButton, closeButton];
+
+          if (e.key === "Escape") {
+            e.preventDefault();
+            handleCloseFilter(filterPanelId);
+          }
+          if (e.key === "Tab") {
+            e.preventDefault();
+            const currentIndex = focusableElements.indexOf(document.activeElement);
+            const nextIndex = e.shiftKey ? (currentIndex - 1 + focusableElements.length) % focusableElements.length : (currentIndex + 1) % focusableElements.length;
+            focusableElements[nextIndex]?.focus();
+          }
+          return;
+        }
+      }
+
       if (previewModal.isVisible) {
         const isNavKey = [
           "ArrowUp",
@@ -134,7 +215,8 @@ export default function useKeyboardShortcuts(props) {
           handleCancelCopy();
         }
         return;
-      } else if (
+      }
+      else if (
         folderBrowserModal.isVisible ||
         appBrowserModal.isVisible ||
         sizeCalcModal.isVisible ||
@@ -165,15 +247,7 @@ export default function useKeyboardShortcuts(props) {
       const isModKey = isMac ? e.metaKey : e.ctrlKey;
       if (isModKey && e.key === "a") {
         e.preventDefault();
-        const panelItems = panels[activePanel]?.items;
-        if (!panelItems) return;
-        const allSelectableItems = panelItems
-          .filter((item) => item.name !== "..")
-          .map((item) => item.name);
-        setSelections((prev) => ({
-          ...prev,
-          [activePanel]: new Set(allSelectableItems),
-        }));
+        handleSelectAll();
         return;
       }
       if (isModKey && e.key === "d") {
@@ -194,6 +268,11 @@ export default function useKeyboardShortcuts(props) {
       if (e.key === "-") {
         e.preventDefault();
         handleStartQuickUnselect();
+        return;
+      }
+      if (e.key === ".") {
+        e.preventDefault();
+        latestProps.current.handleStartFilter();
         return;
       }
       if (e.key === "Tab") {

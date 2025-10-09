@@ -32,6 +32,7 @@ const AppMenu = ({
   onInvertSelection,
   onQuickSelect,
   onQuickUnselect,
+  onQuickFilter,
   activePanelSelections,
   panels,
   activePanel,
@@ -233,6 +234,12 @@ const AppMenu = ({
                 label="Quick Unselect"
                 shortcut="-"
                 onClick={() => handleItemClick(onQuickUnselect)}
+              />
+              <Separator />
+              <MenuItem
+                label="Quick Filter"
+                shortcut="."
+                onClick={() => handleItemClick(onQuickFilter)}
               />
             </ul>
           </div>
