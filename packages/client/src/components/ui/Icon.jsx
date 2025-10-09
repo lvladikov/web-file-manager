@@ -8,8 +8,8 @@ import {
   FileAudio,
 } from "lucide-react";
 
-const Icon = ({ type }) => {
-  const base = "w-5 h-5 flex-shrink-0";
+const Icon = ({ type, className }) => {
+  const base = `w-5 h-5 flex-shrink-0 ${className || ""}`;
   const icons = {
     folder: <Folder className={`${base} text-sky-500`} />,
     parent: (

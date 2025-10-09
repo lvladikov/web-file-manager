@@ -2,6 +2,7 @@ import React from "react";
 import { XCircle } from "lucide-react";
 
 import { isMac } from "../../lib/utils";
+import Icon from "../ui/Icon";
 
 import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
 import SvgBreadcrumbsExample from "../help-diagrams/SvgBreadcrumbsExample";
@@ -9,6 +10,9 @@ import SvgContextMenuExample from "../help-diagrams/SvgContextMenuExample";
 import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
 import SvgDualPanelExample from "../help-diagrams/SvgDualPanelExample";
 import SvgFileListExample from "../help-diagrams/SvgFileListExample";
+import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
+import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
+import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
 
 const HelpSection = ({ title, children }) => (
   <section className="mb-8">
@@ -62,9 +66,11 @@ const HelpModal = ({ isVisible, onClose }) => {
               (...), ensuring you can still see the beginning and end of the
               name.
             </p>
-            <p>
-              Icons next to each name help identify the type: 📁 for folders, 📄
-              for text files, 🖼️ for images, etc.
+            <p className="inline-flex items-center align-middle">
+              Icons next to each name help identify the type:
+              <span className="inline-flex items-center align-middle mx-1"><Icon type="folder" className="mr-1" /> for folders,</span>
+              <span className="inline-flex items-center align-middle mx-1"><Icon type="file" className="mr-1" /> for text files,</span>
+              <span className="inline-flex items-center align-middle mx-1"><Icon type="image" className="mr-1" /> for images,</span> etc.
             </p>
           </HelpSection>
 
@@ -101,10 +107,40 @@ const HelpModal = ({ isVisible, onClose }) => {
                     Press <kbd>{isMac ? "Cmd" : "Ctrl"} + A</kbd> to select all
                     items.
                   </li>
+                  <li>
+                    Press <kbd>{isMac ? "Cmd" : "Ctrl"} + D</kbd> to unselect all
+                    items.
+                  </li>
+                  <li>
+                    Press <kbd>*</kbd> to invert the current selection.
+                  </li>
                 </ul>
               </li>
             </ul>
             <SvgFileListExample />
+          </HelpSection>
+
+          <HelpSection title="Quick Select / Unselect & Quick Filter">
+            <p>
+              The application provides powerful tools for quickly selecting,
+              unselecting, or filtering items based on a pattern.
+            </p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>Quick Select (<kbd>+</kbd>):</strong> Opens a dialog to
+                select files and folders that match a specific pattern. You can
+                use wildcards (*) or regular expressions.
+              </li>
+              <li>
+                <strong>Quick Unselect (<kbd>-</kbd>):</strong> Opens a dialog to
+                unselect items based on a pattern.
+              </li>
+              <li>
+                <strong>Quick Filter (<kbd>.</kbd>):</strong> Opens an input at the
+                bottom of the panel to filter the visible items in real-time.
+                This is useful for quickly finding items in large directories. File operations like Copy and Delete will only apply to the filtered items.
+              </li>
+            </ul>
           </HelpSection>
 
           <HelpSection title="Previewing Files">
@@ -160,6 +196,17 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgContextMenuExample />
           </HelpSection>
 
+          <HelpSection title="Calculate Folder Size & Progress">
+            <p>
+              You can calculate the size of a folder (including all its subfolders and files)
+              by selecting it and choosing "Calculate Size" from the context menu,
+              or by focusing on a folder and pressing <kbd>Spacebar</kbd>. This will open a progress modal
+              titled "Calculating Folder Size..." that shows the current file being processed and the "Size so far".
+              You can cancel the operation at any time.
+            </p>
+            <SvgCalculateSizeExample />
+          </HelpSection>
+
           <HelpSection title="Path Bar & Breadcrumbs">
             <p>
               At the top of each panel, the current directory path is displayed.
@@ -173,6 +220,37 @@ const HelpModal = ({ isVisible, onClose }) => {
               folder..." which opens a folder selection dialog.
             </p>
             <SvgBreadcrumbsExample />
+          </HelpSection>
+
+          <HelpSection title="Favourites">
+            <p>
+              The star icon next to the path bar allows you to manage your favourite paths.
+              Clicking it opens a dropdown where you can add the current path to your favourites,
+              or select a previously saved favourite path to navigate to it instantly.
+              Favourites are remembered across sessions.
+            </p>
+            <SvgFavouritesExample />
+          </HelpSection>
+
+          <HelpSection title="Top Menus">
+            <p>
+              At the very top-left of the application, you'll find two dropdown menus:
+              "File" and "Select". These menus provide access to a comprehensive set of
+              file management and selection tools.
+            </p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>File Menu:</strong> Contains actions related to file operations
+                such as Copy, Move, Rename, Delete, Calculate Size, and Refresh.
+                Many of these actions have corresponding function key shortcuts.
+              </li>
+              <li>
+                <strong>Select Menu:</strong> Offers various ways to manage selections,
+                including Select All, Unselect All, Invert Selection, Quick Select,
+                Quick Unselect, and Quick Filter.
+              </li>
+            </ul>
+            <SvgTopMenusExample />
           </HelpSection>
 
           <HelpSection title="Function Key Actions">
