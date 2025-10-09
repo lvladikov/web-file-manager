@@ -1,3 +1,5 @@
+import { isMac } from "../../lib/utils.js";
+
 const ContextMenu = ({
   x,
   y,
@@ -52,6 +54,8 @@ const ContextMenu = ({
   // Placeholder functions for future features
   const onPlaceholder = () => alert("This feature will be implemented soon!");
 
+  const metaKey = isMac ? "CMD" : "Ctrl";
+
   return (
     <div
       style={{ top: y, left: x }}
@@ -94,13 +98,13 @@ const ContextMenu = ({
           onClick={onPlaceholder}
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer text-gray-400"
         >
-          Copy (to clipboard)
+          Copy to clipboard ({metaKey}+C)
         </li>
         <li
           onClick={onPlaceholder}
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer text-gray-400"
         >
-          Cut (to clipboard)
+          Move (Cut) to clipboard ({metaKey}+X)
         </li>
         <li
           onClick={onPlaceholder}
@@ -159,7 +163,7 @@ const ContextMenu = ({
           onClick={onRefreshPanel}
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
         >
-          Refresh this panel
+          Refresh active panel
         </li>
         <li
           onClick={onRefreshBothPanels}

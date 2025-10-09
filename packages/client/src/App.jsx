@@ -1,5 +1,3 @@
-import { Star } from "lucide-react";
-
 import {
   buildFullPath,
   isItemPreviewable,
@@ -11,7 +9,7 @@ import appState from "./state";
 
 // Components
 import ActionBar from "./components/ui/ActionBar";
-import FavouritesDropdown from "./components/ui/FavouritesDropdown";
+import AppMenu from "./components/ui/AppMenu";
 import ContextMenu from "./components/context-menus/ContextMenu";
 import EmptyAreaContextMenu from "./components/context-menus/EmptyAreaContextMenu";
 import PathContextMenu from "./components/context-menus/PathContextMenu";
@@ -44,7 +42,6 @@ export default function App() {
     copyProgress,
     editingPath,
     favourites,
-    showFavourites,
     previewModal,
     sizeCalcModal,
     deleteModalVisible,
@@ -67,7 +64,6 @@ export default function App() {
     setError,
     setAppBrowserModal,
     setFolderBrowserModal,
-    setShowFavourites,
     setPreviewModal,
     setSizeCalcModal,
     setColumnWidths,
@@ -101,10 +97,13 @@ export default function App() {
     handleToggleAutoLoadLyrics,
     handleOverwriteDecision,
     handleStartSizeCalculation,
+    calculateSizeForMultipleFolders,
     handleRefreshPanel,
     handleRefreshAllPanels,
     setEditingPath,
     setRenamingItem,
+    handleSelectAll,
+    handleUnselectAll,
 
     // Derived State
     activePath,
@@ -116,25 +115,68 @@ export default function App() {
       className="flex flex-col h-screen bg-gray-900 text-white"
       onContextMenu={(e) => e.preventDefault()}
     >
-      <header className="bg-gray-800 p-2 flex justify-end items-center relative">
-        <button
-          onClick={() => setShowFavourites((s) => !s)}
-          title="Show Favourites"
-          className="p-2 rounded-md hover:bg-gray-700"
-        >
-          <Star className="w-5 h-5 text-yellow-400" />
-        </button>
-        {showFavourites && (
-          <FavouritesDropdown
-            favourites={favourites}
-            onSelect={(path) => {
-              handleNavigate(activePanel, path, "");
-              setShowFavourites(false);
-            }}
-            onRemove={handleToggleFavourite}
-            onClose={() => setShowFavourites(false)}
-          />
-        )}
+      <header className="bg-gray-800 p-2 flex justify-start items-center relative">
+        <AppMenu
+          activePanel={activePanel}
+          panels={panels}
+          activePanelSelections={selections[activePanel]}
+          onCopyToOtherPanel={() => {
+            const sourcePanelId = activePanel;
+            const destPanelId = sourcePanelId === "left" ? "right" : "left";
+            const sourcePath = panels[sourcePanelId].path;
+            const destinationPath = panels[destPanelId].path;
+            const sources = [...selections[activePanel]].map((name) =>
+              buildFullPath(sourcePath, name)
+            );
+            performCopy(sources, destinationPath);
+          }}
+          onRename={() => {
+            if (selections[activePanel].size === 1) {
+              const name = [...selections[activePanel]][0];
+              if (name !== "..") {
+                handleStartRename(activePanel, name);
+              }
+            }
+          }}
+          onDelete={() => {
+            const panelItems = panels[activePanel].items;
+            const itemsToDelete = panelItems.filter((item) =>
+              selections[activePanel].has(item.name)
+            );
+            handleDeleteItem(itemsToDelete);
+          }}
+          onCalculateSize={() => {
+            const panelItems = panels[activePanel].items;
+            const foldersToCalc = panelItems.filter(
+              (item) =>
+                selections[activePanel].has(item.name) && item.type === "folder"
+            );
+            if (foldersToCalc.length > 0) {
+              calculateSizeForMultipleFolders(foldersToCalc, activePanel);
+            }
+          }}
+          onSetOtherPanelPath={() => {
+            if (selections[activePanel].size === 1) {
+              const itemName = [...selections[activePanel]][0];
+              const itemToNavigate = panels[activePanel].items.find(
+                (i) => i.name === itemName
+              );
+
+              if (itemToNavigate && itemToNavigate.type === "folder") {
+                const otherPanelId = activePanel === "left" ? "right" : "left";
+                const newPath = buildFullPath(
+                  panels[activePanel].path,
+                  itemToNavigate.name
+                );
+                handleNavigate(otherPanelId, newPath, "");
+              }
+            }
+          }}
+          onRefreshPanel={() => handleRefreshPanel(activePanel)}
+          onRefreshBothPanels={handleRefreshAllPanels}
+          onSelectAll={handleSelectAll}
+          onUnselectAll={handleUnselectAll}
+        />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
       <FolderBrowserModal
@@ -381,6 +423,7 @@ export default function App() {
             }
             isFavourite={favourites.includes(panels[panelId].path)}
             onToggleFavourite={handleToggleFavourite}
+            favourites={favourites}
             columnWidths={columnWidths[panelId]}
             setColumnWidths={setColumnWidths}
           />

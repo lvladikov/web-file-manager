@@ -13,7 +13,6 @@ import {
 export default function useSettings({ setError }) {
   // --- Settings State ---
   const [favourites, setFavourites] = useState([]);
-  const [showFavourites, setShowFavourites] = useState(false);
   const [columnWidths, setColumnWidths] = useState({
     left: { size: 96, modified: 160 },
     right: { size: 96, modified: 160 },
@@ -88,13 +87,11 @@ export default function useSettings({ setError }) {
 
   return {
     favourites,
-    showFavourites,
     columnWidths,
     autoLoadLyrics,
     settingsLoading,
     initialPaths,
     setFavourites,
-    setShowFavourites,
     setColumnWidths,
     setAutoLoadLyrics,
     handleToggleFavourite,

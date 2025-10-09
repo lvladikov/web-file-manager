@@ -4,7 +4,7 @@ import { HardDrive, LoaderCircle, Star } from "lucide-react";
 import { formatBytes, isMac } from "../../lib/utils";
 
 import Breadcrumbs from "../ui/Breadcrumbs";
-
+import FavouritesDropdown from "../ui/FavouritesDropdown";
 import Resizer from "../ui/Resizer";
 import NewFolderItem from "../panels/NewFolderItem";
 import FileItem from "../panels/FileItem";
@@ -47,6 +47,7 @@ const FilePanel = React.forwardRef(
       onPathInputCancel,
       isFavourite,
       onToggleFavourite,
+      favourites,
       columnWidths,
       setColumnWidths,
     },
@@ -54,6 +55,8 @@ const FilePanel = React.forwardRef(
   ) => {
     const clickTimerRef = useRef(null);
     const scrollContainerRef = useRef(null);
+    const [isFavouritesDropdownOpen, setIsFavouritesDropdownOpen] =
+      useState(false);
 
     useEffect(() => {
       setSelectedItems(new Set());
@@ -303,15 +306,33 @@ const FilePanel = React.forwardRef(
               </div>
             )}
           </div>
-          <Star
-            className={`w-5 h-5 cursor-pointer flex-shrink-0 ${
-              isFavourite
-                ? "text-yellow-400 fill-current"
-                : "text-gray-500 hover:text-yellow-300"
-            }`}
-            onClick={() => onToggleFavourite(panelData.path)}
-            title={isFavourite ? "Remove from Favourites" : "Add to Favourites"}
-          />
+          <div className="relative">
+            <Star
+              className={`w-5 h-5 cursor-pointer flex-shrink-0 ${
+                isFavourite
+                  ? "text-yellow-400 fill-current"
+                  : "text-gray-500 hover:text-yellow-300"
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFavouritesDropdownOpen((prev) => !prev);
+              }}
+              title="Favourites"
+            />
+            {isFavouritesDropdownOpen && (
+              <FavouritesDropdown
+                favourites={favourites}
+                isFavourite={isFavourite}
+                currentPath={panelData.path}
+                onSelect={(path) => {
+                  onNavigateToPath(path);
+                  setIsFavouritesDropdownOpen(false);
+                }}
+                onToggle={onToggleFavourite}
+                onClose={() => setIsFavouritesDropdownOpen(false)}
+              />
+            )}
+          </div>
         </div>
 
         <div

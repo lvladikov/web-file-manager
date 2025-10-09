@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { savePaths, fetchDirectory } from "../lib/api";
 
 import useDelete from "./useDelete";
@@ -56,13 +56,9 @@ export default function appState() {
     setActivePanel,
     setSelections,
     setFocusedItem,
+    setAppBrowserModal: modals.setAppBrowserModal,
     handleNavigate: panelOps.handleNavigate,
     handleOpenFile: panelOps.handleOpenFile,
-    calculateSizeForMultipleFolders:
-      sizeCalculation.calculateSizeForMultipleFolders,
-    setAppBrowserModal: modals.setAppBrowserModal,
-    handleRefreshPanel: panelOps.handleRefreshPanel,
-    handleRefreshAllPanels: panelOps.handleRefreshAllPanels,
   });
 
   // 3. Feature hooks
@@ -104,6 +100,22 @@ export default function appState() {
     setError,
     panelRefs,
   });
+
+  const handleSelectAll = useCallback(() => {
+    const panelItems = panels[activePanel]?.items;
+    if (!panelItems) return;
+    const allSelectableItems = panelItems
+      .filter((item) => item.name !== "..")
+      .map((item) => item.name);
+    setSelections((prev) => ({
+      ...prev,
+      [activePanel]: new Set(allSelectableItems),
+    }));
+  }, [activePanel, panels, setSelections]);
+
+  const handleUnselectAll = useCallback(() => {
+    setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
+  }, [activePanel, setSelections]);
 
   useEffect(() => {
     if (settings.settingsLoading) return;
@@ -358,6 +370,8 @@ export default function appState() {
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,
     handlePathInputSubmit,
+    handleSelectAll,
+    handleUnselectAll,
     // UI Composition
     actionBarButtons,
   };
