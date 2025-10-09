@@ -13,6 +13,7 @@ import SvgFileListExample from "../help-diagrams/SvgFileListExample";
 import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
 import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
 import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
+import SvgPanelStatusExample from "../help-diagrams/SvgPanelStatusExample";
 
 const HelpSection = ({ title, children }) => (
   <section className="mb-8">
@@ -72,6 +73,21 @@ const HelpModal = ({ isVisible, onClose }) => {
               <span className="inline-flex items-center align-middle mx-1"><Icon type="file" className="mr-1" /> for text files,</span>
               <span className="inline-flex items-center align-middle mx-1"><Icon type="image" className="mr-1" /> for images,</span> etc.
             </p>
+          </HelpSection>
+
+          <HelpSection title="Panel Information">
+            <p>
+              At the bottom of each panel, you'll find useful information about the current directory and selected items:
+            </p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>Free/Used Space:</strong> On the right side, the total disk space and available free space for the current drive/partition are displayed. This gives you a quick overview of storage utilization.
+              </li>
+              <li>
+                <strong>Selected Items Summary:</strong> On the left side, a summary of your current selection is shown, including the total number of items selected. Hovering over this text will reveal a tooltip with a detailed breakdown of selected files and folders, and their combined size. If folders are selected, the tooltip will also provide a hint on how to calculate their full contents' size.
+              </li>
+            </ul>
+            <SvgPanelStatusExample />
           </HelpSection>
 
           <HelpSection title="Navigation & Selection">
@@ -203,6 +219,11 @@ const HelpModal = ({ isVisible, onClose }) => {
               or by focusing on a folder and pressing <kbd>Spacebar</kbd>. This will open a progress modal
               titled "Calculating Folder Size..." that shows the current file being processed and the "Size so far".
               You can cancel the operation at any time.
+            </p>
+            <p>
+              During any long-running operation (like calculating folder size or copying files), a progress dialog will appear.
+              If you need to see the panels behind the dialog, you can click and hold on the animated icon (e.g., spinning circle or pulsing search icon) in the dialog's header.
+              This will make the dialog semi-transparent (20% opacity). Releasing the mouse button will restore its full visibility.
             </p>
             <SvgCalculateSizeExample />
           </HelpSection>

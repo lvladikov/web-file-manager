@@ -62,6 +62,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 -   **File & Folder Listing**: Each panel lists files and folders. Long names are dynamically truncated. Icons next to each name (folder icon for folders, text file icon for text files, image icon for images, etc.) help identify the type.
 
+-   **Panel Information**: At the bottom of each panel, useful information is displayed. This includes the total disk space and available free space for the current drive/partition, and a summary of selected items. Hovering over the selected items text reveals a tooltip with a detailed breakdown of selected files and folders, their combined size, and a hint on how to calculate full folder sizes if applicable.
+
 
 
 -   **Navigation & Selection**: Navigate using mouse (double-click to enter folder/open file) or keyboard (ArrowUp/Down, Enter, Backspace, Home, End, PageUp/Down).
@@ -90,7 +92,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 
 
--   **Calculate Folder Size & Progress**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing Spacebar on a focused folder. A progress modal shows the current file being processed and the "Size so far".
+-   **Calculate Folder Size & Progress**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing Spacebar on a focused folder. A progress modal shows the current file being processed and the "Size so far". During any long-running operation, you can click and hold on the animated icon in the dialog's header to make the dialog semi-transparent (20% opacity), allowing you to see the panels behind. Releasing the mouse button restores full visibility.
 
 
 

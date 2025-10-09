@@ -470,27 +470,38 @@ const FilePanel = React.forwardRef(
         <div className="text-sm pt-2 border-t border-gray-600 mt-1 flex justify-between items-center">
           <p title={tooltipText}>
             {selectedItems.size} / {panelData.items.length} items selected
-            {selectedItems.size > 0 && ` (${formatBytes(selectedItemsTotalSize, false)})`}
+            {selectedItems.size > 0 && (
+              <>
+                {' ('}
+                <span className="text-sky-400">{formatBytes(selectedItemsTotalSize, false)}</span>
+                {')'}
+              </>
+            )}
           </p>
-          {diskSpace && (
-            <p
-              className="text-gray-400"
-              title={`${formatBytes(
-                diskSpace.free,
-                true
-              )} free out of ${formatBytes(diskSpace.size, true)} total | (${(
-                (diskSpace.free / diskSpace.size) *
-                100
-              ).toFixed(1)}% free / ${(
-                ((diskSpace.size - diskSpace.free) / diskSpace.size) *
-                100
-              ).toFixed(1)}% used)`}
-            >
-              {formatBytes(diskSpace.free, false)}/
-              {formatBytes(diskSpace.size, false)} (
-              {((diskSpace.free / diskSpace.size) * 100).toFixed(1)}%)
-            </p>
-          )}
+          {diskSpace && (() => {
+            const freePercentage = ((diskSpace.free / diskSpace.size) * 100);
+            let percentageColorClass = 'text-gray-300';
+            if (freePercentage > 25) {
+              percentageColorClass = 'text-green-400';
+            } else if (freePercentage >= 10 && freePercentage <= 25) {
+              percentageColorClass = 'text-yellow-400';
+            } else {
+              percentageColorClass = 'text-red-400';
+            }
+            return (
+              <p
+                className="text-gray-400"
+                title={`${formatBytes(
+                  diskSpace.free,
+                  true
+                )} free out of ${formatBytes(diskSpace.size, true)} total | (${freePercentage.toFixed(1)}% free / ${((diskSpace.size - diskSpace.free) / diskSpace.size * 100).toFixed(1)}% used)`}
+              >
+                <span className="text-sky-400">{formatBytes(diskSpace.free, false)}</span>/
+                <span className="text-sky-400">{formatBytes(diskSpace.size, false)}</span> (
+                <span className={percentageColorClass}>{freePercentage.toFixed(1)}%</span>)
+              </p>
+            );
+          })()}
         </div>
       </div>
     );
