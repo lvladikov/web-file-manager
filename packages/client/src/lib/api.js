@@ -141,29 +141,29 @@ const cancelSizeCalculation = async (jobId) => {
   });
 };
 
-const fetchFavorites = async () => {
-  const response = await fetch("/api/favorites");
-  if (!response.ok) throw new Error("Could not fetch favorites.");
+const fetchFavourites = async () => {
+  const response = await fetch("/api/favourites");
+  if (!response.ok) throw new Error("Could not fetch favourites.");
   return response.json();
 };
 
-const addFavorite = async (path) => {
-  const response = await fetch("/api/favorites", {
+const addFavourite = async (path) => {
+  const response = await fetch("/api/favourites", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path }),
   });
-  if (!response.ok) throw new Error("Could not add favorite.");
+  if (!response.ok) throw new Error("Could not add favourite.");
   return response.json();
 };
 
-const removeFavorite = async (path) => {
-  const response = await fetch("/api/favorites", {
+const removeFavourite = async (path) => {
+  const response = await fetch("/api/favourites", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path }),
   });
-  if (!response.ok) throw new Error("Could not remove favorite.");
+  if (!response.ok) throw new Error("Could not remove favourite.");
   return response.json();
 };
 
@@ -222,9 +222,9 @@ export {
   cancelCopy,
   startSizeCalculation,
   cancelSizeCalculation,
-  fetchFavorites,
-  addFavorite,
-  removeFavorite,
+  fetchFavourites,
+  addFavourite,
+  removeFavourite,
   fetchPaths,
   savePaths,
   fetchLayout,

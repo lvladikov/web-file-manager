@@ -1,3 +1,5 @@
+import { startSizeCalculation } from "./api";
+
 const buildFullPath = (basePath, fileName) =>
   `${basePath}${
     basePath.endsWith("\\") || basePath.endsWith("/")
@@ -96,6 +98,78 @@ const getPrismLanguage = (filename = "") => {
   return langMap[extension] || "plaintext";
 };
 
+const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {
+  // This function returns a promise that will resolve with the final size or reject with an error.
+  return new Promise((resolve, reject) => {
+    let jobWs; // WebSocket instance
+
+    // Using async IIFE to use await inside the promise constructor.
+    (async () => {
+      try {
+        // Step 1: Start the size calculation job on the backend.
+        // Assumes `startSizeCalculation` is an async function that returns { jobId }.
+        const { jobId } = await startSizeCalculation(folder.fullPath);
+
+        // Step 2: Show the progress modal to the user.
+        setSizeCalcModal({
+          isVisible: true,
+          jobId,
+          currentFile: `Starting for ${folder.name}...`,
+          sizeSoFar: 0,
+          folderName: folder.name,
+        });
+
+        // Step 3: Establish the WebSocket connection for real-time updates.
+        const wsProtocol =
+          window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsHost = window.location.host.replace(/:\d+$/, ":3001"); // Assumes WebSocket server is on port 3001
+        jobWs = new WebSocket(
+          `${wsProtocol}//${wsHost}?jobId=${jobId}&type=size`
+        );
+
+        // Store the WebSocket instance in the ref so it can be accessed from outside (e.g., for cancellation).
+        wsRef.current = jobWs;
+
+        // Step 4: Define WebSocket event handlers.
+        jobWs.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          switch (data.type) {
+            case "progress":
+              // Update the modal with the current file being scanned and size so far.
+              setSizeCalcModal((prev) => ({
+                ...prev,
+                currentFile: data.file,
+                sizeSoFar: data.sizeSoFar,
+              }));
+              break;
+            case "complete":
+              // The job is done. Resolve the promise with the final size.
+              resolve(data.size);
+              break;
+            case "cancelled":
+            case "error":
+              // The job failed or was cancelled. Reject the promise.
+              reject(new Error(data.message || "Job was cancelled or failed."));
+              break;
+          }
+        };
+
+        jobWs.onerror = () => {
+          reject(new Error("WebSocket connection error."));
+        };
+
+        jobWs.onclose = () => {
+          // Always hide the modal when the connection closes.
+          setSizeCalcModal({ isVisible: false, jobId: null, currentFile: "" });
+        };
+      } catch (err) {
+        // Catch errors from `startSizeCalculation` or WebSocket constructor.
+        reject(err);
+      }
+    })();
+  });
+};
+
 export {
   buildFullPath,
   formatBytes,
@@ -107,4 +181,5 @@ export {
   isPreviewableAudio,
   isPreviewableText,
   getPrismLanguage,
+  calculateFolderSize,
 };
