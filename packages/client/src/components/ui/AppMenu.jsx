@@ -42,6 +42,19 @@ const AppMenu = ({
     setOpenMenu(openMenu === menu ? null : menu);
   };
 
+  const handleMenuHover = (menu) => {
+    if (openMenu) {
+      setOpenMenu(menu);
+    }
+  };
+
+  const handleItemClick = (action) => {
+    if (action) {
+      action();
+    }
+    setOpenMenu(null);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -82,7 +95,8 @@ const AppMenu = ({
     firstSelectedItemDetails &&
     firstSelectedItemDetails.type === "folder";
 
-  const onPlaceholder = () => alert("This feature will be implemented soon!");
+  const onPlaceholder = () =>
+    console.log("This feature will be implemented soon!");
 
   return (
     <nav
@@ -92,6 +106,7 @@ const AppMenu = ({
       <div className="relative">
         <button
           onClick={() => toggleMenu("file")}
+          onMouseEnter={() => handleMenuHover("file")}
           className={`px-3 py-1 rounded ${
             openMenu === "file" ? "bg-sky-700" : "hover:bg-gray-700"
           }`}
@@ -104,47 +119,55 @@ const AppMenu = ({
               <MenuItem
                 label="Copy to other panel"
                 shortcut="F5"
-                onClick={onCopyToOtherPanel}
+                onClick={() => handleItemClick(onCopyToOtherPanel)}
                 disabled={!canCopyToOtherPanel}
               />
               <MenuItem
                 label="Copy to clipboard"
                 shortcut={`${metaKey}+C`}
-                onClick={onPlaceholder}
+                onClick={() => handleItemClick(onPlaceholder)}
                 disabled
               />
-              <MenuItem label="Copy to ..." onClick={onPlaceholder} disabled />
+              <MenuItem
+                label="Copy to ..."
+                onClick={() => handleItemClick(onPlaceholder)}
+                disabled
+              />
               <Separator />
               <MenuItem
                 label="Move to other panel"
                 shortcut="F6"
-                onClick={onPlaceholder}
+                onClick={() => handleItemClick(onPlaceholder)}
                 disabled
               />
               <MenuItem
                 label="Move (Cut) to clipboard"
                 shortcut={`${metaKey}+X`}
-                onClick={onPlaceholder}
+                onClick={() => handleItemClick(onPlaceholder)}
                 disabled
               />
-              <MenuItem label="Move to ..." onClick={onPlaceholder} disabled />
+              <MenuItem
+                label="Move to ..."
+                onClick={() => handleItemClick(onPlaceholder)}
+                disabled
+              />
               <Separator />
               <MenuItem
                 label="Rename"
                 shortcut="F2"
-                onClick={onRename}
+                onClick={() => handleItemClick(onRename)}
                 disabled={!canRename}
               />
               <MenuItem
                 label="Delete"
                 shortcut="F8"
-                onClick={onDelete}
+                onClick={() => handleItemClick(onDelete)}
                 disabled={!canDelete}
               />
               <Separator />
               <MenuItem
                 label={calculateSizeLabel}
-                onClick={onCalculateSize}
+                onClick={() => handleItemClick(onCalculateSize)}
                 disabled={!canCalculateSize}
               />
               {canSetOtherPanelPath && (
@@ -152,15 +175,18 @@ const AppMenu = ({
                   <Separator />
                   <MenuItem
                     label="Set as other panel's path"
-                    onClick={onSetOtherPanelPath}
+                    onClick={() => handleItemClick(onSetOtherPanelPath)}
                   />
                 </>
               )}
               <Separator />
-              <MenuItem label="Refresh active panel" onClick={onRefreshPanel} />
+              <MenuItem
+                label="Refresh active panel"
+                onClick={() => handleItemClick(onRefreshPanel)}
+              />
               <MenuItem
                 label="Refresh both panels"
-                onClick={onRefreshBothPanels}
+                onClick={() => handleItemClick(onRefreshBothPanels)}
               />
             </ul>
           </div>
@@ -169,6 +195,7 @@ const AppMenu = ({
       <div className="relative">
         <button
           onClick={() => toggleMenu("select")}
+          onMouseEnter={() => handleMenuHover("select")}
           className={`px-3 py-1 rounded ${
             openMenu === "select" ? "bg-sky-700" : "hover:bg-gray-700"
           }`}
@@ -181,30 +208,30 @@ const AppMenu = ({
               <MenuItem
                 label="Select All"
                 shortcut={`${metaKey}+A`}
-                onClick={onSelectAll}
+                onClick={() => handleItemClick(onSelectAll)}
               />
               <MenuItem
                 label="Unselect All"
                 shortcut={`${metaKey}+D`}
-                onClick={onUnselectAll}
+                onClick={() => handleItemClick(onUnselectAll)}
               />
               <MenuItem
                 label="Invert Selection"
                 shortcut="*"
-                onClick={onPlaceholder}
+                onClick={() => handleItemClick(onPlaceholder)}
                 disabled
               />
               <Separator />
               <MenuItem
                 label="Quick Select"
                 shortcut="+"
-                onClick={onPlaceholder}
+                onClick={() => handleItemClick(onPlaceholder)}
                 disabled
               />
               <MenuItem
                 label="Quick Unselect"
                 shortcut="-"
-                onClick={onPlaceholder}
+                onClick={() => handleItemClick(onPlaceholder)}
                 disabled
               />
             </ul>
