@@ -4,13 +4,13 @@ import { buildFullPath } from "../lib/utils";
 export default function useContextMenu({
   selections,
   panels,
+  calculateSizeForMultipleFolders,
   setActivePanel,
   setSelections,
   setFocusedItem,
+  setAppBrowserModal,
   handleNavigate,
   handleOpenFile,
-  setAppBrowserModal,
-  calculateSizeForMultipleFolders,
 }) {
   const [contextMenu, setContextMenu] = useState({
     visible: false,

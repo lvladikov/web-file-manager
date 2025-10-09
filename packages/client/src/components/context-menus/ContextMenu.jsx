@@ -11,6 +11,8 @@ const ContextMenu = ({
   onDelete,
   onCalculateSize,
   onSetOtherPanelPath,
+  onRefreshPanel,
+  onRefreshBothPanels,
 }) => {
   if (!targetItems || targetItems.length === 0) return null;
 
@@ -44,8 +46,8 @@ const ContextMenu = ({
   }`;
   const calculateSizeLabel =
     folderCount > 1
-      ? `Calculate Size of ${folderCount} Folders`
-      : "Calculate Folder Size";
+      ? `Calculate size of ${folderCount} folders`
+      : "Calculate folder size";
 
   // Placeholder functions for future features
   const onPlaceholder = () => alert("This feature will be implemented soon!");
@@ -140,15 +142,32 @@ const ContextMenu = ({
           </li>
           {/* "Set Path" only makes sense for a single selected folder */}
           {count === 1 && firstItem.type === "folder" && (
-            <li
-              onClick={onSetOtherPanelPath}
-              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
-            >
-              Set as other panel's path
-            </li>
+            <>
+              <div className="border-t border-gray-600 mx-2 my-1"></div>
+              <li
+                onClick={onSetOtherPanelPath}
+                className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+              >
+                Set as other panel's path
+              </li>
+            </>
           )}
         </ul>
       )}
+      <ul className="py-1">
+        <li
+          onClick={onRefreshPanel}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+        >
+          Refresh this panel
+        </li>
+        <li
+          onClick={onRefreshBothPanels}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+        >
+          Refresh both panels
+        </li>
+      </ul>
     </div>
   );
 };

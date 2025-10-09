@@ -40,7 +40,7 @@ export default function appState() {
 
   // 1. Independent hooks that provide state and setters
   const settings = useSettings({ setError });
-  const panelOps = usePanelOps({ setPanels, setLoading, setError });
+  const panelOps = usePanelOps({ panels, setPanels, setLoading, setError });
   const modals = useModals();
   const sizeCalculation = useSizeCalculation({
     panels,
@@ -61,6 +61,8 @@ export default function appState() {
     calculateSizeForMultipleFolders:
       sizeCalculation.calculateSizeForMultipleFolders,
     setAppBrowserModal: modals.setAppBrowserModal,
+    handleRefreshPanel: panelOps.handleRefreshPanel,
+    handleRefreshAllPanels: panelOps.handleRefreshAllPanels,
   });
 
   // 3. Feature hooks

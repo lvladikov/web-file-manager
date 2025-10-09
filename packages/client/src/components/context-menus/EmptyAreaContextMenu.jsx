@@ -1,6 +1,13 @@
 import React, { useEffect, useRef } from "react";
 
-const EmptyAreaContextMenu = ({ x, y, onNewFolder, onClose }) => {
+const EmptyAreaContextMenu = ({
+  x,
+  y,
+  onNewFolder,
+  onClose,
+  onRefreshPanel,
+  onRefreshBothPanels,
+}) => {
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -28,6 +35,25 @@ const EmptyAreaContextMenu = ({ x, y, onNewFolder, onClose }) => {
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
         >
           New Folder
+        </li>
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+        <li
+          onClick={(e) => {
+            e.stopPropagation();
+            onRefreshPanel();
+          }}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+        >
+          Refresh this panel
+        </li>
+        <li
+          onClick={(e) => {
+            e.stopPropagation();
+            onRefreshBothPanels();
+          }}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+        >
+          Refresh both panels
         </li>
       </ul>
     </div>

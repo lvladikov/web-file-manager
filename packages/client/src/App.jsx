@@ -101,6 +101,8 @@ export default function App() {
     handleToggleAutoLoadLyrics,
     handleOverwriteDecision,
     handleStartSizeCalculation,
+    handleRefreshPanel,
+    handleRefreshAllPanels,
     setEditingPath,
     setRenamingItem,
 
@@ -243,6 +245,16 @@ export default function App() {
             closeContextMenus();
           }}
           onSetOtherPanelPath={handleSetOtherPanelPath}
+          onRefreshPanel={() => {
+            const panelId =
+              contextMenu.path === panels.left.path ? "left" : "right";
+            handleRefreshPanel(panelId);
+            closeContextMenus();
+          }}
+          onRefreshBothPanels={() => {
+            handleRefreshAllPanels();
+            closeContextMenus();
+          }}
           onCalculateSize={async () => {
             const foldersToCalc = contextMenu.targetItems.filter(
               (i) => i.type === "folder"
@@ -292,6 +304,14 @@ export default function App() {
             // Set the panel that was right-clicked as active before creating the folder
             setActivePanel(emptyAreaContextMenu.panelId);
             handleStartNewFolder(emptyAreaContextMenu.panelId);
+            closeContextMenus();
+          }}
+          onRefreshPanel={() => {
+            handleRefreshPanel(emptyAreaContextMenu.panelId);
+            closeContextMenus();
+          }}
+          onRefreshBothPanels={() => {
+            handleRefreshAllPanels();
             closeContextMenus();
           }}
           onClose={closeContextMenus}

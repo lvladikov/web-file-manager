@@ -2,7 +2,12 @@ import { useCallback } from "react";
 import { buildFullPath } from "../lib/utils";
 import { fetchDirectory, openFile } from "../lib/api";
 
-export default function usePanelOps({ setPanels, setLoading, setError }) {
+export default function usePanelOps({
+  panels,
+  setPanels,
+  setLoading,
+  setError,
+}) {
   const updateItemInPanel = useCallback(
     (panelId, itemName, newProps) => {
       setPanels((prev) => {
@@ -42,9 +47,20 @@ export default function usePanelOps({ setPanels, setLoading, setError }) {
     [setLoading, setPanels, setError]
   );
 
+  const handleRefreshPanel = (panelId) => {
+    handleNavigate(panelId, panels[panelId].path, "");
+  };
+
+  const handleRefreshAllPanels = () => {
+    handleNavigate("left", panels.left.path, "");
+    handleNavigate("right", panels.right.path, "");
+  };
+
   return {
     updateItemInPanel,
     handleOpenFile,
     handleNavigate,
+    handleRefreshPanel,
+    handleRefreshAllPanels,
   };
 }
