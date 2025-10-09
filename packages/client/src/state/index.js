@@ -117,6 +117,22 @@ export default function appState() {
     setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
   }, [activePanel, setSelections]);
 
+  const handleInvertSelection = useCallback(() => {
+    const panelItems = panels[activePanel]?.items;
+    if (!panelItems) return;
+
+    const currentSelection = selections[activePanel];
+    const allSelectableItems = panelItems
+      .filter((item) => item.name !== "..")
+      .map((item) => item.name);
+
+    const newSelection = new Set(
+      allSelectableItems.filter((name) => !currentSelection.has(name))
+    );
+
+    setSelections((prev) => ({ ...prev, [activePanel]: newSelection }));
+  }, [activePanel, panels, selections, setSelections]);
+
   useEffect(() => {
     if (settings.settingsLoading) return;
     const loadPanelData = async () => {
@@ -332,6 +348,7 @@ export default function appState() {
     handleStartNewFolder: newFolder.handleStartNewFolder,
     handleDeleteItem: del.handleDeleteItem,
     handleStartSizeCalculation: sizeCalculation.handleStartSizeCalculation,
+    handleInvertSelection,
   });
 
   return {
@@ -373,6 +390,7 @@ export default function appState() {
     handlePathInputSubmit,
     handleSelectAll,
     handleUnselectAll,
+    handleInvertSelection,
     // UI Composition
     actionBarButtons,
   };

@@ -29,6 +29,7 @@ const AppMenu = ({
   onRefreshBothPanels,
   onSelectAll,
   onUnselectAll,
+  onInvertSelection,
   activePanelSelections,
   panels,
   activePanel,
@@ -218,8 +219,7 @@ const AppMenu = ({
               <MenuItem
                 label="Invert Selection"
                 shortcut="*"
-                onClick={() => handleItemClick(onPlaceholder)}
-                disabled
+                onClick={() => handleItemClick(onInvertSelection)}
               />
               <Separator />
               <MenuItem

@@ -15,6 +15,9 @@ const ContextMenu = ({
   onSetOtherPanelPath,
   onRefreshPanel,
   onRefreshBothPanels,
+  onSelectAll,
+  onUnselectAll,
+  onInvertSelection,
 }) => {
   if (!targetItems || targetItems.length === 0) return null;
 
@@ -59,7 +62,7 @@ const ContextMenu = ({
   return (
     <div
       style={{ top: y, left: x }}
-      className="absolute z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm divide-y divide-gray-600"
+      className="absolute z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm"
     >
       <ul className="py-1">
         {!isMultiSelect && isPreviewable && (
@@ -86,8 +89,9 @@ const ContextMenu = ({
             Open with...
           </li>
         )}
-      </ul>
-      <ul className="py-1">
+
+        {!isMultiSelect && <div className="border-t border-gray-600 mx-2 my-1"></div>}
+
         <li
           onClick={onCopyToOtherPanel}
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
@@ -118,8 +122,9 @@ const ContextMenu = ({
         >
           Move to...
         </li>
-      </ul>
-      <ul className="py-1">
+
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+
         {!isMultiSelect && (
           <li
             onClick={onRename}
@@ -134,31 +139,53 @@ const ContextMenu = ({
         >
           {deleteLabel} (F8)
         </li>
-      </ul>
-      {/* Show Folder Tools section if at least one folder is selected */}
-      {folderCount > 0 && (
-        <ul className="py-1">
-          <li
-            onClick={onCalculateSize}
-            className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
-          >
-            {calculateSizeLabel}
-          </li>
-          {/* "Set Path" only makes sense for a single selected folder */}
-          {count === 1 && firstItem.type === "folder" && (
+
+        {folderCount > 0 && (
             <>
               <div className="border-t border-gray-600 mx-2 my-1"></div>
               <li
-                onClick={onSetOtherPanelPath}
+                onClick={onCalculateSize}
                 className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
               >
-                Set as other panel's path
+                {calculateSizeLabel}
               </li>
+              {count === 1 && firstItem.type === "folder" && (
+                <li
+                  onClick={onSetOtherPanelPath}
+                  className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+                >
+                  Set as other panel's path
+                </li>
+              )}
             </>
-          )}
-        </ul>
-      )}
-      <ul className="py-1">
+        )}
+
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+
+        <li
+          onClick={onSelectAll}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Select All</span>
+          <span className="text-gray-400">{metaKey}+A</span>
+        </li>
+        <li
+          onClick={onUnselectAll}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Unselect All</span>
+          <span className="text-gray-400">{metaKey}+D</span>
+        </li>
+        <li
+          onClick={onInvertSelection}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Invert Selection</span>
+          <span className="text-gray-400">*</span>
+        </li>
+
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+
         <li
           onClick={onRefreshPanel}
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer"

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { isMac } from "../../lib/utils.js";
 
 const EmptyAreaContextMenu = ({
   x,
@@ -7,8 +8,12 @@ const EmptyAreaContextMenu = ({
   onClose,
   onRefreshPanel,
   onRefreshBothPanels,
+  onSelectAll,
+  onUnselectAll,
+  onInvertSelection,
 }) => {
   const menuRef = useRef(null);
+  const metaKey = isMac ? "CMD" : "Ctrl";
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -35,6 +40,37 @@ const EmptyAreaContextMenu = ({
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
         >
           New Folder
+        </li>
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+        <li
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectAll();
+          }}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Select All</span>
+          <span className="text-gray-400">{metaKey}+A</span>
+        </li>
+        <li
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnselectAll();
+          }}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Unselect All</span>
+          <span className="text-gray-400">{metaKey}+D</span>
+        </li>
+        <li
+          onClick={(e) => {
+            e.stopPropagation();
+            onInvertSelection();
+          }}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Invert Selection</span>
+          <span className="text-gray-400">*</span>
         </li>
         <div className="border-t border-gray-600 mx-2 my-1"></div>
         <li

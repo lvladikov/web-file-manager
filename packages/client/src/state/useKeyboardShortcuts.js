@@ -42,6 +42,7 @@ export default function useKeyboardShortcuts(props) {
         handleStartNewFolder,
         handleDeleteItem,
         handleStartSizeCalculation,
+        handleInvertSelection,
       } = latestProps.current;
 
       if (deleteModalVisible) {
@@ -139,6 +140,11 @@ export default function useKeyboardShortcuts(props) {
       if (isModKey && e.key === "d") {
         e.preventDefault();
         setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
+        return;
+      }
+      if (e.key === "*") {
+        e.preventDefault();
+        handleInvertSelection();
         return;
       }
       if (e.key === "Tab") {

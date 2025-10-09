@@ -104,6 +104,7 @@ export default function App() {
     setRenamingItem,
     handleSelectAll,
     handleUnselectAll,
+    handleInvertSelection,
 
     // Derived State
     activePath,
@@ -176,6 +177,7 @@ export default function App() {
           onRefreshBothPanels={handleRefreshAllPanels}
           onSelectAll={handleSelectAll}
           onUnselectAll={handleUnselectAll}
+          onInvertSelection={handleInvertSelection}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -298,6 +300,18 @@ export default function App() {
             handleRefreshAllPanels();
             closeContextMenus();
           }}
+          onSelectAll={() => {
+            handleSelectAll();
+            closeContextMenus();
+          }}
+          onUnselectAll={() => {
+            handleUnselectAll();
+            closeContextMenus();
+          }}
+          onInvertSelection={() => {
+            handleInvertSelection();
+            closeContextMenus();
+          }}
           onCalculateSize={async () => {
             const foldersToCalc = contextMenu.targetItems.filter(
               (i) => i.type === "folder"
@@ -355,6 +369,18 @@ export default function App() {
           }}
           onRefreshBothPanels={() => {
             handleRefreshAllPanels();
+            closeContextMenus();
+          }}
+          onSelectAll={() => {
+            handleSelectAll();
+            closeContextMenus();
+          }}
+          onUnselectAll={() => {
+            handleUnselectAll();
+            closeContextMenus();
+          }}
+          onInvertSelection={() => {
+            handleInvertSelection();
             closeContextMenus();
           }}
           onClose={closeContextMenus}
