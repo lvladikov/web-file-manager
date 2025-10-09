@@ -52,7 +52,7 @@ export default function App() {
     columnWidths,
     overwritePrompt,
     autoLoadLyrics,
-    isHelpVisible,
+    helpModal,
     panelRefs,
     wsRef,
 
@@ -68,7 +68,7 @@ export default function App() {
     setSizeCalcModal,
     setColumnWidths,
     setCreatingFolder,
-    setIsHelpVisible,
+    setHelpModal,
     updateItemInPanel,
     closeContextMenus,
     handleOpenFile,
@@ -239,8 +239,8 @@ export default function App() {
         onConfirm={confirmDeletion}
       />
       <HelpModal
-        isVisible={isHelpVisible}
-        onClose={() => setIsHelpVisible(false)}
+        isVisible={helpModal.isVisible}
+        onClose={() => setHelpModal({ isVisible: false })}
       />
 
       {contextMenu.visible && (

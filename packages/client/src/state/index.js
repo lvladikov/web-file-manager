@@ -228,7 +228,7 @@ export default function appState() {
       {
         label: "Help",
         f_key: "F1",
-        action: () => modals.setIsHelpVisible(true),
+        action: () => modals.setHelpModal({ isVisible: true }),
       },
       {
         label: "Rename",
@@ -294,7 +294,7 @@ export default function appState() {
       newFolder.handleStartNewFolder,
       loading,
       del.handleDeleteItem,
-      modals.setIsHelpVisible,
+      modals.setHelpModal,
       rename.handleStartRename,
     ]
   );
@@ -312,7 +312,8 @@ export default function appState() {
     appBrowserModal: modals.appBrowserModal,
     setAppBrowserModal: modals.setAppBrowserModal,
     sizeCalcModal: sizeCalculation.sizeCalcModal,
-    setIsHelpVisible: modals.setIsHelpVisible,
+    helpModal: modals.helpModal,
+    setHelpModal: modals.setHelpModal,
     error,
     setError,
     activePanel,

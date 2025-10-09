@@ -22,7 +22,8 @@ export default function useKeyboardShortcuts(props) {
         appBrowserModal,
         setAppBrowserModal,
         sizeCalcModal,
-        setIsHelpVisible,
+        helpModal,
+        setHelpModal,
         error,
         setError,
         activePanel,
@@ -97,6 +98,7 @@ export default function useKeyboardShortcuts(props) {
         folderBrowserModal.isVisible ||
         appBrowserModal.isVisible ||
         sizeCalcModal.isVisible ||
+        helpModal.isVisible ||
         error
       ) {
         if (e.key === "Escape") {
@@ -108,6 +110,7 @@ export default function useKeyboardShortcuts(props) {
             });
           if (appBrowserModal.isVisible)
             setAppBrowserModal((s) => ({ ...s, isVisible: false }));
+          if (helpModal.isVisible) setHelpModal({ isVisible: false });
           if (error) setError(null);
         }
         return;
@@ -188,7 +191,7 @@ export default function useKeyboardShortcuts(props) {
       }
       if (e.key === "F1") {
         e.preventDefault();
-        setIsHelpVisible(true);
+        setHelpModal({ isVisible: true });
         return;
       }
       if (e.key === "F2") {

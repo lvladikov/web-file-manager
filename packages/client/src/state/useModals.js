@@ -18,7 +18,7 @@ export default function useModals() {
     item: null,
   });
 
-  const [isHelpVisible, setIsHelpVisible] = useState(false);
+  const [helpModal, setHelpModal] = useState({ isVisible: false });
 
   return {
     appBrowserModal,
@@ -27,7 +27,7 @@ export default function useModals() {
     setFolderBrowserModal,
     previewModal,
     setPreviewModal,
-    isHelpVisible,
-    setIsHelpVisible,
+    helpModal,
+    setHelpModal,
   };
 }
