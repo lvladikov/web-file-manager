@@ -351,7 +351,10 @@ export default function useKeyboardShortcuts(props) {
       }
       if (e.key === "F5") {
         e.preventDefault();
-        handleCopyAction();
+        const focusedName = focusedItem[activePanel];
+        if (focusedName && focusedName !== "..") {
+          handleCopyAction();
+        }
         return;
       }
       if (e.key === "F7") {
@@ -361,7 +364,10 @@ export default function useKeyboardShortcuts(props) {
       }
       if (e.key === "F8") {
         e.preventDefault();
-        handleDeleteItem();
+        const focusedName = focusedItem[activePanel];
+        if (focusedName && focusedName !== "..") {
+          handleDeleteItem();
+        }
         return;
       }
 

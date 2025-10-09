@@ -264,6 +264,18 @@ const FilePanel = React.forwardRef(
     const handleItemClick = (itemName, e) => {
       handlePanelClick(); // Activate the panel instantly.
 
+      // If the "go up" item is clicked, clear selection and prevent further selection logic.
+      if (itemName === "..") {
+        setSelectedItems(new Set());
+        setFocusedItem(null);
+        setSelectionAnchor(null);
+        if (clickTimerRef.current) {
+          clearTimeout(clickTimerRef.current);
+          clickTimerRef.current = null;
+        }
+        return; // Exit early
+      }
+
       // Check if this is a potential rename trigger (a non-modifier click on an already-focused item).
       const isRenameTrigger =
         itemName === focusedItem &&
