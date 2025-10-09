@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { HardDrive, LoaderCircle, Star } from "lucide-react";
 
 import { formatBytes, isMac } from "../../lib/utils";
+import { fetchDiskSpace } from "../../lib/api";
 
 import Breadcrumbs from "../ui/Breadcrumbs";
 import FavouritesDropdown from "../ui/FavouritesDropdown";
@@ -64,12 +65,50 @@ const FilePanel = React.forwardRef(
     const scrollContainerRef = useRef(null);
     const [isFavouritesDropdownOpen, setIsFavouritesDropdownOpen] =
       useState(false);
+    const [diskSpace, setDiskSpace] = useState(null);
 
     useEffect(() => {
       setSelectedItems(new Set());
       setFocusedItem(null);
       setSelectionAnchor(null);
       // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [panelData.path]);
+
+    const [selectedFileCount, setSelectedFileCount] = useState(0);
+    const [selectedFolderCount, setSelectedFolderCount] = useState(0);
+    const [selectedItemsTotalSize, setSelectedItemsTotalSize] = useState(0);
+
+    useEffect(() => {
+      let files = 0;
+      let folders = 0;
+      let totalSize = 0;
+      const selectedFullItems = panelData.items.filter(item => selectedItems.has(item.name));
+
+      selectedFullItems.forEach((item) => {
+        if (item.type === "file") {
+          files++;
+          totalSize += item.size;
+        } else if (item.type === "folder") {
+          folders++;
+          totalSize += item.size;
+        }
+      });
+      setSelectedFileCount(files);
+      setSelectedFolderCount(folders);
+      setSelectedItemsTotalSize(totalSize);
+    }, [selectedItems, panelData.items]);
+
+    useEffect(() => {
+      const getDiskSpace = async () => {
+        try {
+          const data = await fetchDiskSpace(panelData.path);
+          setDiskSpace(data);
+        } catch (error) {
+          console.error("Error fetching disk space:", error);
+          setDiskSpace(null);
+        }
+      };
+      getDiskSpace();
     }, [panelData.path]);
 
     useEffect(() => {
@@ -272,6 +311,12 @@ const FilePanel = React.forwardRef(
       }
     };
 
+    const tooltipText = selectedItems.size === 0
+      ? "No items selected"
+      : selectedFolderCount > 0
+        ? `${selectedFolderCount} folders, ${selectedFileCount} files selected. To include folder sizes, right-click on the items list and select 'Calculate size of ${selectedFolderCount} folders'.`
+        : `${selectedFolderCount} folders, ${selectedFileCount} files selected (${formatBytes(selectedItemsTotalSize, false)})`;
+
     return (
       <div
         ref={ref}
@@ -422,10 +467,30 @@ const FilePanel = React.forwardRef(
             isFiltering={isFiltering}
           />
         )}
-        <div className="text-sm pt-2 border-t border-gray-600 mt-1">
-          <p>
+        <div className="text-sm pt-2 border-t border-gray-600 mt-1 flex justify-between items-center">
+          <p title={tooltipText}>
             {selectedItems.size} / {panelData.items.length} items selected
+            {selectedItems.size > 0 && ` (${formatBytes(selectedItemsTotalSize, false)})`}
           </p>
+          {diskSpace && (
+            <p
+              className="text-gray-400"
+              title={`${formatBytes(
+                diskSpace.free,
+                true
+              )} free out of ${formatBytes(diskSpace.size, true)} total | (${(
+                (diskSpace.free / diskSpace.size) *
+                100
+              ).toFixed(1)}% free / ${(
+                ((diskSpace.size - diskSpace.free) / diskSpace.size) *
+                100
+              ).toFixed(1)}% used)`}
+            >
+              {formatBytes(diskSpace.free, false)}/
+              {formatBytes(diskSpace.size, false)} (
+              {((diskSpace.free / diskSpace.size) * 100).toFixed(1)}%)
+            </p>
+          )}
         </div>
       </div>
     );

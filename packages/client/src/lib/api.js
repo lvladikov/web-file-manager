@@ -49,6 +49,25 @@ const fetchDirectory = async (basePath, target = "") => {
   return response.json();
 };
 
+const fetchDiskSpace = async (path) => {
+  const response = await fetch(
+    `/api/disk-space?path=${encodeURIComponent(path)}`
+  );
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return response.json();
+};
+
+const fetchFiles = async (path) => {
+  const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "An unknown server error occurred.");
+  }
+  return response.json();
+};
+
 const openFile = async (filePath, appName) => {
   const response = await fetch("/api/open-file", {
     method: "POST",
@@ -214,7 +233,6 @@ export {
   createNewFolder,
   deleteItem,
   fetchDeleteSummary,
-  fetchDirectory,
   openFile,
   parseTrackInfo,
   renameItem,
@@ -223,6 +241,9 @@ export {
   startSizeCalculation,
   cancelSizeCalculation,
   fetchFavourites,
+  fetchDirectory,
+  fetchDiskSpace,
+  fetchFiles,
   addFavourite,
   removeFavourite,
   fetchPaths,

@@ -4,10 +4,23 @@ import path from "path";
 import open from "open";
 import os from "os";
 import crypto from "crypto";
+import checkDiskSpace from "check-disk-space";
 import { performCopyCancellation } from "../lib/utils.js";
 
 export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
   const router = express.Router();
+
+  // Endpoint to get disk space information
+  router.get("/disk-space", async (req, res) => {
+    const targetPath = req.query.path || os.homedir();
+    try {
+      const diskSpace = await checkDiskSpace(targetPath);
+      res.json(diskSpace);
+    } catch (error) {
+      console.error("Error getting disk space:", error);
+      res.status(500).json({ message: "Error getting disk space." });
+    }
+  });
 
   // Endpoint to initiate a folder size calculation
   router.post("/folder-size", async (req, res) => {

@@ -1,3 +1,5 @@
+import React, { useState } from "react";
+
 import { Copy, XCircle, Search } from "lucide-react";
 import { formatBytes } from "../../lib/utils";
 
@@ -9,15 +11,25 @@ const ProgressModal = ({
   currentFile,
   onCancel,
 }) => {
+  const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
 
   const percent = total > 0 ? Math.round((copied / total) * 100) : 0;
   const isScanning = status === "scanning";
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      style={{ opacity: modalOpacity }}
+    >
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl border border-sky-500">
-        <div className="flex items-center mb-4">
+        <div
+          className="flex items-center mb-4 cursor-pointer"
+          onMouseDown={() => setModalOpacity(0.2)}
+          onMouseUp={() => setModalOpacity(1)}
+          onMouseLeave={() => setModalOpacity(1)} // Reset if mouse leaves while held down
+          title="Click and hold here for this dialog to be almost fully transparent so you can see the panels behind. Release and it would restore full visibility. This won't interrupt the ongoing operation"
+        >
           {isScanning ? (
             <Search className="w-8 h-8 text-sky-400 mr-3 animate-pulse" />
           ) : (
@@ -30,7 +42,9 @@ const ProgressModal = ({
 
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
           <p className="text-sm">{isScanning ? "Scanning:" : "Copying:"}</p>
-          <p className="font-mono text-gray-300 w-full truncate overflow-hidden whitespace-nowrap">{currentFile}</p>
+          <p className="font-mono text-gray-300 w-full truncate overflow-hidden whitespace-nowrap">
+            {currentFile}
+          </p>
         </div>
 
         {/* The progress bar is only shown during the copying phase */}
