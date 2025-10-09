@@ -10,7 +10,7 @@ const configPath = path.join(__dirname, "..", "config.json");
 
 const readConfig = async () => {
   const defaultConfig = {
-    favorites: [],
+    favourites: [],
     paths: { left: os.homedir(), right: os.homedir() },
     columnWidths: {
       left: { size: 96, modified: 160 }, // Default widths (px)

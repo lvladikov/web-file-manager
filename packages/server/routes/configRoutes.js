@@ -37,30 +37,30 @@ router.post("/paths", async (req, res) => {
   res.status(200).json({ message: "Paths saved successfully." });
 });
 
-router.get("/favorites", async (req, res) => {
+router.get("/favourites", async (req, res) => {
   const config = await readConfig();
-  res.json(config.favorites || []);
+  res.json(config.favourites || []);
 });
 
-router.post("/favorites", async (req, res) => {
+router.post("/favourites", async (req, res) => {
   const { path: newPath } = req.body;
   if (!newPath) return res.status(400).json({ message: "Path is required." });
   const config = await readConfig();
-  if (!config.favorites.includes(newPath)) {
-    config.favorites.push(newPath);
+  if (!config.favourites.includes(newPath)) {
+    config.favourites.push(newPath);
     await writeConfig(config);
   }
-  res.json(config.favorites);
+  res.json(config.favourites);
 });
 
-router.delete("/favorites", async (req, res) => {
+router.delete("/favourites", async (req, res) => {
   const { path: pathToRemove } = req.body;
   if (!pathToRemove)
     return res.status(400).json({ message: "Path is required." });
   const config = await readConfig();
-  config.favorites = config.favorites.filter((p) => p !== pathToRemove);
+  config.favourites = config.favourites.filter((p) => p !== pathToRemove);
   await writeConfig(config);
-  res.json(config.favorites);
+  res.json(config.favourites);
 });
 
 router.get("/config/auto-load-lyrics", async (req, res) => {

@@ -47,22 +47,15 @@ const getDirSizeWithProgress = async (dirPath, job) => {
 };
 
 const performCopyCancellation = async (job) => {
-  // Prevent multiple cancellation calls
-  if (job.status === "running") {
-    job.status = "cancelling";
-    job.controller.abort(); // Abort in-flight operations. This triggers the safe cleanup.
+  // This function now only signals the cancellation.
+  // The running job's 'catch' block in websocket.js will handle sending the final message and closing the connection.
+  if (job.status === "scanning" || job.status === "copying") {
+    job.status = "cancelled"; // Set the final status here.
+    job.controller.abort();
 
-    job.status = "cancelled";
-
-    // Unblock the overwrite prompt if it's waiting
+    // Unblock the overwrite prompt if it's waiting for a response.
     if (job.resolveOverwrite) {
       job.resolveOverwrite();
-    }
-
-    // Notify the client that cancellation is complete
-    if (job.ws && job.ws.readyState === 1) {
-      job.ws.send(JSON.stringify({ type: "cancelled" }));
-      job.ws.close();
     }
   }
 };
@@ -139,7 +132,6 @@ const getDirSizeWithScanProgress = async (dirPath, job) => {
 
 const copyWithProgress = async (source, destination, job) => {
   if (job.controller.signal.aborted) {
-    job.status = "cancelled";
     throw new Error("Copy cancelled");
   }
 

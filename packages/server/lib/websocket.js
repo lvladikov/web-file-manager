@@ -1,6 +1,13 @@
 import { WebSocketServer } from "ws";
+import path from "path";
+import fse from "fs-extra";
 
-import { getDirSizeWithProgress, performCopyCancellation } from "./utils.js";
+import {
+  getDirSizeWithProgress,
+  performCopyCancellation,
+  getDirSizeWithScanProgress,
+  copyWithProgress,
+} from "./utils.js";
 
 export function initializeWebSocketServer(
   server,
@@ -21,22 +28,74 @@ export function initializeWebSocketServer(
       job.ws = ws;
       console.log(`[ws] Client connected for ${jobType} job: ${jobId}`);
 
-      if (jobType === "copy" && job.resolveWsReady) {
-        job.resolveWsReady();
-      }
+      ws.on("message", (message) => {
+        const data = JSON.parse(message);
+        if (data.type === "overwrite_response") {
+          if (data.decision === "cancel") {
+            performCopyCancellation(job);
+          } else if (job.resolveOverwrite) {
+            job.overwriteDecision = data.decision;
+            job.resolveOverwrite();
+          }
+        }
+      });
 
       if (jobType === "copy") {
-        ws.on("message", (message) => {
-          const data = JSON.parse(message);
-          if (data.type === "overwrite_response") {
-            if (data.decision === "cancel") {
-              performCopyCancellation(job);
-            } else if (job.resolveOverwrite) {
-              job.overwriteDecision = data.decision;
-              job.resolveOverwrite();
+        (async () => {
+          try {
+            job.status = "scanning";
+            ws.send(JSON.stringify({ type: "scan_start" }));
+
+            let totalSize = 0;
+            for (const sourcePath of job.sources) {
+              if (job.controller.signal.aborted)
+                throw new Error("Scan cancelled");
+              const stats = await fse.stat(sourcePath);
+              totalSize += stats.isDirectory()
+                ? await getDirSizeWithScanProgress(sourcePath, job)
+                : stats.size;
             }
+            job.total = totalSize;
+            job.copied = 0;
+
+            job.status = "copying";
+            ws.send(
+              JSON.stringify({ type: "scan_complete", total: job.total })
+            );
+
+            for (const sourcePath of job.sources) {
+              const destPath = path.join(
+                job.destination,
+                path.basename(sourcePath)
+              );
+              await copyWithProgress(sourcePath, destPath, job);
+            }
+
+            job.status = "completed";
+            ws.send(JSON.stringify({ type: "complete" }));
+            ws.close(1000, "Job Completed");
+          } catch (error) {
+            // If the status was set to 'cancelled', don't mark it as 'failed'.
+            if (job.status !== "cancelled") {
+              job.status = "failed";
+            }
+
+            console.error(
+              `Copy job ${jobId} failed or was cancelled:`,
+              error.message
+            );
+
+            if (ws.readyState === 1) {
+              // Determine the correct message type to send back to the client.
+              const type = job.status === "cancelled" ? "cancelled" : "error";
+              ws.send(JSON.stringify({ type, message: error.message }));
+              // Close the connection gracefully with a normal (1000) code.
+              ws.close(1000, `Job finished with status: ${type}`);
+            }
+          } finally {
+            setTimeout(() => activeCopyJobs.delete(jobId), 5000);
           }
-        });
+        })();
       }
 
       if (jobType === "size") {
@@ -45,20 +104,17 @@ export function initializeWebSocketServer(
             job.sizeSoFar = 0;
             await getDirSizeWithProgress(job.folderPath, job);
             const totalSize = job.sizeSoFar;
-
-            if (job.ws && job.ws.readyState === 1) {
-              job.ws.send(
-                JSON.stringify({ type: "complete", size: totalSize })
-              );
-              job.ws.close();
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "complete", size: totalSize }));
+              ws.close(1000, "Job Completed");
             }
           } catch (error) {
             if (job.status !== "cancelled") job.status = "failed";
             console.error(`Size job ${jobId} failed:`, error.message);
-            if (job.ws && job.ws.readyState === 1) {
+            if (ws.readyState === 1) {
               const type = job.status === "cancelled" ? "cancelled" : "error";
-              job.ws.send(JSON.stringify({ type, message: error.message }));
-              job.ws.close();
+              ws.send(JSON.stringify({ type, message: error.message }));
+              ws.close(1000, `Job finished with status: ${type}`);
             }
           } finally {
             setTimeout(() => activeSizeJobs.delete(jobId), 5000);
@@ -81,5 +137,5 @@ export function initializeWebSocketServer(
   });
 
   console.log("[ws] WebSocket server initialized.");
-  return wss; // Return the instance in case you need it later
+  return wss;
 }

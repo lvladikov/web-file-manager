@@ -4,12 +4,7 @@ import path from "path";
 import open from "open";
 import os from "os";
 import crypto from "crypto";
-import { pipeline } from "stream/promises";
-import {
-  performCopyCancellation,
-  getDirSizeWithScanProgress,
-  copyWithProgress,
-} from "../lib/utils.js";
+import { performCopyCancellation } from "../lib/utils.js";
 
 export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
   const router = express.Router();
@@ -226,69 +221,17 @@ export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
       const job = {
         id: jobId,
         status: "pending",
-        total: 0,
-        copied: 0,
         ws: null,
         controller: new AbortController(),
         destination,
         sources,
         overwriteDecision: "prompt",
         resolveOverwrite: null,
-        resolveWsReady: null,
       };
-      job.wsReady = new Promise((resolve) => (job.resolveWsReady = resolve));
       activeCopyJobs.set(jobId, job);
 
-      res.status(202).json({ jobId, totalSize: 0 });
-
-      (async () => {
-        try {
-          await job.wsReady;
-
-          job.status = "scanning";
-          if (job.ws && job.ws.readyState === 1) {
-            job.ws.send(JSON.stringify({ type: "scan_start" }));
-          }
-          let totalSize = 0;
-          for (const sourcePath of sources) {
-            if (job.controller.signal.aborted)
-              throw new Error("Scan cancelled");
-            const stats = await fse.stat(sourcePath);
-            totalSize += stats.isDirectory()
-              ? await getDirSizeWithScanProgress(sourcePath, job)
-              : stats.size;
-          }
-          job.total = totalSize;
-
-          job.status = "copying";
-          if (job.ws && job.ws.readyState === 1) {
-            job.ws.send(
-              JSON.stringify({ type: "scan_complete", total: job.total })
-            );
-          }
-          for (const sourcePath of sources) {
-            const destPath = path.join(destination, path.basename(sourcePath));
-            await copyWithProgress(sourcePath, destPath, job);
-          }
-
-          job.status = "completed";
-          if (job.ws && job.ws.readyState === 1) {
-            job.ws.send(JSON.stringify({ type: "complete" }));
-            job.ws.close();
-          }
-        } catch (error) {
-          if (job.status !== "cancelled") job.status = "failed";
-          console.error(`Copy job ${jobId} failed:`, error.message);
-          if (job.ws && job.ws.readyState === 1) {
-            job.ws.send(
-              JSON.stringify({ type: "error", message: error.message })
-            );
-            job.ws.close();
-          }
-        } finally {
-          setTimeout(() => activeCopyJobs.delete(jobId), 5000);
-        }
-      })();
+      // Immediately respond with the jobId. The work will be triggered by the WebSocket connection.
+      res.status(202).json({ jobId });
     } catch (error) {
       console.error("Error initiating copy:", error);
       res
