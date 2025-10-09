@@ -133,6 +133,41 @@ export default function appState() {
     setSelections((prev) => ({ ...prev, [activePanel]: newSelection }));
   }, [activePanel, panels, selections, setSelections]);
 
+  const handleStartQuickSelect = () => {
+    modals.setQuickSelectModal({ isVisible: true, mode: "select" });
+  };
+
+  const handleStartQuickUnselect = () => {
+    modals.setQuickSelectModal({ isVisible: true, mode: "unselect" });
+  };
+
+  const handleQuickSelectConfirm = (
+    pattern,
+    useRegex,
+    caseSensitive,
+    resetSelection
+  ) => {
+    const panelItems = panels[activePanel]?.items;
+    if (!panelItems) return;
+
+    const currentSelection = resetSelection ? new Set() : new Set(selections[activePanel]);
+    const flags = caseSensitive ? "" : "i";
+    const regex = useRegex ? new RegExp(pattern, flags) : new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
+
+    panelItems.forEach((item) => {
+      if (item.name === "..") return;
+      if (regex.test(item.name)) {
+        if (modals.quickSelectModal.mode === "select") {
+          currentSelection.add(item.name);
+        } else {
+          currentSelection.delete(item.name);
+        }
+      }
+    });
+
+    setSelections((prev) => ({ ...prev, [activePanel]: currentSelection }));
+  };
+
   useEffect(() => {
     if (settings.settingsLoading) return;
     const loadPanelData = async () => {
@@ -349,6 +384,11 @@ export default function appState() {
     handleDeleteItem: del.handleDeleteItem,
     handleStartSizeCalculation: sizeCalculation.handleStartSizeCalculation,
     handleInvertSelection,
+    handleStartQuickSelect,
+    handleStartQuickUnselect,
+    quickSelectModal: modals.quickSelectModal,
+    setQuickSelectModal: modals.setQuickSelectModal,
+    handleQuickSelectConfirm,
   });
 
   return {
@@ -391,6 +431,9 @@ export default function appState() {
     handleSelectAll,
     handleUnselectAll,
     handleInvertSelection,
+    handleStartQuickSelect,
+    handleStartQuickUnselect,
+    handleQuickSelectConfirm,
     // UI Composition
     actionBarButtons,
   };

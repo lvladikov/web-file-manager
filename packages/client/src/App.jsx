@@ -23,6 +23,7 @@ import HelpModal from "./components/modals/HelpModal";
 import OverwriteConfirmModal from "./components/modals/OverwriteConfirmModal";
 import ProgressModal from "./components/modals/ProgressModal";
 import PreviewModal from "./components/modals/PreviewModal";
+import QuickSelectModal from "./components/modals/QuickSelectModal";
 
 export default function App() {
   const {
@@ -105,10 +106,15 @@ export default function App() {
     handleSelectAll,
     handleUnselectAll,
     handleInvertSelection,
+    handleStartQuickSelect,
+    handleStartQuickUnselect,
+    handleQuickSelectConfirm,
 
     // Derived State
     activePath,
     actionBarButtons,
+    quickSelectModal,
+    setQuickSelectModal,
   } = appState();
 
   return (
@@ -178,6 +184,8 @@ export default function App() {
           onSelectAll={handleSelectAll}
           onUnselectAll={handleUnselectAll}
           onInvertSelection={handleInvertSelection}
+          onQuickSelect={handleStartQuickSelect}
+          onQuickUnselect={handleStartQuickUnselect}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -233,7 +241,13 @@ export default function App() {
         onCancel={handleCancelCopy}
         sourceCount={copyProgress.sourceCount}
       />
-      <DeleteConfirmModal
+       <QuickSelectModal
+        isVisible={quickSelectModal.isVisible}
+        mode={quickSelectModal.mode}
+        onClose={() => setQuickSelectModal({ isVisible: false, mode: 'select' })}
+        onConfirm={handleQuickSelectConfirm}
+      />
+     <DeleteConfirmModal
         isVisible={deleteModalVisible}
         targetItems={deleteTargets}
         summary={deleteSummary}
@@ -312,6 +326,14 @@ export default function App() {
             handleInvertSelection();
             closeContextMenus();
           }}
+          onQuickSelect={() => {
+            handleStartQuickSelect();
+            closeContextMenus();
+          }}
+          onQuickUnselect={() => {
+            handleStartQuickUnselect();
+            closeContextMenus();
+          }}
           onCalculateSize={async () => {
             const foldersToCalc = contextMenu.targetItems.filter(
               (i) => i.type === "folder"
@@ -381,6 +403,14 @@ export default function App() {
           }}
           onInvertSelection={() => {
             handleInvertSelection();
+            closeContextMenus();
+          }}
+          onQuickSelect={() => {
+            handleStartQuickSelect();
+            closeContextMenus();
+          }}
+          onQuickUnselect={() => {
+            handleStartQuickUnselect();
             closeContextMenus();
           }}
           onClose={closeContextMenus}

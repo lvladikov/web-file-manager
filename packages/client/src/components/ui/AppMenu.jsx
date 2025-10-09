@@ -30,6 +30,8 @@ const AppMenu = ({
   onSelectAll,
   onUnselectAll,
   onInvertSelection,
+  onQuickSelect,
+  onQuickUnselect,
   activePanelSelections,
   panels,
   activePanel,
@@ -225,14 +227,12 @@ const AppMenu = ({
               <MenuItem
                 label="Quick Select"
                 shortcut="+"
-                onClick={() => handleItemClick(onPlaceholder)}
-                disabled
+                onClick={() => handleItemClick(onQuickSelect)}
               />
               <MenuItem
                 label="Quick Unselect"
                 shortcut="-"
-                onClick={() => handleItemClick(onPlaceholder)}
-                disabled
+                onClick={() => handleItemClick(onQuickUnselect)}
               />
             </ul>
           </div>

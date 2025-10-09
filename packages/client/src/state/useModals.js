@@ -20,6 +20,11 @@ export default function useModals() {
 
   const [helpModal, setHelpModal] = useState({ isVisible: false });
 
+  const [quickSelectModal, setQuickSelectModal] = useState({
+    isVisible: false,
+    mode: "select", // 'select' or 'unselect'
+  });
+
   return {
     appBrowserModal,
     setAppBrowserModal,
@@ -29,5 +34,7 @@ export default function useModals() {
     setPreviewModal,
     helpModal,
     setHelpModal,
+    quickSelectModal,
+    setQuickSelectModal,
   };
 }

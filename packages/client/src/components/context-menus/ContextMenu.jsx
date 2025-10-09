@@ -1,4 +1,5 @@
 import { isMac } from "../../lib/utils.js";
+import { useEffect, useRef, useState } from "react";
 
 const ContextMenu = ({
   x,
@@ -18,7 +19,22 @@ const ContextMenu = ({
   onSelectAll,
   onUnselectAll,
   onInvertSelection,
+  onQuickSelect,
+  onQuickUnselect,
 }) => {
+  const menuRef = useRef(null);
+  const [maxHeight, setMaxHeight] = useState("none");
+
+  useEffect(() => {
+    if (menuRef.current) {
+      const menuHeight = menuRef.current.offsetHeight;
+      const windowHeight = window.innerHeight;
+      if (y + menuHeight > windowHeight) {
+        setMaxHeight(`${windowHeight - y - 20}px`);
+      }
+    }
+  }, [y]);
+
   if (!targetItems || targetItems.length === 0) return null;
 
   const count = targetItems.length;
@@ -61,8 +77,9 @@ const ContextMenu = ({
 
   return (
     <div
-      style={{ top: y, left: x }}
-      className="absolute z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm"
+      ref={menuRef}
+      style={{ top: y, left: x, maxHeight }}
+      className="absolute z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-y-auto"
     >
       <ul className="py-1">
         {!isMultiSelect && isPreviewable && (
@@ -182,6 +199,23 @@ const ContextMenu = ({
         >
           <span>Invert Selection</span>
           <span className="text-gray-400">*</span>
+        </li>
+
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+
+        <li
+          onClick={onQuickSelect}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Quick Select</span>
+          <span className="text-gray-400">+</span>
+        </li>
+        <li
+          onClick={onQuickUnselect}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between"
+        >
+          <span>Quick Unselect</span>
+          <span className="text-gray-400">-</span>
         </li>
 
         <div className="border-t border-gray-600 mx-2 my-1"></div>

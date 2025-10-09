@@ -43,6 +43,11 @@ export default function useKeyboardShortcuts(props) {
         handleDeleteItem,
         handleStartSizeCalculation,
         handleInvertSelection,
+        handleStartQuickSelect,
+        handleStartQuickUnselect,
+        quickSelectModal,
+        setQuickSelectModal,
+        handleQuickSelectConfirm,
       } = latestProps.current;
 
       if (deleteModalVisible) {
@@ -71,6 +76,40 @@ export default function useKeyboardShortcuts(props) {
         }
         return;
       }
+
+      if (latestProps.current.quickSelectModal.isVisible) {
+        e.stopPropagation();
+        const patternInput = document.getElementById("pattern-input");
+        const resetButton = document.getElementById("reset-selection");
+        const regexButton = document.getElementById("use-regex");
+        const caseButton = document.getElementById("case-sensitive");
+        const cancelButton = document.getElementById("quick-select-cancel-button");
+        const confirmButton = document.getElementById("quick-select-confirm-button");
+
+        const focusableElements = [patternInput, resetButton, regexButton, caseButton, cancelButton, confirmButton];
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          latestProps.current.setQuickSelectModal({ isVisible: false, mode: 'select' });
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (document.activeElement !== cancelButton) {
+            confirmButton.click();
+          }
+          else {
+            cancelButton.click();
+          }
+        }
+        if (e.key === "Tab") {
+            e.preventDefault();
+            const currentIndex = focusableElements.indexOf(document.activeElement);
+            const nextIndex = e.shiftKey ? (currentIndex - 1 + focusableElements.length) % focusableElements.length : (currentIndex + 1) % focusableElements.length;
+            focusableElements[nextIndex]?.focus();
+        }
+        return;
+      }
+
       if (previewModal.isVisible) {
         const isNavKey = [
           "ArrowUp",
@@ -145,6 +184,16 @@ export default function useKeyboardShortcuts(props) {
       if (e.key === "*") {
         e.preventDefault();
         handleInvertSelection();
+        return;
+      }
+      if (e.key === "+") {
+        e.preventDefault();
+        handleStartQuickSelect();
+        return;
+      }
+      if (e.key === "-") {
+        e.preventDefault();
+        handleStartQuickUnselect();
         return;
       }
       if (e.key === "Tab") {
