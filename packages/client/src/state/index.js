@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { savePaths, fetchDirectory } from "../lib/api";
+import { isMac } from "../lib/utils";
 
 import useDelete from "./useDelete";
 import useRename from "./useRename";
@@ -304,8 +305,15 @@ export default function appState() {
   };
 
   const handlePathInputSubmit = async () => {
-    const { panelId, value } = editingPath;
-    if (!panelId || value === panels[panelId].path) {
+    let { panelId, value } = editingPath;
+    if (!panelId) return;
+
+    // Special handling for macOS root volume input
+    if (isMac && value === "/Volumes/Macintosh HD") {
+      value = "/";
+    }
+
+    if (value === panels[panelId].path) {
       setEditingPath({ panelId: null, value: "" });
       return;
     }

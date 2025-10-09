@@ -60,9 +60,11 @@ export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
         files.map(async (file) => {
           try {
             const fullFilePath = path.join(currentPath, file.name);
-            const fileStats = await fse.stat(fullFilePath);
+            let actualFullPath = fullFilePath;
+
+            const fileStats = await fse.stat(actualFullPath);
             let type = "file";
-            if (file.isDirectory()) type = "folder";
+            if (fileStats.isDirectory()) type = "folder";
             else if (/\.(zip|rar|7z|tar)$/i.test(file.name)) type = "archive";
             else if (
               /\.(jpg|jpeg|png|gif|bmp|tiff|svg|webp|psd)$/i.test(file.name)
@@ -78,7 +80,7 @@ export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
               type,
               size: fileStats.isFile() ? fileStats.size : null,
               modified: fileStats.mtime.toLocaleString(),
-              fullPath: path.join(currentPath, file.name),
+              fullPath: actualFullPath,
             };
           } catch (statError) {
             return {
@@ -92,7 +94,13 @@ export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
         })
       );
 
-      const validItems = items.filter((item) => !item.error);
+      let validItems = items.filter((item) => !item.error);
+
+      // On macOS, prevent listing 'Macintosh HD' when in /Volumes to avoid recursion
+      if (os.platform() === "darwin" && currentPath === "/Volumes") {
+        validItems = validItems.filter(item => item.name !== "Macintosh HD");
+      }
+
       if (path.dirname(currentPath) !== currentPath) {
         validItems.unshift({
           name: "..",
