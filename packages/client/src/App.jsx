@@ -187,6 +187,7 @@ export default function App() {
         item={overwritePrompt.item}
         onDecision={handleOverwriteDecision}
         onCancel={handleCancelCopy}
+        sourceCount={copyProgress.sourceCount}
       />
       <DeleteConfirmModal
         isVisible={deleteModalVisible}

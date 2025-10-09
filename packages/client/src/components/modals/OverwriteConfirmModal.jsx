@@ -1,9 +1,17 @@
 import { ShieldAlert, XCircle } from "lucide-react";
 
-const OverwriteConfirmModal = ({ isVisible, item, onDecision, onCancel }) => {
+const OverwriteConfirmModal = ({
+  isVisible,
+  item,
+  onDecision,
+  onCancel,
+  sourceCount = 1,
+}) => {
   if (!isVisible) return null;
 
   const isFolder = item.type === "folder";
+  const isMultiSource = sourceCount > 1;
+  const showSubsequentOptions = isMultiSource || isFolder;
 
   // Add text-sm to prevent text wrapping and ensure uniform height.
   const baseButtonClasses =
@@ -88,11 +96,17 @@ const OverwriteConfirmModal = ({ isVisible, item, onDecision, onCancel }) => {
 
         {/* --- Main Grid --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Left Column: One-time actions. Use space-y-2 to match the grid gap on the right. */}
-          <div className="flex flex-col space-y-2">
-            <h4 className="font-bold text-gray-400 border-b border-gray-600 pb-1 mb-1">
-              {isFolder ? "For the Folder Itself" : "For This File Only"}
-            </h4>
+          {/* Left Column: One-time actions. */}
+          <div
+            className={`flex flex-col space-y-2 ${
+              !showSubsequentOptions ? "md:col-span-3" : ""
+            }`}
+          >
+            {showSubsequentOptions && (
+              <h4 className="font-bold text-gray-400 border-b border-gray-600 pb-1 mb-1">
+                {isFolder ? "For the Folder Itself" : "For This File Only"}
+              </h4>
+            )}
             <button
               onClick={() => onDecision("overwrite")}
               className={`${baseButtonClasses} bg-green-600 hover:bg-green-700 text-white font-bold`}
@@ -118,27 +132,29 @@ const OverwriteConfirmModal = ({ isVisible, item, onDecision, onCancel }) => {
           </div>
 
           {/* Center Column: Job-wide rules */}
-          <div className="flex flex-col space-y-2 md:col-span-2">
-            <h4 className="font-bold text-gray-400 border-b border-gray-600 pb-1 mb-1">
-              For All Subsequent Items in this Operation
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              {conditionalButtons.map(
-                ({ label, decision, title, colorClass }) => (
-                  <button
-                    key={decision}
-                    onClick={() => onDecision(decision)}
-                    className={`${baseButtonClasses} ${
-                      colorClass.includes("text-black") ? "" : "text-white"
-                    } ${colorClass}`}
-                    title={title}
-                  >
-                    {label}
-                  </button>
-                )
-              )}
+          {showSubsequentOptions && (
+            <div className="flex flex-col space-y-2 md:col-span-2">
+              <h4 className="font-bold text-gray-400 border-b border-gray-600 pb-1 mb-1">
+                For All Subsequent Items in this Operation
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {conditionalButtons.map(
+                  ({ label, decision, title, colorClass }) => (
+                    <button
+                      key={decision}
+                      onClick={() => onDecision(decision)}
+                      className={`${baseButtonClasses} ${
+                        colorClass.includes("text-black") ? "" : "text-white"
+                      } ${colorClass}`}
+                      title={title}
+                    >
+                      {label}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* --- Cancel Button --- */}

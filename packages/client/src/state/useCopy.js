@@ -20,6 +20,7 @@ export default function useCopy({
     total: 0,
     jobId: null,
     currentFile: "",
+    sourceCount: 0,
   });
   const [overwritePrompt, setOverwritePrompt] = useState({
     isVisible: false,
@@ -55,6 +56,7 @@ export default function useCopy({
           total: 0,
           jobId,
           currentFile: "Initializing...",
+          sourceCount: sources.length,
         });
       } catch (err) {
         setError(`Copy failed: ${err.message}`);
@@ -109,7 +111,7 @@ export default function useCopy({
         setError(`Failed to send cancel request: ${err.message}`);
       }
     }
-  }, [copyProgress.jobId, overwritePrompt.isVisible, setError]);
+  }, [copyProgress.jobId, overwritePrompt.isVisible, setError, wsRef]);
 
   const handleOverwriteDecision = (decision) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -188,6 +190,7 @@ export default function useCopy({
         total: 0,
         jobId: null,
         currentFile: "",
+        sourceCount: 0,
       });
     };
 
@@ -200,7 +203,7 @@ export default function useCopy({
         ws.close();
       }
     };
-  }, [copyProgress.jobId]);
+  }, [copyProgress.jobId, wsRef]);
 
   return {
     copyProgress,
