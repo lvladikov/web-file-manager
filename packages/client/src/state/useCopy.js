@@ -6,6 +6,7 @@ export default function useCopy({
   activePanel,
   panels,
   activeSelection,
+  filteredItems,
   handleNavigate,
   setError,
   panelRefs,
@@ -88,12 +89,12 @@ export default function useCopy({
       return;
     }
 
-    const sources = [...activeSelection].map((name) =>
-      buildFullPath(sourcePath, name)
-    );
+    const sources = filteredItems
+      .filter(item => activeSelection.has(item.name))
+      .map((item) => buildFullPath(sourcePath, item.name));
 
     await performCopy(sources, destinationPath);
-  }, [activePanel, panels, activeSelection, performCopy, setError]);
+  }, [activePanel, panels, activeSelection, filteredItems, performCopy, setError]);
 
   const handleCancelCopy = useCallback(async () => {
     if (

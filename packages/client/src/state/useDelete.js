@@ -6,6 +6,7 @@ export default function useDelete({
   panels,
   focusedItem,
   activeSelection,
+  filteredItems,
   handleNavigate,
   setError,
   panelRefs,
@@ -24,8 +25,7 @@ export default function useDelete({
         itemsToDelete = itemsToDeleteOverride;
       } else if (activeSelection && activeSelection.size > 0) {
         // 2. If no override, check for a multi-item selection.
-        const panelItems = panels[activePanel].items;
-        itemsToDelete = panelItems.filter((item) =>
+        itemsToDelete = filteredItems.filter((item) =>
           activeSelection.has(item.name)
         );
       } else {
@@ -75,7 +75,7 @@ export default function useDelete({
         setDeleteSummary(null);
       }
     },
-    [activePanel, focusedItem, panels, activeSelection, setError]
+    [activePanel, focusedItem, panels, activeSelection, filteredItems, setError]
   );
 
   const confirmDeletion = useCallback(async () => {
