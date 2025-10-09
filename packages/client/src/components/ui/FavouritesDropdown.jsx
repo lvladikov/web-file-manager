@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-const FavouritesDropdown = ({ favorites, onSelect, onRemove, onClose }) => {
+const FavouritesDropdown = ({ favourites, onSelect, onRemove, onClose }) => {
   const dropdownRef = useRef(null);
   useEffect(() => {
     const handleClickOutside = (event) =>
@@ -14,10 +14,10 @@ const FavouritesDropdown = ({ favorites, onSelect, onRemove, onClose }) => {
       ref={dropdownRef}
       className="absolute top-12 right-2 z-50 bg-gray-700 border-gray-500 rounded-md shadow-lg text-white w-96"
     >
-      <div className="p-2 border-b border-gray-600 font-bold">Favorites</div>
+      <div className="p-2 border-b border-gray-600 font-bold">Favourites</div>
       <ul className="py-1 max-h-64 overflow-y-auto">
-        {favorites.length > 0 ? (
-          favorites.map((fav) => (
+        {favourites.length > 0 ? (
+          favourites.map((fav) => (
             <li
               key={fav}
               className="flex items-center justify-between px-4 py-2 hover:bg-sky-600 cursor-pointer group"
@@ -37,7 +37,7 @@ const FavouritesDropdown = ({ favorites, onSelect, onRemove, onClose }) => {
             </li>
           ))
         ) : (
-          <li className="px-4 py-2 text-gray-400">No favorites saved.</li>
+          <li className="px-4 py-2 text-gray-400">No favourites saved.</li>
         )}
       </ul>
     </div>
