@@ -21,7 +21,7 @@ const CalculatingSizeModal = ({
         </div>
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-6 break-all">
           <p className="text-sm">Processing:</p>
-          <p className="font-mono text-gray-300 mb-2">{currentFile}</p>
+          <p className="font-mono text-gray-300 mb-2 w-full truncate overflow-hidden whitespace-nowrap">{currentFile}</p>
           <p className="text-sm border-t border-gray-700 pt-2">Size so far:</p>
           <p className="font-mono text-gray-300">{formatBytes(sizeSoFar)}</p>
         </div>

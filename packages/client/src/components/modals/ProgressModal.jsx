@@ -30,7 +30,7 @@ const ProgressModal = ({
 
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
           <p className="text-sm">{isScanning ? "Scanning:" : "Copying:"}</p>
-          <p className="font-mono text-gray-300">{currentFile}</p>
+          <p className="font-mono text-gray-300 w-full truncate overflow-hidden whitespace-nowrap">{currentFile}</p>
         </div>
 
         {/* The progress bar is only shown during the copying phase */}
