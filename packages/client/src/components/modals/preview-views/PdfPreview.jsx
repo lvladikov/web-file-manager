@@ -5,7 +5,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
 // Configure the PDF.js worker to use the local file copied by our Vite plugin.
-pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
 const PdfPreview = ({ fileUrl, isFullscreen }) => {
   const [numPages, setNumPages] = useState(null);

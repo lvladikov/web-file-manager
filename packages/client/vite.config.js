@@ -17,8 +17,8 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          // This path is correct for the compatible version of pdfjs-dist (v3.11.174)
-          src: path.join(pdfjsDistPath, "build", "pdf.worker.min.js"),
+          // This path is correct for the compatible version of pdfjs-dist (v5.4.296)
+          src: path.join(pdfjsDistPath, "build", "pdf.worker.min.mjs"),
           // Copy it to the root of the output directory
           dest: ".",
         },
