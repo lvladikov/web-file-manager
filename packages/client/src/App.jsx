@@ -1,4 +1,5 @@
 import { cancelSizeCalculation } from "./lib/api";
+import { isItemPreviewable, buildFullPath } from "./lib/utils";
 
 import appState from "./state";
 

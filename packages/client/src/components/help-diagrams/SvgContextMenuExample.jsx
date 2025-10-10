@@ -2,12 +2,12 @@ import SvgUiElement from "./SvgUiElement";
 
 // SVG Example: Context Menu
 const SvgContextMenuExample = () => (
-  <SvgUiElement width={280} height={460}>
+  <SvgUiElement width={280} height={520}>
     <rect
       x="10"
       y="10"
       width="260"
-      height="440"
+      height="500"
       rx="4"
       fill="#374151"
       className="svg-border"
@@ -43,30 +43,37 @@ const SvgContextMenuExample = () => (
     </text>
     <line x1="10" y1="235" x2="270" y2="235" className="svg-border" />
     <text x="25" y="255" className="svg-text">
-      Select All (Cmd+A)
+      Compress in active panel
     </text>
     <text x="25" y="275" className="svg-text">
+      Compress to other panel
+    </text>
+    <line x1="10" y1="290" x2="270" y2="290" className="svg-border" />
+    <text x="25" y="310" className="svg-text">
+      Select All (Cmd+A)
+    </text>
+    <text x="25" y="330" className="svg-text">
       Unselect All (Cmd+D)
     </text>
-    <text x="25" y="295" className="svg-text">
-      Invert Selection (*)
-    </text>
-    <line x1="10" y1="310" x2="270" y2="310" className="svg-border" />
-    <text x="25" y="330" className="svg-text">
-      Quick Select (+)
-    </text>
     <text x="25" y="350" className="svg-text">
-      Quick Unselect (-)
+      Invert Selection (*)
     </text>
     <line x1="10" y1="365" x2="270" y2="365" className="svg-border" />
     <text x="25" y="385" className="svg-text">
+      Quick Select (+)
+    </text>
+    <text x="25" y="405" className="svg-text">
+      Quick Unselect (-)
+    </text>
+    <line x1="10" y1="420" x2="270" y2="420" className="svg-border" />
+    <text x="25" y="440" className="svg-text">
       Quick Filter (.)
     </text>
-    <line x1="10" y1="400" x2="270" y2="400" className="svg-border" />
-    <text x="25" y="420" className="svg-text">
+    <line x1="10" y1="455" x2="270" y2="455" className="svg-border" />
+    <text x="25" y="475" className="svg-text">
       Refresh active panel
     </text>
-    <text x="25" y="440" className="svg-text">
+    <text x="25" y="495" className="svg-text">
       Refresh both panels
     </text>
   </SvgUiElement>

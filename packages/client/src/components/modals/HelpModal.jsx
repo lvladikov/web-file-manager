@@ -192,6 +192,12 @@ const HelpModal = ({ isVisible, onClose }) => {
                     operation on the selected item.
                   </li>
                   <li>
+                    <kbd>Compress in active panel</kbd>: Compresses the selected items into a zip archive in the current panel.
+                  </li>
+                  <li>
+                    <kbd>Compress to other panel</kbd>: Compresses the selected items into a zip archive and transfers it to the other panel.
+                  </li>
+                  <li>
                     <kbd>Copy / Cut (to clipboard)</kbd>: (Coming soon) Standard
                     clipboard operations.
                   </li>
@@ -221,7 +227,7 @@ const HelpModal = ({ isVisible, onClose }) => {
               You can cancel the operation at any time.
             </p>
             <p>
-              During any long-running operation (like calculating folder size or copying files), a progress dialog will appear.
+              During any long-running operation (like calculating folder size, copying, or compressing files), a progress dialog will appear, often displaying the instantaneous speed of transfer.
               If you need to see the panels behind the dialog, you can click and hold on the animated icon (e.g., spinning circle or pulsing search icon) in the dialog's header.
               This will make the dialog semi-transparent (20% opacity). Releasing the mouse button will restore its full visibility.
             </p>
@@ -262,7 +268,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
                 <strong>File Menu:</strong> Contains actions related to file operations
-                such as Copy, Move, Rename, Delete, Calculate Size, and Refresh.
+                such as Copy, Move, Rename, Delete, Compress, Calculate Size, and Refresh.
                 Many of these actions have corresponding function key shortcuts.
               </li>
               <li>
