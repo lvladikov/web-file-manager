@@ -229,11 +229,11 @@ const saveAutoLoadLyrics = async (autoLoadLyrics) => {
   if (!response.ok) throw new Error("Could not save auto-load setting.");
 };
 
-const compressFiles = async (sources, destination) => {
+const compressFiles = async (sources, destination, sourceDirectory) => {
   const response = await fetch("/api/compress", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sources, destination }),
+    body: JSON.stringify({ sources, destination, sourceDirectory }),
   });
   if (!response.ok) {
     const data = await response.json();

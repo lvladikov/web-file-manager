@@ -81,7 +81,7 @@ const useCompress = ({
     });
 
     try {
-      const response = await compressFiles(itemPaths, destinationPath);
+      const response = await compressFiles(itemPaths, destinationPath, sourcePath);
       const { jobId } = response;
 
       setCompressProgress((prev) => ({ ...prev, jobId }));

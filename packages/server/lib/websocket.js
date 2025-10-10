@@ -210,12 +210,12 @@ export function initializeWebSocketServer(
             for (const source of job.sources) {
               const stats = await fse.stat(source);
               if (stats.isDirectory()) {
-                const files = await getAllFiles(source, source);
+                const files = await getAllFiles(source, job.sourceDirectory);
                 allFiles.push(...files);
               } else {
                 allFiles.push({
                   fullPath: source,
-                  relativePath: path.basename(source),
+                  relativePath: path.relative(job.sourceDirectory, source),
                   stats: stats,
                 });
               }

@@ -293,7 +293,7 @@ export default function createFileRoutes(
 
   // Endpoint to compress files/folders
   router.post("/compress", async (req, res) => {
-    const { sources, destination } = req.body;
+    const { sources, destination, sourceDirectory } = req.body;
 
     if (!sources || sources.length === 0 || !destination) {
       return res
@@ -335,6 +335,7 @@ export default function createFileRoutes(
       controller: new AbortController(), // For potential cancellation
       sources,
       destination,
+      sourceDirectory, // Store the source directory
       outputPath, // Store the path to the archive file
       output, // Store the output stream
       archive, // Store the archiver instance
