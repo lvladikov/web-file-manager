@@ -5,9 +5,14 @@ import open from "open";
 import os from "os";
 import crypto from "crypto";
 import checkDiskSpace from "check-disk-space";
-import { performCopyCancellation } from "../lib/utils.js";
+import archiver from "archiver";
+import { performCopyCancellation, getDirTotalSize } from "../lib/utils.js";
 
-export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
+export default function createFileRoutes(
+  activeCopyJobs,
+  activeSizeJobs,
+  activeCompressJobs
+) {
   const router = express.Router();
 
   // Endpoint to get disk space information
@@ -111,7 +116,7 @@ export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
 
       // On macOS, prevent listing 'Macintosh HD' when in /Volumes to avoid recursion
       if (os.platform() === "darwin" && currentPath === "/Volumes") {
-        validItems = validItems.filter(item => item.name !== "Macintosh HD");
+        validItems = validItems.filter((item) => item.name !== "Macintosh HD");
       }
 
       if (path.dirname(currentPath) !== currentPath) {
@@ -284,6 +289,88 @@ export default function createFileRoutes(activeCopyJobs, activeSizeJobs) {
         .status(500)
         .json({ message: `Failed to create folder: ${error.message}` });
     }
+  });
+
+  // Endpoint to compress files/folders
+  router.post("/compress", async (req, res) => {
+    const { sources, destination } = req.body;
+
+    if (!sources || sources.length === 0 || !destination) {
+      return res
+        .status(400)
+        .json({ message: "Sources and destination are required." });
+    }
+
+    const jobId = crypto.randomUUID();
+
+    // Get folder name from destination path
+    const folderName = path.basename(destination);
+
+    // Format current date and time as YYYYMMDD-HHMMSS
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const dateTimeStamp = `${year}${month}${day}-${hours}${minutes}${seconds}`;
+
+    const archiveName = `${folderName}_${dateTimeStamp}.zip`;
+    const outputPath = path.join(destination, archiveName);
+    const output = fse.createWriteStream(outputPath);
+    const archive = archiver("zip", {
+      zlib: { level: 9 }, // Sets the compression level.
+    });
+
+    let totalSize = 0;
+    for (const source of sources) {
+      totalSize += await getDirTotalSize(source);
+    }
+
+    const job = {
+      id: jobId,
+      status: "pending",
+      ws: null, // WebSocket will be attached when client connects
+      controller: new AbortController(), // For potential cancellation
+      sources,
+      destination,
+      outputPath, // Store the path to the archive file
+      output, // Store the output stream
+      archive, // Store the archiver instance
+      totalBytes: totalSize, // Will be updated by archiver
+      compressedBytes: 0, // Will be updated by archiver
+      currentFile: "", // Will be updated by archiver
+    };
+    activeCompressJobs.set(jobId, job);
+
+    // Send jobId immediately so client can connect WebSocket
+    res.status(202).json({ jobId });
+  });
+
+  // Endpoint to cancel a compress job
+  router.post("/compress/cancel", async (req, res) => {
+    const { jobId } = req.body;
+    if (!jobId || !activeCompressJobs.has(jobId)) {
+      return res.status(404).json({ message: "Compression job not found." });
+    }
+    const job = activeCompressJobs.get(jobId);
+    if (job.status === "pending" || job.status === "running") {
+      job.status = "cancelled";
+      if (job.archive) {
+        job.archive.destroy(); // Destroy the archiver stream, which also destroys its piped destination
+      }
+      // Delete the partial archive immediately upon cancellation
+      if (await fse.pathExists(job.outputPath)) {
+        console.log(
+          `Compression job ${jobId} was cancelled. Deleting partial archive: ${job.outputPath}`
+        );
+        await fse.remove(job.outputPath);
+      }
+    }
+    res
+      .status(200)
+      .json({ message: "Compression cancellation request received." });
   });
 
   // Endpoint to rename a file/folder

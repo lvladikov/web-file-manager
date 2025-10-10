@@ -124,6 +124,7 @@ export default function useContextMenu({
   const handleEmptyAreaContextMenu = (e, panelId) => {
     e.preventDefault();
     closeContextMenus();
+    setActivePanel(panelId); // Set the active panel to the one that was right-clicked
     setEmptyAreaContextMenu({ visible: true, x: e.pageX, y: e.pageY, panelId });
   };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import TruncatedText from "./TruncatedText";
 
 const Breadcrumbs = ({ path, onNavigate }) => {
   const containerRef = useRef(null);
@@ -56,44 +57,84 @@ const Breadcrumbs = ({ path, onNavigate }) => {
 
   // 3. Calculate the final visible segments once we have all measurements.
   useLayoutEffect(() => {
-    const calculateDisplaySegments = () => {
-      if (
-        !containerRef.current ||
-        segments.length === 0 ||
-        segmentWidths.length === 0
-      ) {
-        setDisplaySegments(segments.length ? segments : []);
-        return;
-      }
-
-      const containerWidth = containerRef.current.offsetWidth;
-      const totalWidth = segmentWidths.reduce((sum, w) => sum + w, 0);
-
-      if (totalWidth <= containerWidth) {
-        setDisplaySegments(segments);
-        return;
-      }
-
-      const ellipsisWidth = 30;
-      const rootSegment = segments[0];
-      const rootWidth = segmentWidths[0];
-
-      const finalSegments = [rootSegment, { type: "ellipsis" }];
-      let requiredWidth = rootWidth + ellipsisWidth;
-      const endSegments = [];
-
-      for (let i = segments.length - 1; i > 0; i--) {
-        const currentSegmentWidth = segmentWidths[i];
-        if (requiredWidth + currentSegmentWidth > containerWidth) {
-          break;
-        }
-        requiredWidth += currentSegmentWidth;
-        endSegments.unshift(segments[i]);
-      }
-
-      setDisplaySegments([...finalSegments, ...endSegments]);
-    };
-
+          const calculateDisplaySegments = () => {
+            if (
+              !containerRef.current ||
+              segments.length === 0 ||
+              segmentWidths.length === 0
+            ) {
+              setDisplaySegments(segments.length ? segments : []);
+              return;
+            }
+    
+            const containerWidth = containerRef.current.offsetWidth;
+            const totalWidth = segmentWidths.reduce((sum, w) => sum + w, 0);
+    
+            if (totalWidth <= containerWidth) {
+              setDisplaySegments(segments);
+              return;
+            }
+    
+            // If we reach here, totalWidth > containerWidth, so we need truncation.
+    
+            const ellipsisWidth = 30; // Estimated width of "..."
+            const separatorWidth = 10; // Estimated width of "/" or "\\"
+    
+            const finalSegments = [];
+            let currentWidth = 0;
+    
+            // Always include the first segment
+            finalSegments.push(segments[0]);
+            currentWidth += segmentWidths[0];
+    
+            // If there's only one segment, TruncatedText will handle its internal truncation
+            if (segments.length === 1) {
+              setDisplaySegments(segments);
+              return;
+            }
+    
+            // Always include the last segment
+            const lastSegment = segments[segments.length - 1];
+            const lastSegmentWidth = segmentWidths[segments.length - 1];
+    
+            // Check if root + ellipsis + last fits
+            // currentWidth already has rootWidth
+            if (currentWidth + separatorWidth + ellipsisWidth + separatorWidth + lastSegmentWidth <= containerWidth) {
+              // If it fits, add ellipsis and last segment
+              finalSegments.push({ type: "ellipsis" });
+              finalSegments.push(lastSegment);
+              currentWidth += separatorWidth + ellipsisWidth + separatorWidth + lastSegmentWidth;
+    
+              // Now try to fill in segments from the end, before the last segment
+              let availableSpaceForMiddle = containerWidth - currentWidth;
+              const middleSegments = [];
+              for (let i = segments.length - 2; i > 0; i--) { // Iterate from second to last to second
+                const segment = segments[i];
+                const segmentWidth = segmentWidths[i];
+                if (availableSpaceForMiddle >= segmentWidth + separatorWidth) {
+                  middleSegments.unshift(segment);
+                  availableSpaceForMiddle -= (segmentWidth + separatorWidth);
+                } else {
+                  break;
+                }
+              }
+              // Insert middle segments before the last segment (which is at finalSegments.length - 1)
+              finalSegments.splice(finalSegments.length - 1, 0, ...middleSegments);
+    
+            } else {
+              // If root + ellipsis + last doesn't fit, just show root and last.
+              // TruncatedText will handle internal truncation of root and last.
+              // We need to make sure the root and last are added with separators.
+              finalSegments.length = 0; // Clear finalSegments
+              finalSegments.push(segments[0]);
+              if (segments.length > 1) {
+                finalSegments.push({ type: "ellipsis" }); // Add ellipsis if there are more than 1 segment
+                finalSegments.push(lastSegment);
+              }
+            }
+    
+            setDisplaySegments(finalSegments);
+          };
     calculateDisplaySegments();
 
     window.addEventListener("resize", calculateDisplaySegments);
@@ -114,8 +155,8 @@ const Breadcrumbs = ({ path, onNavigate }) => {
         aria-hidden="true"
       >
         {segments.map((segment, index) => (
-          <div key={segment.path} className="flex items-center flex-shrink-0">
-            <span className="px-1">{segment.text}</span>
+          <div key={segment.path} className="flex items-center flex-shrink-0 max-w-[200px]">
+            <TruncatedText text={segment.text} className="px-1" />
             {!isLast(index, segments) && (
               <span className="select-none">{separator}</span>
             )}
@@ -142,12 +183,11 @@ const Breadcrumbs = ({ path, onNavigate }) => {
         }
         return (
           <div key={segment.path} className="flex items-center flex-shrink-0">
-            <span
+            <TruncatedText
+              text={segment.text}
               className="cursor-pointer hover:text-sky-400 hover:underline px-1"
               onClick={() => onNavigate(segment.path)}
-            >
-              {segment.text}
-            </span>
+            />
             {!isLast(index, displaySegments) && (
               <span className="text-gray-500 select-none">{separator}</span>
             )}

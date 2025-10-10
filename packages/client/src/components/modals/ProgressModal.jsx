@@ -2,6 +2,19 @@ import React, { useState } from "react";
 
 import { Copy, XCircle, Search } from "lucide-react";
 import { formatBytes } from "../../lib/utils";
+import TruncatedText from "../ui/TruncatedText";
+
+const formatSpeed = (bytesPerSecond) => {
+  if (bytesPerSecond < 1024) {
+    return `${bytesPerSecond.toFixed(2)} B/s`;
+  } else if (bytesPerSecond < 1024 * 1024) {
+    return `${(bytesPerSecond / 1024).toFixed(2)} KB/s`;
+  } else if (bytesPerSecond < 1024 * 1024 * 1024) {
+    return `${(bytesPerSecond / (1024 * 1024)).toFixed(2)} MB/s`;
+  } else {
+    return `${(bytesPerSecond / (1024 * 1024 * 1024)).toFixed(2)} GB/s`;
+  }
+};
 
 const ProgressModal = ({
   isVisible,
@@ -9,13 +22,29 @@ const ProgressModal = ({
   copied,
   total,
   currentFile,
+  currentFileBytesProcessed,
+  currentFileSize,
+  startTime,
+  lastUpdateTime,
   onCancel,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
 
   const percent = total > 0 ? Math.round((copied / total) * 100) : 0;
+  const currentFileProgressPercentage =
+    currentFileSize > 0
+      ? (currentFileBytesProcessed / currentFileSize) * 100
+      : 0;
   const isScanning = status === "scanning";
+
+  const calculateSpeed = () => {
+    if (!startTime || !lastUpdateTime || copied === 0) return "0 B/s";
+    const elapsedTimeInSeconds = (lastUpdateTime - startTime) / 1000;
+    if (elapsedTimeInSeconds <= 0) return "0 B/s";
+    const speed = copied / elapsedTimeInSeconds;
+    return formatSpeed(speed);
+  };
 
   return (
     <div
@@ -41,29 +70,55 @@ const ProgressModal = ({
         </div>
 
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
-          <p className="text-sm">{isScanning ? "Scanning:" : "Copying:"}</p>
-          <p className="font-mono text-gray-300 w-full truncate overflow-hidden whitespace-nowrap">
-            {currentFile}
+          <p className="text-sm">
+            {isScanning ? "Scanning:" : "Overall Progress:"}
           </p>
+          {status === "copying" && (
+            <div className="text-gray-300 space-y-2 mt-2">
+              <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+                <div
+                  className="bg-sky-500 h-4 rounded-full"
+                  style={{
+                    width: `${percent}%`,
+                    transition: "width 0.1s linear",
+                  }}
+                ></div>
+              </div>
+              <div className="flex justify-between items-center text-sm font-mono">
+                <span>{percent}%</span>
+                <span>
+                  {formatBytes(copied)} / {formatBytes(total)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* The progress bar is only shown during the copying phase */}
-        {status === "copying" && (
+        {status === "copying" && currentFileSize > 0 && (
           <div className="text-gray-300 space-y-2 mb-6">
-            <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
-              <div
-                className="bg-sky-500 h-4 rounded-full"
-                style={{
-                  width: `${percent}%`,
-                  transition: "width 0.1s linear",
-                }}
-              ></div>
-            </div>
-            <div className="flex justify-between items-center text-sm font-mono">
-              <span>{percent}%</span>
-              <span>
-                {formatBytes(copied)} / {formatBytes(total)}
-              </span>
+            <div className="mt-4">
+              <p className="text-sm">Current File Progress:</p>
+              <TruncatedText
+                text={currentFile}
+                className="font-mono text-gray-300 mb-2"
+              />
+              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div
+                  className="bg-blue-400 h-3 rounded-full"
+                  style={{
+                    width: `${currentFileProgressPercentage}%`,
+                    transition: "width 0.1s linear",
+                  }}
+                ></div>
+              </div>
+              <p className="flex justify-between items-center text-sm text-gray-400 mt-1">
+                <span>{currentFileProgressPercentage.toFixed(1)}%</span>
+                <span>
+                  {formatBytes(currentFileBytesProcessed)} /{" "}
+                  {formatBytes(currentFileSize)} ({calculateSpeed()})
+                </span>
+              </p>
             </div>
           </div>
         )}

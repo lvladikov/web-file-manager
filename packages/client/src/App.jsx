@@ -1,8 +1,3 @@
-import {
-  buildFullPath,
-  isItemPreviewable,
-  calculateFolderSize,
-} from "./lib/utils";
 import { cancelSizeCalculation } from "./lib/api";
 
 import appState from "./state";
@@ -24,6 +19,7 @@ import OverwriteConfirmModal from "./components/modals/OverwriteConfirmModal";
 import ProgressModal from "./components/modals/ProgressModal";
 import PreviewModal from "./components/modals/PreviewModal";
 import QuickSelectModal from "./components/modals/QuickSelectModal";
+import CompressionProgressModal from "./components/modals/CompressionProgressModal";
 
 export default function App() {
   const {
@@ -122,6 +118,10 @@ export default function App() {
     actionBarButtons,
     quickSelectModal,
     setQuickSelectModal,
+    compressProgress,
+    handleCancelCompress,
+    handleCompressInActivePanel,
+    handleCompressToOtherPanel,
   } = appState();
 
   return (
@@ -139,7 +139,9 @@ export default function App() {
             const destPanelId = sourcePanelId === "left" ? "right" : "left";
             const sourcePath = panels[sourcePanelId].path;
             const destinationPath = panels[destPanelId].path;
-            const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel].items;
+            const items = filter[activePanel].pattern
+              ? filteredItems[activePanel]
+              : panels[activePanel].items;
             const sources = items
               .filter((item) => selections[activePanel].has(item.name))
               .map((item) => buildFullPath(sourcePath, item.name));
@@ -154,7 +156,9 @@ export default function App() {
             }
           }}
           onDelete={() => {
-            const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel].items;
+            const items = filter[activePanel].pattern
+              ? filteredItems[activePanel]
+              : panels[activePanel].items;
             const itemsToDelete = items.filter((item) =>
               selections[activePanel].has(item.name)
             );
@@ -195,6 +199,8 @@ export default function App() {
           onQuickSelect={handleStartQuickSelect}
           onQuickUnselect={handleStartQuickUnselect}
           onQuickFilter={handleStartFilter}
+          onCompressInActivePanel={handleCompressInActivePanel}
+          onCompressToOtherPanel={handleCompressToOtherPanel}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -228,6 +234,7 @@ export default function App() {
         isVisible={sizeCalcModal.isVisible}
         currentFile={sizeCalcModal.currentFile}
         sizeSoFar={sizeCalcModal.sizeSoFar}
+        totalBytes={sizeCalcModal.totalBytes}
         onCancel={() => {
           if (sizeCalcModal.jobId) cancelSizeCalculation(sizeCalcModal.jobId);
         }}
@@ -242,7 +249,14 @@ export default function App() {
         autoLoadLyrics={autoLoadLyrics}
         onToggleAutoLoadLyrics={handleToggleAutoLoadLyrics}
       />
-      <ProgressModal {...copyProgress} onCancel={handleCancelCopy} />
+      <ProgressModal
+        {...copyProgress}
+        currentFileBytesProcessed={copyProgress.currentFileBytesProcessed}
+        currentFileSize={copyProgress.currentFileSize}
+        startTime={copyProgress.startTime}
+        lastUpdateTime={copyProgress.lastUpdateTime}
+        onCancel={handleCancelCopy}
+      />
       <OverwriteConfirmModal
         isVisible={overwritePrompt.isVisible}
         item={overwritePrompt.item}
@@ -250,13 +264,15 @@ export default function App() {
         onCancel={handleCancelCopy}
         sourceCount={copyProgress.sourceCount}
       />
-       <QuickSelectModal
+      <QuickSelectModal
         isVisible={quickSelectModal.isVisible}
         mode={quickSelectModal.mode}
-        onClose={() => setQuickSelectModal({ isVisible: false, mode: 'select' })}
+        onClose={() =>
+          setQuickSelectModal({ isVisible: false, mode: "select" })
+        }
         onConfirm={handleQuickSelectConfirm}
       />
-     <DeleteConfirmModal
+      <DeleteConfirmModal
         isVisible={deleteModalVisible}
         targetItems={deleteTargets}
         summary={deleteSummary}
@@ -266,6 +282,18 @@ export default function App() {
       <HelpModal
         isVisible={helpModal.isVisible}
         onClose={() => setHelpModal({ isVisible: false })}
+      />
+      <CompressionProgressModal
+        key={compressProgress.jobId}
+        isVisible={compressProgress.isVisible}
+        currentFile={compressProgress.currentFile}
+        totalBytes={compressProgress.totalBytes}
+        processedBytes={compressProgress.processedBytes}
+        currentFileTotalSize={compressProgress.currentFileTotalSize}
+        currentFileBytesProcessed={compressProgress.currentFileBytesProcessed}
+        instantaneousSpeed={compressProgress.instantaneousSpeed}
+        onCancel={handleCancelCompress}
+        error={compressProgress.error}
       />
 
       {contextMenu.visible && (
@@ -294,9 +322,12 @@ export default function App() {
             const destPanelId = sourcePanelId === "left" ? "right" : "left";
             const sourcePath = panels[sourcePanelId].path;
             const destinationPath = panels[destPanelId].path;
-            const sources = contextMenu.targetItems.map((item) =>
-              buildFullPath(sourcePath, item.name)
-            );
+            const items = filter[sourcePanelId].pattern
+              ? filteredItems[sourcePanelId]
+              : panels[sourcePanelId].items;
+            const sources = items
+              .filter((item) => selections[sourcePanelId].has(item.name))
+              .map((item) => buildFullPath(sourcePath, item.name));
             performCopy(sources, destinationPath);
             closeContextMenus();
           }}
@@ -378,6 +409,8 @@ export default function App() {
               }
             }
           }}
+          onCompressInActivePanel={handleCompressInActivePanel}
+          onCompressToOtherPanel={handleCompressToOtherPanel}
         />
       )}
       {pathContextMenu.visible && (

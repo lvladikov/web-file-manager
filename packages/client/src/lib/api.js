@@ -229,6 +229,19 @@ const saveAutoLoadLyrics = async (autoLoadLyrics) => {
   if (!response.ok) throw new Error("Could not save auto-load setting.");
 };
 
+const compressFiles = async (sources, destination) => {
+  const response = await fetch("/api/compress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sources, destination }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to compress items.");
+  }
+  return response.json();
+};
+
 export {
   createNewFolder,
   deleteItem,
@@ -252,4 +265,5 @@ export {
   saveLayout,
   fetchAutoLoadLyrics,
   saveAutoLoadLyrics,
+  compressFiles,
 };

@@ -21,7 +21,11 @@ export default function useCopy({
     total: 0,
     jobId: null,
     currentFile: "",
+    currentFileBytesProcessed: 0,
+    currentFileSize: 0,
     sourceCount: 0,
+    startTime: null,
+    lastUpdateTime: null,
   });
   const [overwritePrompt, setOverwritePrompt] = useState({
     isVisible: false,
@@ -58,6 +62,8 @@ export default function useCopy({
           jobId,
           currentFile: "Initializing...",
           sourceCount: sources.length,
+          startTime: Date.now(),
+          lastUpdateTime: Date.now(),
         });
       } catch (err) {
         setError(`Copy failed: ${err.message}`);
@@ -153,7 +159,13 @@ export default function useCopy({
           }));
           break;
         case "progress":
-          setCopyProgress((prev) => ({ ...prev, copied: data.copied }));
+          setCopyProgress((prev) => ({
+            ...prev,
+            copied: data.copied,
+            currentFileBytesProcessed: data.currentFileBytesProcessed,
+            currentFileSize: data.currentFileSize,
+            lastUpdateTime: Date.now(),
+          }));
           break;
         case "overwrite_prompt":
           setOverwritePrompt({
@@ -192,6 +204,8 @@ export default function useCopy({
         jobId: null,
         currentFile: "",
         sourceCount: 0,
+        startTime: null,
+        lastUpdateTime: null,
       });
     };
 

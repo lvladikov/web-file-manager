@@ -13,6 +13,7 @@ export default function useSizeCalculation({
     jobId: null,
     currentFile: "",
     sizeSoFar: 0,
+    totalBytes: 0,
     folderName: null,
   });
 
@@ -101,7 +102,12 @@ export default function useSizeCalculation({
 
               jobWs.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                if (data.type === "progress") {
+                if (data.type === "start") {
+                  setSizeCalcModal((prev) => ({
+                    ...prev,
+                    totalBytes: data.totalSize,
+                  }));
+                } else if (data.type === "progress") {
                   setSizeCalcModal((prev) => ({
                     ...prev,
                     currentFile: data.file,

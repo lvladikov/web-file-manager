@@ -85,12 +85,18 @@ const FilePanel = React.forwardRef(
       const selectedFullItems = panelData.items.filter(item => selectedItems.has(item.name));
 
       selectedFullItems.forEach((item) => {
-        if (item.type === "file") {
-          files++;
-          totalSize += item.size;
-        } else if (item.type === "folder") {
+        if (item.type === "folder") {
           folders++;
-          totalSize += item.size;
+          // Folder sizes are calculated on demand, so we don't add item.size here
+          // unless it's already available (e.g., from a previous size calculation)
+          if (item.size !== null) {
+            totalSize += item.size;
+          }
+        } else { // All other file types (file, archive, image, video, audio, pdf)
+          files++;
+          if (item.size !== null) {
+            totalSize += item.size;
+          }
         }
       });
       setSelectedFileCount(files);

@@ -22,6 +22,8 @@ const ContextMenu = ({
   onQuickSelect,
   onQuickUnselect,
   onQuickFilter,
+  onCompressInActivePanel,
+  onCompressToOtherPanel,
 }) => {
   const menuRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState("none");
@@ -157,6 +159,24 @@ const ContextMenu = ({
         >
           {deleteLabel} (F8)
         </li>
+
+        {count > 0 && (
+          <>
+            <div className="border-t border-gray-600 mx-2 my-1"></div>
+            <li
+              onClick={onCompressInActivePanel}
+              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+            >
+              Compress in active panel
+            </li>
+            <li
+              onClick={onCompressToOtherPanel}
+              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+            >
+              Compress to other panel
+            </li>
+          </>
+        )}
 
         {folderCount > 0 && (
             <>

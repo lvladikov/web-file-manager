@@ -7,21 +7,32 @@ import {
   performCopyCancellation,
   getDirSizeWithScanProgress,
   copyWithProgress,
+  getDirTotalSize,
+  getAllFiles,
 } from "./utils.js";
 
 export function initializeWebSocketServer(
   server,
   activeCopyJobs,
-  activeSizeJobs
+  activeSizeJobs,
+  activeCompressJobs
 ) {
   const wss = new WebSocketServer({ server });
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const jobId = url.searchParams.get("jobId");
-    const jobType = url.searchParams.get("type") || "copy";
+    const jobType = url.searchParams.get("type");
 
-    const jobMap = jobType === "size" ? activeSizeJobs : activeCopyJobs;
+    let jobMap;
+    if (jobType === "size") {
+      jobMap = activeSizeJobs;
+    } else if (jobType === "compress") {
+      jobMap = activeCompressJobs;
+    } else {
+      // Default to copy if not specified or unknown
+      jobMap = activeCopyJobs;
+    }
 
     if (jobId && jobMap.has(jobId)) {
       const job = jobMap.get(jobId);
@@ -101,9 +112,19 @@ export function initializeWebSocketServer(
       if (jobType === "size") {
         (async () => {
           try {
+            // First, calculate the total size without sending progress updates
+            const totalSize = await getDirTotalSize(
+              job.folderPath,
+              job.controller.signal
+            );
+            job.totalSize = totalSize; // Store total size in the job object
+
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "start", totalSize: totalSize }));
+            }
+
             job.sizeSoFar = 0;
             await getDirSizeWithProgress(job.folderPath, job);
-            const totalSize = job.sizeSoFar;
             if (ws.readyState === 1) {
               ws.send(JSON.stringify({ type: "complete", size: totalSize }));
               ws.close(1000, "Job Completed");
@@ -122,9 +143,148 @@ export function initializeWebSocketServer(
         })();
       }
 
-      ws.on("close", () => {
+      if (jobType === "compress") {
+        console.log(`[ws] Entering compress job block for job: ${jobId}`);
+        (async () => {
+          let progressInterval;
+          try {
+            if (job.ws && job.ws.readyState === 1) {
+              job.ws.send(
+                JSON.stringify({ type: "start", totalSize: job.totalBytes })
+              );
+            }
+
+            job.lastProcessedBytes = 0;
+            job.lastUpdateTime = Date.now();
+
+            job.output.on("close", function () {
+              clearInterval(progressInterval);
+              job.status = "completed";
+              if (job.ws && job.ws.readyState === 1) {
+                job.ws.send(
+                  JSON.stringify({
+                    type: "complete",
+                    outputPath: job.outputPath,
+                  })
+                );
+                job.ws.close(1000, "Job Completed");
+              }
+              setTimeout(() => activeCompressJobs.delete(jobId), 5000);
+            });
+
+            job.archive.on("warning", (err) => {
+              if (job.ws && job.ws.readyState === 1) {
+                job.ws.send(
+                  JSON.stringify({ type: "warning", message: err.message })
+                );
+              }
+            });
+
+            progressInterval = setInterval(() => {
+              if (job.ws && job.ws.readyState === 1) {
+                const currentTime = Date.now();
+                const timeElapsed = (currentTime - job.lastUpdateTime) / 1000; // in seconds
+                const bytesSinceLastUpdate = job.compressedBytes - job.lastProcessedBytes;
+                const instantaneousSpeed = timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+
+                job.ws.send(
+                  JSON.stringify({
+                    type: "progress",
+                    total: job.totalBytes,
+                    processed: job.compressedBytes,
+                    currentFile: job.currentFile,
+                    currentFileTotalSize: job.currentFileTotalSize,
+                    currentFileBytesProcessed: job.currentFileBytesProcessed,
+                    instantaneousSpeed: instantaneousSpeed,
+                  })
+                );
+
+                job.lastProcessedBytes = job.compressedBytes;
+                job.lastUpdateTime = currentTime;
+              }
+            }, 250);
+
+            job.archive.pipe(job.output);
+
+            const allFiles = [];
+            for (const source of job.sources) {
+              const stats = await fse.stat(source);
+              if (stats.isDirectory()) {
+                const files = await getAllFiles(source, source);
+                allFiles.push(...files);
+              } else {
+                allFiles.push({
+                  fullPath: source,
+                  relativePath: path.basename(source),
+                  stats: stats,
+                });
+              }
+            }
+
+            for (const file of allFiles) {
+              await new Promise((resolve, reject) => {
+                job.currentFile = file.relativePath;
+                job.currentFileTotalSize = file.stats.size;
+                job.currentFileBytesProcessed = 0; // Reset for the new file
+
+                const stream = fse.createReadStream(file.fullPath);
+                stream.on("data", (chunk) => {
+                  job.currentFileBytesProcessed += chunk.length;
+                  job.compressedBytes += chunk.length;
+                });
+                stream.on("error", reject); // Handle read stream errors
+
+                job.archive.append(stream, {
+                  name: file.relativePath,
+                  stats: file.stats,
+                });
+
+                const onEntry = (entry) => {
+                  if (entry.name === file.relativePath) {
+                    job.archive.removeListener("entry", onEntry);
+                    resolve();
+                  }
+                };
+                job.archive.on("entry", onEntry);
+              });
+            }
+
+            job.archive.finalize();
+          } catch (error) {
+            clearInterval(progressInterval);
+            if (job.status !== "cancelled") job.status = "failed";
+            if (job.ws && job.ws.readyState === 1) {
+              const type = job.status === "cancelled" ? "cancelled" : "error";
+              job.ws.send(JSON.stringify({ type, message: error.message }));
+              job.ws.close(1000, `Job finished with status: ${type}`);
+            }
+          } finally {
+            if (job.status !== "completed" && job.status !== "failed") {
+              setTimeout(() => activeCompressJobs.delete(jobId), 5000);
+            }
+          }
+        })();
+      }
+
+      ws.on("close", async () => {
         console.log(`[ws] Client disconnected for job: ${jobId}`);
         if (job.ws === ws) job.ws = null;
+
+        // If a compress job is still running and the client disconnects, mark it as cancelled
+        if (
+          jobType === "compress" &&
+          job.status !== "completed" &&
+          job.status !== "failed"
+        ) {
+          job.status = "cancelled";
+          if (job.archive) {
+            job.archive.destroy(); // Destroy the archiver stream, which also destroys its piped destination
+          }
+          // Delete the partial archive immediately upon cancellation
+          if (await fse.pathExists(job.outputPath)) {
+            await fse.remove(job.outputPath);
+          }
+        }
       });
 
       ws.on("error", (error) =>
@@ -139,3 +299,4 @@ export function initializeWebSocketServer(
   console.log("[ws] WebSocket server initialized.");
   return wss;
 }
+

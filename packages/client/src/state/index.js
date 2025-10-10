@@ -12,6 +12,7 @@ import useKeyboardShortcuts from "./useKeyboardShortcuts";
 import useSettings from "./useSettings";
 import useModals from "./useModals";
 import usePanelOps from "./usePanelOps";
+import useCompress from "./useCompress";
 
 export default function appState() {
   // --- Core State ---
@@ -49,7 +50,10 @@ export default function appState() {
 
   const handleCloseFilter = (panelId) => {
     setFilterPanelId(null);
-    setFilter((prev) => ({ ...prev, [panelId]: { pattern: "", useRegex: false, caseSensitive: false } }));
+    setFilter((prev) => ({
+      ...prev,
+      [panelId]: { pattern: "", useRegex: false, caseSensitive: false },
+    }));
   };
 
   const handleFilterChange = (panelId, newFilter) => {
@@ -64,8 +68,15 @@ export default function appState() {
         return items;
       }
       const flags = currentFilter.caseSensitive ? "" : "i";
-      const regex = currentFilter.useRegex ? new RegExp(currentFilter.pattern, flags) : new RegExp(currentFilter.pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
-      return items.filter(item => item.name === ".." || regex.test(item.name));
+      const regex = currentFilter.useRegex
+        ? new RegExp(currentFilter.pattern, flags)
+        : new RegExp(
+            currentFilter.pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"),
+            flags
+          );
+      return items.filter(
+        (item) => item.name === ".." || regex.test(item.name)
+      );
     };
     return {
       left: getFiltered("left"),
@@ -86,10 +97,7 @@ export default function appState() {
     wsRef,
   });
 
-  const {
-    isCalculatingSize,
-    ...sizeCalculationHandlers
-  } = sizeCalculation;
+  const { isCalculatingSize, ...sizeCalculationHandlers } = sizeCalculation;
 
   // 2. Hooks that depend on the hooks above
   const contextMenu = useContextMenu({
@@ -145,8 +153,24 @@ export default function appState() {
     panelRefs,
   });
 
+  const compress = useCompress({
+    activePanel,
+    panels,
+    selections,
+    setError,
+    handleRefreshPanel: panelOps.handleRefreshPanel,
+    setSelections,
+    setFocusedItem,
+    setActivePanel,
+    panelRefs,
+    closeContextMenus: contextMenu.closeContextMenus,
+    wsRef,
+  });
+
   const handleSelectAll = useCallback(() => {
-    const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel]?.items;
+    const items = filter[activePanel].pattern
+      ? filteredItems[activePanel]
+      : panels[activePanel]?.items;
     if (!items) return;
     const allSelectableItems = items
       .filter((item) => item.name !== "..")
@@ -162,7 +186,9 @@ export default function appState() {
   }, [activePanel, setSelections]);
 
   const handleInvertSelection = useCallback(() => {
-    const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel]?.items;
+    const items = filter[activePanel].pattern
+      ? filteredItems[activePanel]
+      : panels[activePanel]?.items;
     if (!items) return;
 
     const currentSelection = selections[activePanel];
@@ -191,12 +217,18 @@ export default function appState() {
     caseSensitive,
     resetSelection
   ) => {
-    const items = filter[activePanel].pattern ? filteredItems[activePanel] : panels[activePanel]?.items;
+    const items = filter[activePanel].pattern
+      ? filteredItems[activePanel]
+      : panels[activePanel]?.items;
     if (!items) return;
 
-    const currentSelection = resetSelection ? new Set() : new Set(selections[activePanel]);
+    const currentSelection = resetSelection
+      ? new Set()
+      : new Set(selections[activePanel]);
     const flags = caseSensitive ? "" : "i";
-    const regex = useRegex ? new RegExp(pattern, flags) : new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
+    const regex = useRegex
+      ? new RegExp(pattern, flags)
+      : new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
 
     items.forEach((item) => {
       if (item.name === "..") return;
@@ -480,6 +512,7 @@ export default function appState() {
     ...contextMenu,
     ...sizeCalculationHandlers,
     ...panelOps,
+    ...compress,
     // Connector Handlers
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,

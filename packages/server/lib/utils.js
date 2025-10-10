@@ -83,6 +83,41 @@ const getMimeType = (filePath) => {
   return mimeTypes[ext] || "application/octet-stream";
 };
 
+const getDirTotalSize = async (dirPath, signal) => {
+  if (signal && signal.aborted) throw new Error("Calculation cancelled");
+
+  let totalSize = 0;
+  let stats;
+  try {
+    stats = await fse.stat(dirPath);
+  } catch (e) {
+    console.error(`Could not stat ${dirPath}, skipping.`, e.message);
+    return 0;
+  }
+
+  if (stats.isFile()) {
+    return stats.size;
+  }
+
+  // If it's a directory, proceed with reading its contents
+  const items = await fse.readdir(dirPath, { withFileTypes: true });
+  for (const item of items) {
+    if (signal && signal.aborted) throw new Error("Calculation cancelled");
+    const itemPath = path.join(dirPath, item.name);
+    if (item.isDirectory()) {
+      totalSize += await getDirTotalSize(itemPath, signal);
+    } else {
+      try {
+        const itemStats = await fse.stat(itemPath);
+        totalSize += itemStats.size;
+      } catch (e) {
+        console.error(`Could not stat ${itemPath}, skipping.`, e.message);
+      }
+    }
+  }
+  return totalSize;
+};
+
 const getDirSize = async (dirPath) => {
   let totalSize = 0;
   const items = await fse.readdir(dirPath, { withFileTypes: true });
@@ -243,10 +278,28 @@ const copyWithProgress = async (source, destination, job) => {
       const sourceStream = fse.createReadStream(source);
       const destStream = fse.createWriteStream(tempDestination);
 
+      // Initialize current file progress tracking
+      job.currentFile = path.basename(source);
+      job.currentFileSize = sourceStats.size;
+      job.currentFileBytesProcessed = 0;
+
       sourceStream.on("data", (chunk) => {
+        if (job.controller.signal.aborted) {
+          sourceStream.destroy();
+          destStream.destroy();
+          return;
+        }
         job.copied += chunk.length;
+        job.currentFileBytesProcessed += chunk.length;
         if (job.ws && job.ws.readyState === 1) {
-          job.ws.send(JSON.stringify({ type: "progress", copied: job.copied }));
+          job.ws.send(
+            JSON.stringify({
+              type: "progress",
+              copied: job.copied,
+              currentFileBytesProcessed: job.currentFileBytesProcessed,
+              currentFileSize: job.currentFileSize,
+            })
+          );
         }
       });
 
@@ -265,6 +318,28 @@ const copyWithProgress = async (source, destination, job) => {
   }
 };
 
+const getAllFiles = async (dirPath, basePath = dirPath) => {
+  const entries = await fse.readdir(dirPath, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const fullPath = path.join(dirPath, entry.name);
+      const relativePath = path.relative(basePath, fullPath);
+      if (entry.isDirectory()) {
+        return getAllFiles(fullPath, basePath);
+      } else {
+        try {
+          const stats = await fse.stat(fullPath);
+          return [{ fullPath, relativePath, stats }];
+        } catch (e) {
+          console.error(`Could not stat ${fullPath}, skipping.`);
+          return [];
+        }
+      }
+    })
+  );
+  return files.flat();
+};
+
 export {
   getDirSizeWithProgress,
   performCopyCancellation,
@@ -272,4 +347,6 @@ export {
   getDirSize,
   getDirSizeWithScanProgress,
   copyWithProgress,
+  getDirTotalSize,
+  getAllFiles,
 };

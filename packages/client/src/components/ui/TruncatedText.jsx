@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
 
-const TruncatedText = ({ text, className }) => {
+const TruncatedText = ({ text, className, onClick }) => {
   const [displayedText, setDisplayedText] = useState(text);
   const containerRef = useRef(null);
   const textRef = useRef(null);
@@ -46,7 +46,7 @@ const TruncatedText = ({ text, className }) => {
   return (
     <div ref={containerRef} className="relative w-full">
       {hiddenMeasurer}
-      <span className={className}>{displayedText}</span>
+      <span className={className} onClick={onClick}>{displayedText}</span>
     </div>
   );
 };

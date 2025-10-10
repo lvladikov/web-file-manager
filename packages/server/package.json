@@ -18,6 +18,7 @@
     "music-metadata": "^11.9.0",
     "open": "^10.1.0",
     "ws": "^8.17.0",
-    "check-disk-space": "^3.4.0"
+    "check-disk-space": "^3.4.0",
+    "archiver": "^7.0.1"
   }
 }

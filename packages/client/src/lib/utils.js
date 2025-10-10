@@ -172,6 +172,11 @@ const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {
   });
 };
 
+const basename = (path) => {
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1];
+};
+
 export {
   buildFullPath,
   formatBytes,
@@ -184,4 +189,5 @@ export {
   isPreviewableText,
   getPrismLanguage,
   calculateFolderSize,
+  basename,
 };

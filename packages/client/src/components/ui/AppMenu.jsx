@@ -33,6 +33,8 @@ const AppMenu = ({
   onQuickSelect,
   onQuickUnselect,
   onQuickFilter,
+  onCompressInActivePanel,
+  onCompressToOtherPanel,
   activePanelSelections,
   panels,
   activePanel,
@@ -169,6 +171,19 @@ const AppMenu = ({
                 disabled={!canDelete}
               />
               <Separator />
+              {activePanelSelections.size > 0 && (
+                <>
+                  <MenuItem
+                    label="Compress in active panel"
+                    onClick={() => handleItemClick(onCompressInActivePanel)}
+                  />
+                  <MenuItem
+                    label="Compress to other panel"
+                    onClick={() => handleItemClick(onCompressToOtherPanel)}
+                  />
+                  <Separator />
+                </>
+              )}
               <MenuItem
                 label={calculateSizeLabel}
                 onClick={() => handleItemClick(onCalculateSize)}

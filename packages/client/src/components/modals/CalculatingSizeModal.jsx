@@ -7,9 +7,12 @@ const CalculatingSizeModal = ({
   isVisible,
   currentFile,
   sizeSoFar,
+  totalBytes,
   onCancel,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
+  const percentage = totalBytes > 0 ? (sizeSoFar / totalBytes) * 100 : 0;
+
   if (!isVisible) return null;
   return (
     <div
@@ -35,7 +38,9 @@ const CalculatingSizeModal = ({
             {currentFile}
           </p>
           <p className="text-sm border-t border-gray-700 pt-2">Size so far:</p>
-          <p className="font-mono text-gray-300">{formatBytes(sizeSoFar)}</p>
+          <p className="font-mono text-gray-300">
+            {formatBytes(sizeSoFar)} / {formatBytes(totalBytes)} ({percentage.toFixed(1)}%)
+          </p>
         </div>
         <div className="flex justify-end">
           <button
