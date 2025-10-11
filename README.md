@@ -9,10 +9,11 @@ This project is a dual-panel file manager inspired by applications like Midnight
 ├── packages/
 │ ├── client/ # React Frontend
 │ └── server/ # Node.js Backend
-├── misc/ # [Miscellaneous scripts and tools](misc/README.md)
 ├── package.json # Root package.json for monorepo management
 └── README.md
 ```
+
+For miscellaneous scripts and tools, refer to the [misc/README.md](misc/README.md).
 
 ## Prerequisites
 
