@@ -75,7 +75,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
           </HelpSection>
 
-          <HelpSection title="Panel Information">
+          <HelpSection title="Panel Usage and Information">
             <p>
               At the bottom of each panel, you'll find useful information about the current directory and selected items:
             </p>
@@ -85,6 +85,9 @@ const HelpModal = ({ isVisible, onClose }) => {
               </li>
               <li>
                 <strong>Selected Items Summary:</strong> On the left side, a summary of your current selection is shown, including the total number of items selected. Hovering over this text will reveal a tooltip with a detailed breakdown of selected files and folders, and their combined size. If folders are selected, the tooltip will also provide a hint on how to calculate their full contents' size.
+              </li>
+              <li>
+                <strong>Swap Panels:</strong> You can quickly swap the content of the two panels using <kbd>{isMac ? "Cmd" : "Ctrl"} + U</kbd>. This is useful when you want to change which panel is the source and which is the destination for file operations, or simply to re-arrange your view.
               </li>
             </ul>
             <SvgPanelStatusExample />

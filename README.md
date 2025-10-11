@@ -60,40 +60,40 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **File & Folder Listing**: Each panel lists files and folders. Long names are dynamically truncated. Icons next to each name (folder icon for folders, text file icon for text files, image icon for images, etc.) help identify the type.
 
-- **Panel Information**: At the bottom of each panel, useful information is displayed. This includes the total disk space and available free space for the current drive/partition, and a summary of selected items. Hovering over the selected items text reveals a tooltip with a detailed breakdown of selected files and folders, their combined size, and a hint on how to calculate full folder sizes if applicable.
+- **Panel Usage and Information**: At the bottom of each panel, useful information is displayed. This includes the total disk space and available free space for the current drive/partition, a summary of selected items, and the ability to swap panels. Hovering over the selected items text reveals a tooltip with a detailed breakdown of selected files and folders, their combined size, and a hint on how to calculate full folder sizes if applicable. You can quickly swap the content of the two panels using <kbd>Cmd/Ctrl + U</kbd>.
 
-- **Navigation & Selection**: Navigate using mouse (double-click to enter folder/open file) or keyboard (ArrowUp/Down, Enter, Backspace, Home, End, PageUp/Down).
+- **Navigation & Selection**: Navigate using mouse (double-click to enter folder/open file) or keyboard (<kbd>ArrowUp</kbd>/<kbd>Down</kbd>, <kbd>Enter</kbd>, <kbd>Backspace</kbd>, <kbd>Home</kbd>, <kbd>End</kbd>, <kbd>PageUp</kbd>/<kbd>PageDown</kbd>).
 
-  - **Selection**: Click to select. Cmd/Ctrl + click to add/remove. Shift + click to select a range.
+  - **Selection**: Click to select. <kbd>Cmd/Ctrl + click</kbd> to add/remove. <kbd>Shift + click</kbd> to select a range.
 
-  - **Select All** (Cmd/Ctrl+A)
+  - **Select All** (<kbd>Cmd/Ctrl+A</kbd>)
 
-  - **Unselect All** (Cmd/Ctrl+D)
+  - **Unselect All** (<kbd>Cmd/Ctrl+D</kbd>)
 
-  - **Invert Selection** (\*)
+  - **Invert Selection** (<kbd>\*</kbd>)
 
-  - **Quick Select** (+): Opens a dialog to select files and folders that match a specific pattern (wildcards or regex).
+  - **Quick Select** (<kbd>+</kbd>): Opens a dialog to select files and folders that match a specific pattern (wildcards or regex).
 
-  - **Quick Unselect** (-): Opens a dialog to unselect items based on a pattern.
+  - **Quick Unselect** (<kbd>-</kbd>): Opens a dialog to unselect items based on a pattern.
 
-  - **Quick Filter** (.): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy and Delete will only apply to the filtered items.
+  - **Quick Filter** (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy and Delete will only apply to the filtered items.
 
-- **File Preview**: Preview images, videos, PDFs, and text files by focusing an item and pressing Spacebar.
+- **File Preview**: Preview images, videos, PDFs, and text files by focusing an item and pressing <kbd>Spacebar</kbd>.
 
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions (Viewing, File Operations, Organization, Folder Tools).
 
   - **Viewing:** Preview, Open, and Open with...
   - **File Operations:** Contains all major file transfer actions.
-    - <kbd>Copy to other panel</kbd>: Performs the F5 Copy operation on the selected item.
+    - <kbd>Copy to other panel</kbd>: Performs the Copy (<kbd>F5</kbd>) operation on the selected item.
     - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
     - <kbd>Decompress Archive</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
     - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, reporting any corrupt files or general issues.
     - <kbd>Copy / Cut (to clipboard)</kbd>: (Coming soon) Standard clipboard operations.
-    - <kbd>Move to other panel</kbd>: (Coming soon) Performs an F6 Move operation.
+    - <kbd>Move to other panel</kbd>: (Coming soon) Performs an Move (<kbd>F6</kbd>) operation.
   - **Organization:** Rename and Delete the item.
   - **Folder Tools:** For folders, you can also Calculate Size or set the folder's path in the opposite panel.
 
-- **Calculate Folder Size & Progress**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing Spacebar on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed. During any long-running operation, you can click and hold on the animated icon in the dialog's header to make the dialog semi-transparent (20% opacity), allowing you to see the panels behind. Releasing the mouse button restores full visibility.
+- **Calculate Folder Size & Progress**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing <kbd>Spacebar</kbd> on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed. During any long-running operation, you can click and hold on the animated icon in the dialog's header to make the dialog semi-transparent (20% opacity), allowing you to see the panels behind. Releasing the mouse button restores full visibility.
 
 - **Path Bar & Breadcrumbs**: Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Choose folder..." option.
 

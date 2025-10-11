@@ -15,6 +15,7 @@ import usePanelOps from "./usePanelOps";
 import useCompress from "./useCompress";
 import useDecompress from "./useDecompress";
 import useArchiveIntegrityTest from "./useArchiveIntegrityTest";
+import useSwapPanels from "./useSwapPanels";
 
 export default function appState() {
   // --- Core State ---
@@ -190,6 +191,11 @@ export default function appState() {
     selections,
     setError,
     wsRef,
+  });
+
+  const { handleSwapPanels } = useSwapPanels({
+    panels,
+    handleNavigate: panelOps.handleNavigate,
   });
 
   const handleSelectAll = useCallback(() => {
@@ -502,6 +508,7 @@ export default function appState() {
     filterPanelId,
     handleCloseFilter,
     handleSelectAll,
+    handleSwapPanels,
   });
 
   return {
@@ -557,6 +564,7 @@ export default function appState() {
     handleCloseFilter,
     handleFilterChange,
     filteredItems,
+    handleSwapPanels,
     // UI Composition
     actionBarButtons,
   };

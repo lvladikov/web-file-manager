@@ -27,6 +27,7 @@ const ContextMenu = ({
   onDecompressInActivePanel,
   onDecompressToOtherPanel,
   onTestArchive,
+  onSwapPanels,
 }) => {
   const menuRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState("none");
@@ -289,6 +290,13 @@ const ContextMenu = ({
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
         >
           Refresh both panels
+        </li>
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+        <li
+          onClick={onSwapPanels}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+        >
+          Swap Panels
         </li>
       </ul>
     </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-const PathContextMenu = ({ x, y, onChooseFolder, onClose }) => {
+const PathContextMenu = ({ x, y, onChooseFolder, onClose, onSwapPanels }) => {
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -28,6 +28,16 @@ const PathContextMenu = ({ x, y, onChooseFolder, onClose }) => {
           className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
         >
           Choose folder...
+        </li>
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+        <li
+          onClick={(e) => {
+            e.stopPropagation();
+            onSwapPanels();
+          }}
+          className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+        >
+          Swap Panels
         </li>
       </ul>
     </div>

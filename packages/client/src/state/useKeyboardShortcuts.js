@@ -50,6 +50,7 @@ export default function useKeyboardShortcuts(props) {
         filterPanelId,
         handleCloseFilter,
         handleSelectAll,
+        handleSwapPanels,
       } = latestProps.current;
 
       if (overwritePrompt.isVisible) {
@@ -253,6 +254,11 @@ export default function useKeyboardShortcuts(props) {
       if (isModKey && e.key === "d") {
         e.preventDefault();
         setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
+        return;
+      }
+      if (isModKey && e.key === "u") {
+        e.preventDefault();
+        handleSwapPanels();
         return;
       }
       if (e.key === "*") {

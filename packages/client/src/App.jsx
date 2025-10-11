@@ -133,6 +133,7 @@ export default function App() {
     handleCancelArchiveTest,
     handleTestArchive,
     closeArchiveTestModal,
+    handleSwapPanels,
   } = appState();
 
   return (
@@ -215,6 +216,7 @@ export default function App() {
           onDecompressInActivePanel={handleDecompressInActivePanel}
           onDecompressToOtherPanel={handleDecompressToOtherPanel}
           onTestArchive={handleTestArchive}
+          onSwapPanels={handleSwapPanels}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -466,6 +468,10 @@ export default function App() {
             handleTestArchive();
             closeContextMenus();
           }}
+          onSwapPanels={() => {
+            handleSwapPanels();
+            closeContextMenus();
+          }}
         />
       )}
       {pathContextMenu.visible && (
@@ -474,6 +480,7 @@ export default function App() {
           y={pathContextMenu.y}
           onChooseFolder={openFolderBrowserForPanel}
           onClose={closeContextMenus}
+          onSwapPanels={handleSwapPanels}
         />
       )}
       {emptyAreaContextMenu.visible && (
@@ -516,6 +523,10 @@ export default function App() {
           }}
           onQuickFilter={() => {
             handleStartFilter();
+            closeContextMenus();
+          }}
+          onSwapPanels={() => {
+            handleSwapPanels();
             closeContextMenus();
           }}
           onClose={closeContextMenus}

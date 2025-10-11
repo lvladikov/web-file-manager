@@ -38,6 +38,7 @@ const AppMenu = ({
   onDecompressInActivePanel,
   onDecompressToOtherPanel,
   onTestArchive,
+  onSwapPanels,
   activePanelSelections,
   panels,
   activePanel,
@@ -231,6 +232,12 @@ const AppMenu = ({
               <MenuItem
                 label="Refresh both panels"
                 onClick={() => handleItemClick(onRefreshBothPanels)}
+              />
+              <Separator />
+              <MenuItem
+                label="Swap Panels"
+                shortcut={`${metaKey}+U`}
+                onClick={() => handleItemClick(onSwapPanels)}
               />
             </ul>
           </div>
