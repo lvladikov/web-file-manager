@@ -177,6 +177,15 @@ const basename = (path) => {
   return parts[parts.length - 1];
 };
 
+const formatSpeed = (bytesPerSecond, spaceBeforeUnit = true) => {
+  if (isNaN(bytesPerSecond) || bytesPerSecond === 0) {
+    return `0${spaceBeforeUnit ? " " : ""}B/s`;
+  }
+
+  const formattedBytes = formatBytes(bytesPerSecond, spaceBeforeUnit);
+  return `${formattedBytes}/s`;
+};
+
 export {
   buildFullPath,
   formatBytes,
@@ -190,4 +199,5 @@ export {
   getPrismLanguage,
   calculateFolderSize,
   basename,
+  formatSpeed,
 };

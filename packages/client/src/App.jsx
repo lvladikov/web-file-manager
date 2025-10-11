@@ -21,6 +21,8 @@ import ProgressModal from "./components/modals/ProgressModal";
 import PreviewModal from "./components/modals/PreviewModal";
 import QuickSelectModal from "./components/modals/QuickSelectModal";
 import CompressionProgressModal from "./components/modals/CompressionProgressModal";
+import DecompressionProgressModal from "./components/modals/DecompressionProgressModal";
+import ArchiveTestIntegrityProgressModal from "./components/modals/ArchiveTestIntegrityProgressModal";
 
 export default function App() {
   const {
@@ -123,6 +125,14 @@ export default function App() {
     handleCancelCompress,
     handleCompressInActivePanel,
     handleCompressToOtherPanel,
+    decompressProgress,
+    handleCancelDecompress,
+    handleDecompressInActivePanel,
+    handleDecompressToOtherPanel,
+    archiveTestProgress,
+    handleCancelArchiveTest,
+    handleTestArchive,
+    closeArchiveTestModal,
   } = appState();
 
   return (
@@ -202,6 +212,9 @@ export default function App() {
           onQuickFilter={handleStartFilter}
           onCompressInActivePanel={handleCompressInActivePanel}
           onCompressToOtherPanel={handleCompressToOtherPanel}
+          onDecompressInActivePanel={handleDecompressInActivePanel}
+          onDecompressToOtherPanel={handleDecompressToOtherPanel}
+          onTestArchive={handleTestArchive}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -285,7 +298,7 @@ export default function App() {
         onClose={() => setHelpModal({ isVisible: false })}
       />
       <CompressionProgressModal
-        key={compressProgress.jobId}
+        key={`compress-${compressProgress.jobId}`}
         isVisible={compressProgress.isVisible}
         currentFile={compressProgress.currentFile}
         totalBytes={compressProgress.totalBytes}
@@ -295,6 +308,29 @@ export default function App() {
         instantaneousSpeed={compressProgress.instantaneousSpeed}
         onCancel={handleCancelCompress}
         error={compressProgress.error}
+      />
+      <DecompressionProgressModal
+        key={`decompress-${decompressProgress.jobId}`}
+        isVisible={decompressProgress.isVisible}
+        currentFile={decompressProgress.currentFile}
+        totalBytes={decompressProgress.totalBytes}
+        processedBytes={decompressProgress.processedBytes}
+        currentFileTotalSize={decompressProgress.currentFileTotalSize}
+        currentFileBytesProcessed={decompressProgress.currentFileBytesProcessed}
+        instantaneousSpeed={decompressProgress.instantaneousSpeed}
+        onCancel={handleCancelDecompress}
+        error={decompressProgress.error}
+      />
+      <ArchiveTestIntegrityProgressModal
+        key={`archive-test-${archiveTestProgress.jobId}`}
+        isVisible={archiveTestProgress.isVisible}
+        currentFile={archiveTestProgress.currentFile}
+        totalFiles={archiveTestProgress.totalFiles}
+        testedFiles={archiveTestProgress.testedFiles}
+        report={archiveTestProgress.report}
+        error={archiveTestProgress.error}
+        onCancel={handleCancelArchiveTest}
+        onClose={closeArchiveTestModal}
       />
 
       {contextMenu.visible && (
@@ -410,8 +446,26 @@ export default function App() {
               }
             }
           }}
-          onCompressInActivePanel={handleCompressInActivePanel}
-          onCompressToOtherPanel={handleCompressToOtherPanel}
+          onCompressInActivePanel={() => {
+            handleCompressInActivePanel();
+            closeContextMenus();
+          }}
+          onCompressToOtherPanel={() => {
+            handleCompressToOtherPanel();
+            closeContextMenus();
+          }}
+          onDecompressInActivePanel={() => {
+            handleDecompressInActivePanel();
+            closeContextMenus();
+          }}
+          onDecompressToOtherPanel={() => {
+            handleDecompressToOtherPanel();
+            closeContextMenus();
+          }}
+          onTestArchive={() => {
+            handleTestArchive();
+            closeContextMenus();
+          }}
         />
       )}
       {pathContextMenu.visible && (

@@ -11,7 +11,9 @@ import { performCopyCancellation, getDirTotalSize } from "../lib/utils.js";
 export default function createFileRoutes(
   activeCopyJobs,
   activeSizeJobs,
-  activeCompressJobs
+  activeCompressJobs,
+  activeDecompressJobs,
+  activeArchiveTestJobs
 ) {
   const router = express.Router();
 
@@ -266,6 +268,17 @@ export default function createFileRoutes(
     }
   });
 
+  // Endpoint to cancel a copy job
+  router.post("/copy/cancel", async (req, res) => {
+    const { jobId } = req.body;
+    if (!jobId || !activeCopyJobs.has(jobId)) {
+      return res.status(404).json({ message: "Job not found." });
+    }
+    const job = activeCopyJobs.get(jobId);
+    await performCopyCancellation(job);
+    res.status(200).json({ message: "Cancellation request received." });
+  });
+
   // Endpoint to create a new folder
   router.post("/new-folder", async (req, res) => {
     const { newFolderPath } = req.body;
@@ -374,6 +387,80 @@ export default function createFileRoutes(
       .json({ message: "Compression cancellation request received." });
   });
 
+  // Endpoint to decompress an archive
+  router.post("/decompress", (req, res) => {
+    const { source, destination } = req.body;
+    if (!source || !destination) {
+      return res
+        .status(400)
+        .json({ message: "Source archive and destination path are required." });
+    }
+
+    const jobId = crypto.randomUUID();
+    const job = {
+      id: jobId,
+      status: "pending",
+      source: path.join(source.path, source.name),
+      destination,
+      ws: null,
+      zipfile: null, // Will hold the yauzl instance
+    };
+    activeDecompressJobs.set(jobId, job);
+    res.status(202).json({ jobId });
+  });
+
+  // Endpoint to cancel a decompression
+  router.post("/decompress/cancel", (req, res) => {
+    const { jobId } = req.body;
+    if (!jobId || !activeDecompressJobs.has(jobId)) {
+      return res.status(404).json({ message: "Decompression job not found." });
+    }
+    const job = activeDecompressJobs.get(jobId);
+    if (job.status === "pending" || job.status === "running") {
+      job.status = "cancelled";
+      if (job.currentReadStream) {
+        job.currentReadStream.destroy(); // This will trigger the 'close' event on the write stream
+      } else if (job.zipfile) {
+        job.zipfile.close(); // If no file is being written, just close the archive
+      }
+    }
+    res.status(200).json({ message: "Cancellation request received." });
+  });
+
+  // Endpoint to test an archive
+  router.post("/archive-test", (req, res) => {
+    const { source } = req.body;
+    if (!source) {
+      return res.status(400).json({ message: "Source archive is required." });
+    }
+    const jobId = crypto.randomUUID();
+    const job = {
+      id: jobId,
+      status: "pending",
+      source: path.join(source.path, source.name),
+      ws: null,
+      zipfile: null,
+    };
+    activeArchiveTestJobs.set(jobId, job);
+    res.status(202).json({ jobId });
+  });
+
+  // Endpoint to cancel an archive test
+  router.post("/archive-test/cancel", (req, res) => {
+    const { jobId } = req.body;
+    if (!jobId || !activeArchiveTestJobs.has(jobId)) {
+      return res.status(404).json({ message: "Archive test job not found." });
+    }
+    const job = activeArchiveTestJobs.get(jobId);
+    if (job.status === "pending" || job.status === "running") {
+      job.status = "cancelled";
+      if (job.zipfile) {
+        job.zipfile.close();
+      }
+    }
+    res.status(200).json({ message: "Cancellation request received." });
+  });
+
   // Endpoint to rename a file/folder
   router.post("/rename", async (req, res) => {
     const { oldPath, newName } = req.body;
@@ -406,17 +493,6 @@ export default function createFileRoutes(
       }
       res.status(500).json({ message: `Failed to rename: ${error.message}` });
     }
-  });
-
-  // Endpoint to cancel a copy job
-  router.post("/copy/cancel", async (req, res) => {
-    const { jobId } = req.body;
-    if (!jobId || !activeCopyJobs.has(jobId)) {
-      return res.status(404).json({ message: "Job not found." });
-    }
-    const job = activeCopyJobs.get(jobId);
-    await performCopyCancellation(job);
-    res.status(200).json({ message: "Cancellation request received." });
   });
 
   return router;

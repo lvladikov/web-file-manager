@@ -242,6 +242,58 @@ const compressFiles = async (sources, destination, sourceDirectory) => {
   return response.json();
 };
 
+const decompressFiles = async (source, destination) => {
+  const response = await fetch("/api/decompress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source, destination }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to decompress archive.");
+  }
+  return response.json();
+};
+
+const cancelDecompress = async (jobId) => {
+  const response = await fetch("/api/decompress/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to cancel decompression.");
+  }
+  return response.json();
+};
+
+const testArchive = async (source) => {
+  const response = await fetch("/api/archive-test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to test archive.");
+  }
+  return response.json();
+};
+
+const cancelArchiveTest = async (jobId) => {
+  const response = await fetch("/api/archive-test/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to cancel archive test.");
+  }
+  return response.json();
+};
+
 export {
   createNewFolder,
   deleteItem,
@@ -266,4 +318,8 @@ export {
   fetchAutoLoadLyrics,
   saveAutoLoadLyrics,
   compressFiles,
+  decompressFiles,
+  cancelDecompress,
+  testArchive,
+  cancelArchiveTest,
 };

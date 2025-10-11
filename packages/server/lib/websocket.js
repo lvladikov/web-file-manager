@@ -1,6 +1,16 @@
 import { WebSocketServer } from "ws";
 import path from "path";
 import fse from "fs-extra";
+import yauzl from "yauzl";
+import { pipeline } from "stream";
+import { Writable } from "stream";
+
+// A Writable stream that does nothing, used to consume read streams for integrity testing
+class NullWritable extends Writable {
+  _write(chunk, encoding, callback) {
+    callback();
+  }
+}
 
 import {
   getDirSizeWithProgress,
@@ -15,7 +25,9 @@ export function initializeWebSocketServer(
   server,
   activeCopyJobs,
   activeSizeJobs,
-  activeCompressJobs
+  activeCompressJobs,
+  activeDecompressJobs,
+  activeArchiveTestJobs
 ) {
   const wss = new WebSocketServer({ server });
 
@@ -29,6 +41,10 @@ export function initializeWebSocketServer(
       jobMap = activeSizeJobs;
     } else if (jobType === "compress") {
       jobMap = activeCompressJobs;
+    } else if (jobType === "decompress") {
+      jobMap = activeDecompressJobs;
+    } else if (jobType === "archive-test") {
+      jobMap = activeArchiveTestJobs;
     } else {
       // Default to copy if not specified or unknown
       jobMap = activeCopyJobs;
@@ -184,8 +200,10 @@ export function initializeWebSocketServer(
               if (job.ws && job.ws.readyState === 1) {
                 const currentTime = Date.now();
                 const timeElapsed = (currentTime - job.lastUpdateTime) / 1000; // in seconds
-                const bytesSinceLastUpdate = job.compressedBytes - job.lastProcessedBytes;
-                const instantaneousSpeed = timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+                const bytesSinceLastUpdate =
+                  job.compressedBytes - job.lastProcessedBytes;
+                const instantaneousSpeed =
+                  timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
 
                 job.ws.send(
                   JSON.stringify({
@@ -266,6 +284,311 @@ export function initializeWebSocketServer(
         })();
       }
 
+      if (jobType === "decompress") {
+        yauzl.open(job.source, { lazyEntries: true }, (err, zipfile) => {
+          if (err) {
+            if (ws.readyState === 1) {
+              ws.send(
+                JSON.stringify({
+                  type: "failed",
+                  title: "Could not open archive.",
+                  details: err.message,
+                })
+              );
+              ws.close();
+            }
+            return;
+          }
+
+          job.zipfile = zipfile;
+          job.currentWriteStream = null;
+
+          const totalUncompressedSize = zipfile.fileSize;
+          let processedBytes = 0;
+          let lastUpdateTime = Date.now();
+          let lastProcessedBytes = 0;
+
+          if (ws.readyState === 1) {
+            ws.send(
+              JSON.stringify({
+                type: "start",
+                totalSize: totalUncompressedSize,
+              })
+            );
+          }
+
+          zipfile.on("error", (err) => {
+            console.error(`[ws:${jobId}] Decompression archive error:`, err);
+            if (ws.readyState === 1) {
+              ws.send(
+                JSON.stringify({
+                  type: "failed",
+                  title: "Archive processing error.",
+                  details: err.message,
+                })
+              );
+              ws.close();
+            }
+          });
+
+          zipfile.on("close", async () => {
+            console.log(`[ws:${jobId}] Zipfile closed.`);
+            if (job.ws && job.ws.readyState === 1) {
+              job.ws.close();
+            }
+          });
+
+          zipfile.on("entry", (entry) => {
+            if (job.status === "cancelled") return;
+
+            const destPath = path.join(job.destination, entry.fileName);
+
+            if (/\/$/.test(entry.fileName)) {
+              fse.mkdirpSync(destPath);
+              // Set modification time for directories
+              fse.utimes(destPath, entry.getLastModDate(), entry.getLastModDate(), (err) => {
+                if (err) console.error(`[ws:${jobId}] Error setting mtime for directory ${destPath}:`, err);
+              });
+              processedBytes += entry.uncompressedSize;
+              zipfile.readEntry();
+            } else {
+              zipfile.openReadStream(entry, (err, readStream) => {
+                if (err) {
+                  console.error(
+                    `[ws:${jobId}] Error opening read stream for ${entry.fileName}:`,
+                    err
+                  );
+                  zipfile.readEntry();
+                  return;
+                }
+                job.currentReadStream = readStream;
+
+                fse.mkdirpSync(path.dirname(destPath));
+                const writeStream = fse.createWriteStream(destPath);
+                job.currentWriteStream = writeStream;
+
+                let currentFileBytesProcessed = 0;
+
+                readStream.on("data", (chunk) => {
+                  processedBytes += chunk.length;
+                  currentFileBytesProcessed += chunk.length;
+                  const currentTime = Date.now();
+                  const timeElapsed = (currentTime - lastUpdateTime) / 1000;
+                  const bytesSinceLastUpdate =
+                    processedBytes - lastProcessedBytes;
+                  const instantaneousSpeed =
+                    timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+
+                  if (ws.readyState === 1) {
+                    ws.send(
+                      JSON.stringify({
+                        type: "progress",
+                        total: totalUncompressedSize,
+                        processed: processedBytes,
+                        currentFile: entry.fileName,
+                        currentFileTotalSize: entry.uncompressedSize,
+                        currentFileBytesProcessed: currentFileBytesProcessed,
+                        instantaneousSpeed: instantaneousSpeed,
+                      })
+                    );
+                  }
+
+                  lastProcessedBytes = processedBytes;
+                  lastUpdateTime = currentTime;
+                });
+
+                readStream.on("end", () => {
+                  zipfile.readEntry();
+                });
+
+                readStream.on("error", (readErr) => {
+                  console.error(
+                    `[ws:${jobId}] Read stream error for ${entry.fileName}:`,
+                    readErr
+                  );
+                });
+
+                writeStream.on("close", async () => {
+                  // Set modification time for files after writing
+                  if (job.status !== "cancelled") {
+                    fse.utimes(destPath, entry.getLastModDate(), entry.getLastModDate(), (err) => {
+                      if (err) console.error(`[ws:${jobId}] Error setting mtime for file ${destPath}:`, err);
+                    });
+                  }
+                  if (job.status === "cancelled") {
+                    console.log(
+                      `[ws:${jobId}] Write stream closed for cancelled file. Cleaning up: ${destPath}`
+                    );
+                    try {
+                      if (await fse.pathExists(destPath)) {
+                        await fse.remove(destPath);
+                        console.log(
+                          `[ws:${jobId}] Successfully cleaned up partial file.`
+                        );
+                      }
+                    } catch (cleanupError) {
+                      console.error(
+                        `[ws:${jobId}] Error during cleanup of partial file:`,
+                        cleanupError
+                      );
+                    }
+                  }
+                });
+
+                writeStream.on("error", (writeErr) => {
+                  console.error(
+                    `[ws:${jobId}] Write stream error for ${destPath}:`,
+                    writeErr
+                  );
+                });
+
+                readStream.pipe(writeStream);
+              });
+            }
+          });
+
+          zipfile.on("end", () => {
+            if (job.status !== "cancelled" && ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "complete" }));
+              ws.close();
+            }
+          });
+
+          zipfile.readEntry();
+        });
+      }
+
+      if (jobType === "archive-test") {
+        yauzl.open(job.source, { lazyEntries: true }, (err, zipfile) => {
+          if (err) {
+            if (ws.readyState === 1) {
+              ws.send(
+                JSON.stringify({
+                  type: "failed",
+                  title: "Failed to open archive",
+                  details: err.message,
+                })
+              );
+              ws.close();
+            }
+            return;
+          }
+          job.zipfile = zipfile;
+          let testedFiles = 0;
+          const failedFiles = [];
+          let generalError = null;
+          const totalFiles = zipfile.entryCount;
+          let jobComplete = false;
+
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: "start", totalFiles: totalFiles }));
+          }
+
+          const sendCompletionReport = () => {
+            if (jobComplete || ws.readyState !== 1) return;
+            jobComplete = true;
+            console.log(`[ws:${jobId}] Sending completion report.`);
+            ws.send(
+              JSON.stringify({
+                type: "complete",
+                report: {
+                  totalFiles,
+                  testedFiles,
+                  failedFiles,
+                  generalError,
+                },
+              })
+            );
+            ws.close();
+          };
+
+          zipfile.on("entry", (entry) => {
+            console.log(`[ws:${jobId}] Testing entry: ${entry.fileName}`);
+            if (job.status === "cancelled") {
+              zipfile.close();
+              return;
+            }
+
+            testedFiles++;
+            let displayFileName = entry.fileName;
+            // Basic check for malformed filenames (e.g., non-printable characters)
+            if (!/^[ -~]*$/.test(entry.fileName)) {
+              displayFileName = `(corrupt filename: ${entry.fileName.substring(0, 20)}...)`;
+            }
+
+            if (ws.readyState === 1) {
+              ws.send(
+                JSON.stringify({
+                  type: "progress",
+                  testedFiles,
+                  currentFile: displayFileName,
+                })
+              );
+            }
+
+            zipfile.openReadStream(entry, (err, readStream) => {
+              if (err) {
+                console.error(
+                  `[ws:${jobId}] Error opening stream for ${entry.fileName}:`,
+                  err
+                );
+                failedFiles.push({
+                  fileName: entry.fileName,
+                  message: `Error opening stream: ${err.message}`,
+                });
+                zipfile.readEntry();
+                return;
+              }
+
+              const done = (streamErr) => {
+                if (streamErr) {
+                  console.error(
+                    `[ws:${jobId}] Stream error for ${entry.fileName}:`,
+                    streamErr
+                  );
+                  failedFiles.push({
+                    fileName: entry.fileName,
+                    message: streamErr.message,
+                  });
+                }
+                console.log(
+                  `[ws:${jobId}] Finished processing ${entry.fileName}, requesting next entry.`
+                );
+                zipfile.readEntry();
+              };
+
+              readStream.on("error", done);
+              readStream.on("end", () => done());
+
+              const nullStream = new NullWritable();
+              pipeline(readStream, nullStream, (err) => {
+                if (err) {
+                  // pipeline will automatically destroy streams on error
+                  done(err);
+                } else {
+                  // Stream finished successfully
+                  done();
+                }
+              });
+            });
+          });
+
+          zipfile.on("end", () => {
+            console.log(`[ws:${jobId}] Reached end of archive.`);
+            sendCompletionReport();
+          });
+
+          zipfile.on("error", (err) => {
+            console.error(`[ws:${jobId}] General archive error:`, err);
+            generalError = err.message;
+            sendCompletionReport(); // Send completion report with general error
+          });
+
+          console.log(`[ws:${jobId}] Starting to read entries.`);
+          zipfile.readEntry();
+        });
+      }
+
       ws.on("close", async () => {
         console.log(`[ws] Client disconnected for job: ${jobId}`);
         if (job.ws === ws) job.ws = null;
@@ -285,6 +608,18 @@ export function initializeWebSocketServer(
             await fse.remove(job.outputPath);
           }
         }
+
+        if (
+          (jobType === "decompress" || jobType === "archive-test") &&
+          job.status !== "completed" &&
+          job.status !== "failed"
+        ) {
+          job.status = "cancelled";
+          if (job.zipfile && !job.zipfile.isOpen) {
+            console.log(`[ws:${jobId}] Client disconnected, closing zipfile.`);
+            job.zipfile.close();
+          }
+        }
       });
 
       ws.on("error", (error) =>
@@ -299,4 +634,3 @@ export function initializeWebSocketServer(
   console.log("[ws] WebSocket server initialized.");
   return wss;
 }
-

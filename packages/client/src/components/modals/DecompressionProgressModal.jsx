@@ -3,7 +3,7 @@ import { LoaderCircle, XCircle } from "lucide-react";
 import { formatBytes, formatSpeed } from "../../lib/utils";
 import TruncatedText from "../ui/TruncatedText";
 
-const CompressionProgressModal = ({
+const DecompressionProgressModal = ({
   isVisible,
   currentFile,
   totalBytes,
@@ -38,7 +38,7 @@ const CompressionProgressModal = ({
           className="text-xl font-bold text-sky-400 mb-4 flex items-center cursor-pointer"
           onMouseDown={() => setModalOpacity(0.2)}
           onMouseUp={() => setModalOpacity(1)}
-          onMouseLeave={() => setModalOpacity(1)} // Reset if mouse leaves while held down
+          onMouseLeave={() => setModalOpacity(1)}
           title="Click and hold here for this dialog to be almost fully transparent so you can see the panels behind. Release and it would restore full visibility."
         >
           {error ? (
@@ -46,7 +46,7 @@ const CompressionProgressModal = ({
           ) : (
             <LoaderCircle className="w-6 h-6 mr-2 animate-spin text-sky-400" />
           )}
-          {error ? "Compression Error" : "Compressing Items..."}
+          {error ? "Decompression Error" : "Decompressing Items..."}
         </h2>
 
         {error ? (
@@ -112,4 +112,4 @@ const CompressionProgressModal = ({
   );
 };
 
-export default CompressionProgressModal;
+export default DecompressionProgressModal;

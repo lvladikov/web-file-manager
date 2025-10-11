@@ -1,20 +1,8 @@
 import React, { useState } from "react";
 
 import { Copy, XCircle, Search } from "lucide-react";
-import { formatBytes } from "../../lib/utils";
+import { formatBytes, formatSpeed } from "../../lib/utils";
 import TruncatedText from "../ui/TruncatedText";
-
-const formatSpeed = (bytesPerSecond) => {
-  if (bytesPerSecond < 1024) {
-    return `${bytesPerSecond.toFixed(2)} B/s`;
-  } else if (bytesPerSecond < 1024 * 1024) {
-    return `${(bytesPerSecond / 1024).toFixed(2)} KB/s`;
-  } else if (bytesPerSecond < 1024 * 1024 * 1024) {
-    return `${(bytesPerSecond / (1024 * 1024)).toFixed(2)} MB/s`;
-  } else {
-    return `${(bytesPerSecond / (1024 * 1024 * 1024)).toFixed(2)} GB/s`;
-  }
-};
 
 const ProgressModal = ({
   isVisible,

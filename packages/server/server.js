@@ -16,15 +16,35 @@ const activeSizeJobs = new Map();
 // In-memory store for active compression jobs
 const activeCompressJobs = new Map();
 
+// In-memory store for active decompression jobs
+const activeDecompressJobs = new Map();
+
+// In-memory store for active archive test jobs
+const activeArchiveTestJobs = new Map();
+
 // Initialize the WebSocket server
-initializeWebSocketServer(server, activeCopyJobs, activeSizeJobs, activeCompressJobs);
+initializeWebSocketServer(
+  server,
+  activeCopyJobs,
+  activeSizeJobs,
+  activeCompressJobs,
+  activeDecompressJobs,
+  activeArchiveTestJobs
+);
 
 const port = 3001;
 
 app.use(express.json());
 
 // --- Initialize API Endpoints ---
-initializeRoutes(app, activeCopyJobs, activeSizeJobs, activeCompressJobs);
+initializeRoutes(
+  app,
+  activeCopyJobs,
+  activeSizeJobs,
+  activeCompressJobs,
+  activeDecompressJobs,
+  activeArchiveTestJobs
+);
 
 server.listen(port, () => {
   console.log(`[dev:server] Server listening at http://localhost:${port}`);

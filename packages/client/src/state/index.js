@@ -13,6 +13,8 @@ import useSettings from "./useSettings";
 import useModals from "./useModals";
 import usePanelOps from "./usePanelOps";
 import useCompress from "./useCompress";
+import useDecompress from "./useDecompress";
+import useArchiveIntegrityTest from "./useArchiveIntegrityTest";
 
 export default function appState() {
   // --- Core State ---
@@ -109,6 +111,8 @@ export default function appState() {
     setAppBrowserModal: modals.setAppBrowserModal,
     handleNavigate: panelOps.handleNavigate,
     handleOpenFile: panelOps.handleOpenFile,
+    calculateSizeForMultipleFolders:
+      sizeCalculation.calculateSizeForMultipleFolders,
   });
 
   // 3. Feature hooks
@@ -164,6 +168,27 @@ export default function appState() {
     setActivePanel,
     panelRefs,
     closeContextMenus: contextMenu.closeContextMenus,
+    wsRef,
+  });
+
+  const decompress = useDecompress({
+    activePanel,
+    panels,
+    selections,
+    setError,
+    handleRefreshPanel: panelOps.handleRefreshPanel,
+    wsRef,
+    setActivePanel,
+    setSelections,
+    setFocusedItem,
+    panelRefs,
+  });
+
+  const archiveTest = useArchiveIntegrityTest({
+    activePanel,
+    panels,
+    selections,
+    setError,
     wsRef,
   });
 
@@ -513,6 +538,8 @@ export default function appState() {
     ...sizeCalculationHandlers,
     ...panelOps,
     ...compress,
+    ...decompress,
+    ...archiveTest,
     // Connector Handlers
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,

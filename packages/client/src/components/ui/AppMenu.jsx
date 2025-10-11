@@ -35,6 +35,9 @@ const AppMenu = ({
   onQuickFilter,
   onCompressInActivePanel,
   onCompressToOtherPanel,
+  onDecompressInActivePanel,
+  onDecompressToOtherPanel,
+  onTestArchive,
   activePanelSelections,
   panels,
   activePanel,
@@ -100,6 +103,11 @@ const AppMenu = ({
     singleItemSelected &&
     firstSelectedItemDetails &&
     firstSelectedItemDetails.type === "folder";
+
+  const canPerformArchiveAction =
+    singleItemSelected &&
+    firstSelectedItemDetails &&
+    firstSelectedItemDetails.type === "archive";
 
   const onPlaceholder = () =>
     console.log("This feature will be implemented soon!");
@@ -171,7 +179,7 @@ const AppMenu = ({
                 disabled={!canDelete}
               />
               <Separator />
-              {activePanelSelections.size > 0 && (
+              {activePanelSelections.size > 0 && !canPerformArchiveAction && (
                 <>
                   <MenuItem
                     label="Compress in active panel"
@@ -180,6 +188,23 @@ const AppMenu = ({
                   <MenuItem
                     label="Compress to other panel"
                     onClick={() => handleItemClick(onCompressToOtherPanel)}
+                  />
+                  <Separator />
+                </>
+              )}
+              {canPerformArchiveAction && (
+                <>
+                  <MenuItem
+                    label="Decompress in active panel"
+                    onClick={() => handleItemClick(onDecompressInActivePanel)}
+                  />
+                  <MenuItem
+                    label="Decompress to other panel"
+                    onClick={() => handleItemClick(onDecompressToOtherPanel)}
+                  />
+                  <MenuItem
+                    label="Test Archive"
+                    onClick={() => handleItemClick(onTestArchive)}
                   />
                   <Separator />
                 </>

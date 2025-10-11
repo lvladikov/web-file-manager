@@ -24,6 +24,9 @@ const ContextMenu = ({
   onQuickFilter,
   onCompressInActivePanel,
   onCompressToOtherPanel,
+  onDecompressInActivePanel,
+  onDecompressToOtherPanel,
+  onTestArchive,
 }) => {
   const menuRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState("none");
@@ -110,7 +113,9 @@ const ContextMenu = ({
           </li>
         )}
 
-        {!isMultiSelect && <div className="border-t border-gray-600 mx-2 my-1"></div>}
+        {!isMultiSelect && (
+          <div className="border-t border-gray-600 mx-2 my-1"></div>
+        )}
 
         <li
           onClick={onCopyToOtherPanel}
@@ -160,9 +165,31 @@ const ContextMenu = ({
           {deleteLabel} (F8)
         </li>
 
-        {count > 0 && (
+        <div className="border-t border-gray-600 mx-2 my-1"></div>
+
+        {!isMultiSelect && firstItem.type === "archive" ? (
           <>
-            <div className="border-t border-gray-600 mx-2 my-1"></div>
+            <li
+              onClick={onDecompressInActivePanel}
+              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+            >
+              Decompress in active panel
+            </li>
+            <li
+              onClick={onDecompressToOtherPanel}
+              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+            >
+              Decompress to other panel
+            </li>
+            <li
+              onClick={onTestArchive}
+              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+            >
+              Test Archive
+            </li>
+          </>
+        ) : count > 0 ? (
+          <>
             <li
               onClick={onCompressInActivePanel}
               className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
@@ -176,26 +203,26 @@ const ContextMenu = ({
               Compress to other panel
             </li>
           </>
-        )}
+        ) : null}
 
         {folderCount > 0 && (
-            <>
-              <div className="border-t border-gray-600 mx-2 my-1"></div>
+          <>
+            <div className="border-t border-gray-600 mx-2 my-1"></div>
+            <li
+              onClick={onCalculateSize}
+              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+            >
+              {calculateSizeLabel}
+            </li>
+            {count === 1 && firstItem.type === "folder" && (
               <li
-                onClick={onCalculateSize}
+                onClick={onSetOtherPanelPath}
                 className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
               >
-                {calculateSizeLabel}
+                Set as other panel's path
               </li>
-              {count === 1 && firstItem.type === "folder" && (
-                <li
-                  onClick={onSetOtherPanelPath}
-                  className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
-                >
-                  Set as other panel's path
-                </li>
-              )}
-            </>
+            )}
+          </>
         )}
 
         <div className="border-t border-gray-600 mx-2 my-1"></div>
