@@ -83,8 +83,9 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
   - **Viewing:** Preview, Open, and Open with...
   - **File Operations:** Contains all major file transfer actions.
     - <kbd>Copy to other panel</kbd>: Performs the F5 Copy operation on the selected item.
-    - <kbd>Compress in active panel</kbd>: Compresses the selected items into a zip archive in the current panel.
-    - <kbd>Compress to other panel</kbd>: Compresses the selected items into a zip archive and transfers it to the other panel.
+    - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
+    - <kbd>Decompress Archive</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
+    - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, reporting any corrupt files or general issues.
     - <kbd>Copy / Cut (to clipboard)</kbd>: (Coming soon) Standard clipboard operations.
     - <kbd>Move to other panel</kbd>: (Coming soon) Performs an F6 Move operation.
   - **Organization:** Rename and Delete the item.
