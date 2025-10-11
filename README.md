@@ -7,13 +7,59 @@ This project is a dual-panel file manager inspired by applications like Midnight
 ```
 /
 ├── packages/
-│ ├── client/ # React Frontend
-│ └── server/ # Node.js Backend
+│   ├── client/ # React Frontend
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   │   ├── context-menus/
+│   │   │   │   ├── help-diagrams/
+│   │   │   │   ├── modals/
+│   │   │   │   ├── panels/
+│   │   │   │   └── ui/
+│   │   │   ├── lib/
+│   │   │   │   ├── api.js
+│   │   │   │   └── utils.js
+│   │   │   ├── state/
+│   │   │   │   ├── index.js
+│   │   │   │   ├── useArchiveIntegrityTest.js
+│   │   │   │   ├── useCompress.js
+│   │   │   │   ├── useContextMenu.js
+│   │   │   │   ├── useCopy.js
+│   │   │   │   ├── useDecompress.js
+│   │   │   │   ├── useDelete.js
+│   │   │   │   ├── useKeyboardShortcuts.js
+│   │   │   │   ├── useModals.js
+│   │   │   │   ├── useNewFolder.js
+│   │   │   │   ├── usePanelOps.js
+│   │   │   │   ├── useRename.js
+│   │   │   │   ├── useSettings.js
+│   │   │   │   ├── useSizeCalculation.js
+│   │   │   │   └── useSwapPanels.js
+│   │   │   ├── App.jsx
+│   │   │   ├── index.css
+│   │   │   └── main.jsx
+│   │   ├── index.html
+│   │   ├── postcss.config.js
+│   │   ├── tailwind.config.js
+│   │   └── vite.config.js
+│   └── server/ # Node.js Backend
+│       ├── lib/
+│       │   ├── config.js
+│       │   ├── utils.js
+│       │   └── websocket.js
+│       ├── routes/
+│       │   ├── configRoutes.js
+│       │   ├── fileRoutes.js
+│       │   ├── index.js
+│       │   └── mediaRoutes.js
+│       └── server.js
 ├── package.json # Root package.json for monorepo management
+├── misc/
+│   ├── create-corrupt-zip.js # Misc Utility for creating corrupt archives for the purpose of testing
+│   └── README.md # Miscellaneous scripts and tools
 └── README.md
 ```
 
-For miscellaneous scripts and tools, refer to the [misc/README.md](misc/README.md).
+For the miscellaneous scripts and tools, refer to the [misc/README.md](misc/README.md).
 
 ## Prerequisites
 
