@@ -186,6 +186,28 @@ const formatSpeed = (bytesPerSecond, spaceBeforeUnit = true) => {
   return `${formattedBytes}/s`;
 };
 
+const truncatePath = (fullPath, maxLength = 60) => {
+  if (fullPath.length <= maxLength) {
+    return fullPath;
+  }
+
+  const ellipsis = "...";
+  const charsToShow = maxLength - ellipsis.length;
+
+  if (charsToShow <= 0) {
+    return ellipsis; // Not enough space even for ellipsis
+  }
+
+  const frontChars = Math.ceil(charsToShow / 2);
+  const backChars = Math.floor(charsToShow / 2);
+
+  return (
+    fullPath.substring(0, frontChars) +
+    ellipsis +
+    fullPath.substring(fullPath.length - backChars)
+  );
+};
+
 export {
   buildFullPath,
   formatBytes,
@@ -200,4 +222,5 @@ export {
   calculateFolderSize,
   basename,
   formatSpeed,
+  truncatePath,
 };

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { testArchive, cancelArchiveTest } from "../lib/api";
+import { truncatePath } from "../lib/utils";
 
 const useArchiveIntegrityTest = ({
   activePanel,
@@ -94,7 +95,7 @@ const useArchiveIntegrityTest = ({
             setArchiveTestProgress((prev) => ({
               ...prev,
               testedFiles: data.testedFiles,
-              currentFile: data.currentFile,
+              currentFile: truncatePath(data.currentFile, 60),
             }));
             break;
           case "complete":

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { decompressFiles, cancelDecompress } from "../lib/api";
-import { buildFullPath } from "../lib/utils";
+import { buildFullPath, truncatePath } from "../lib/utils";
 
 const useDecompress = ({
   activePanel,
@@ -31,7 +31,23 @@ const useDecompress = ({
     if (decompressProgress.jobId) {
       cancelDecompress(decompressProgress.jobId);
     }
-    // The ws.onclose will handle the state reset.
+    // Immediately close the modal and reset state on client-side cancellation
+    setDecompressProgress({
+      isVisible: false,
+      jobId: null,
+      currentFile: "",
+      totalBytes: 0,
+      processedBytes: 0,
+      currentFileTotalSize: 0,
+      currentFileBytesProcessed: 0,
+      instantaneousSpeed: 0,
+      error: null,
+      destinationPath: null,
+      targetPanelId: null,
+    });
+    if (wsRef.current) {
+      wsRef.current.close(); // Explicitly close the WebSocket connection
+    }
   };
 
   const handleDecompress = async (targetPanelId) => {
@@ -87,6 +103,8 @@ const useDecompress = ({
       );
       wsRef.current = ws;
 
+      ws.onopen = () => {};
+
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === "start") {
@@ -97,7 +115,7 @@ const useDecompress = ({
         } else if (data.type === "progress") {
           setDecompressProgress((prev) => ({
             ...prev,
-            currentFile: data.currentFile,
+            currentFile: truncatePath(data.currentFile, 60),
             totalBytes: data.total,
             processedBytes: data.processed,
             currentFileTotalSize: data.currentFileTotalSize,
@@ -105,8 +123,24 @@ const useDecompress = ({
             instantaneousSpeed: data.instantaneousSpeed,
           }));
         } else if (data.type === "complete") {
-          handleRefreshPanel(targetPanelId);
-          setTimeout(() => {
+          if (data.status === "cancelled") {
+            // Job was cancelled, just let ws.onclose handle the state reset.
+            setDecompressProgress({
+              isVisible: false,
+              jobId: null,
+              currentFile: "",
+              totalBytes: 0,
+              processedBytes: 0,
+              currentFileTotalSize: 0,
+              currentFileBytesProcessed: 0,
+              instantaneousSpeed: 0,
+              error: null,
+              destinationPath: null,
+              targetPanelId: null,
+            });
+          } else {
+            // Successful completion
+            handleRefreshPanel(targetPanelId);
             setSelections((prev) => ({
               ...prev,
               [targetPanelId]: new Set([subfolderName]),
@@ -119,32 +153,18 @@ const useDecompress = ({
               setActivePanel(targetPanelId);
             }
             panelRefs[targetPanelId].current?.focus();
-          }, 500);
+            setDecompressProgress((prev) => ({ ...prev, isVisible: false })); // Close modal on successful completion
+          }
         } else if (data.type === "failed" || data.type === "error") {
           const errorMessage = data.title
             ? `${data.title} ${data.details || data.message ? `(${data.details || data.message})` : ""}`
             : data.details || data.message || "Decompression failed.";
           setError(errorMessage);
+          setDecompressProgress((prev) => ({ ...prev, isVisible: false })); // Close modal on error
         }
       };
 
-      ws.onclose = () => {
-        // This runs for both successful completion and cancellation
-        handleRefreshPanel(decompressProgress.targetPanelId || targetPanelId);
-        setDecompressProgress({
-          isVisible: false,
-          jobId: null,
-          currentFile: "",
-          totalBytes: 0,
-          processedBytes: 0,
-          currentFileTotalSize: 0,
-          currentFileBytesProcessed: 0,
-          instantaneousSpeed: 0,
-          error: null,
-          destinationPath: null,
-          targetPanelId: null,
-        });
-      };
+      ws.onclose = () => {};
 
       ws.onerror = (error) => {
         setError("WebSocket connection error during decompression.");

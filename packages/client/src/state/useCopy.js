@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { startCopyItems, cancelCopy } from "../lib/api";
-import { buildFullPath } from "../lib/utils";
+import { buildFullPath, truncatePath } from "../lib/utils";
 
 export default function useCopy({
   activePanel,
@@ -149,7 +149,7 @@ export default function useCopy({
       switch (data.type) {
         case "scan_progress":
         case "copy_progress":
-          setCopyProgress((prev) => ({ ...prev, currentFile: data.file }));
+          setCopyProgress((prev) => ({ ...prev, currentFile: truncatePath(data.file, 60) }));
           break;
         case "scan_complete":
           setCopyProgress((prev) => ({

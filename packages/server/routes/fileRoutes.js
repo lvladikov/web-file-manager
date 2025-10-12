@@ -396,14 +396,24 @@ export default function createFileRoutes(
         .json({ message: "Source archive and destination path are required." });
     }
 
+    let sourcePath;
+    if (typeof source === 'string') {
+      sourcePath = source;
+    } else if (typeof source === 'object' && source.path && source.name) {
+      sourcePath = path.join(source.path, source.name);
+    } else {
+      return res.status(400).json({ message: "Invalid source archive path provided." });
+    }
+
     const jobId = crypto.randomUUID();
     const job = {
       id: jobId,
       status: "pending",
-      source: path.join(source.path, source.name),
+      source: sourcePath,
       destination,
       ws: null,
       zipfile: null, // Will hold the yauzl instance
+      controller: new AbortController(), // Initialize AbortController
     };
     activeDecompressJobs.set(jobId, job);
     res.status(202).json({ jobId });
@@ -418,11 +428,9 @@ export default function createFileRoutes(
     const job = activeDecompressJobs.get(jobId);
     if (job.status === "pending" || job.status === "running") {
       job.status = "cancelled";
-      if (job.currentReadStream) {
-        job.currentReadStream.destroy(); // This will trigger the 'close' event on the write stream
-      } else if (job.zipfile) {
-        job.zipfile.close(); // If no file is being written, just close the archive
-      }
+      job.controller.abort(); // Abort the controller
+      // The zipfile.close() is handled in the finally block of the job itself.
+      // If a readStream is active, the pipeline will be aborted.
     }
     res.status(200).json({ message: "Cancellation request received." });
   });
@@ -433,13 +441,24 @@ export default function createFileRoutes(
     if (!source) {
       return res.status(400).json({ message: "Source archive is required." });
     }
+
+    let sourcePath;
+    if (typeof source === 'string') {
+      sourcePath = source;
+    } else if (typeof source === 'object' && source.path && source.name) {
+      sourcePath = path.join(source.path, source.name);
+    } else {
+      return res.status(400).json({ message: "Invalid source archive path provided." });
+    }
+
     const jobId = crypto.randomUUID();
     const job = {
       id: jobId,
       status: "pending",
-      source: path.join(source.path, source.name),
+      source: sourcePath,
       ws: null,
       zipfile: null,
+      controller: new AbortController(), // Initialize AbortController
     };
     activeArchiveTestJobs.set(jobId, job);
     res.status(202).json({ jobId });
