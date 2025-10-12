@@ -5,33 +5,35 @@ This project is a dual-panel file manager inspired by applications like Midnight
 ## General Project Structure
 
 ```
-/                                           # Project root directory
-├── packages/                               # Contains the client and server applications
-│   ├── client/                             # React frontend application
-│   │   ├── src/                            # Source code for the React application
-│   │   │   ├── components/                 # Reusable UI components
-│   │   │   │   ├── context-menus/          # Components for context menus
-│   │   │   │   ├── help-diagrams/          # Components for help diagrams
-│   │   │   │   ├── modals/                 # Components for modal dialogs
-│   │   │   │   ├── panels/                 # Components for file panels
-│   │   │   │   └── ui/                     # General UI components
-│   │   │   ├── lib/                        # Utility functions and API clients
-│   │   │   ├── state/                      # State management for the application
-│   │   │   ├── App.jsx                     # Main application component
-│   │   │   ├── index.css                   # Main CSS file
-│   │   │   └── main.jsx                    # Entry point for the React application
-│   │   ├── index.html                      # Main HTML file
-│   │   ├── postcss.config.js               # PostCSS configuration
-│   │   ├── tailwind.config.js              # Tailwind CSS configuration
-│   │   └── vite.config.js                  # Vite build configuration
-│   └── server/                             # Node.js backend application
-│       ├── lib/                            # Utility functions and server-side logic
-│       ├── routes/                         # API route definitions
-│       └── server.js                       # Entry point for the Node.js server
-├── misc/                                   # Miscellaneous scripts and tools
-│   ├── create-corrupt-zip.js               # Utility for creating corrupt archives for testing
-│   └── README.md                           # Documentation for miscellaneous scripts
-└── README.md                               # Main project README
+
+/                                    # Project root directory
+├── packages/                        # Contains the client and server applications
+│   ├── client/                      # React frontend application
+│   │   ├── src/                     # Source code for the React application
+│   │   │   ├── components/          # Reusable UI components
+│   │   │   │   ├── context-menus/   # Components for context menus
+│   │   │   │   ├── help-diagrams/   # Components for help diagrams
+│   │   │   │   ├── modals/          # Components for modal dialogs
+│   │   │   │   ├── panels/          # Components for file panels
+│   │   │   │   └── ui/              # General UI components
+│   │   │   ├── lib/                 # Utility functions and API clients
+│   │   │   ├── state/               # State management for the application
+│   │   │   ├── App.jsx              # Main application component
+│   │   │   ├── index.css            # Main CSS file
+│   │   │   └── main.jsx             # Entry point for the React application
+│   │   ├── index.html               # Main HTML file
+│   │   ├── postcss.config.js        # PostCSS configuration
+│   │   ├── tailwind.config.js       # Tailwind CSS configuration
+│   │   └── vite.config.js           # Vite build configuration
+│   └── server/                      # Node.js backend application
+│       ├── lib/                     # Utility functions and server-side logic
+│       ├── routes/                  # API route definitions
+│       └── server.js                # Entry point for the Node.js server
+├── misc/                            # Miscellaneous scripts and tools
+│   ├── create-corrupt-zip.js        # Utility for creating corrupt archives for testing
+│   └── README.md                    # Documentation for miscellaneous scripts
+└── README.md                        # Main project README
+
 ```
 
 For the miscellaneous scripts and tools, refer to the [misc/README.md](misc/README.md).
