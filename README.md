@@ -36,8 +36,6 @@ This project is a dual-panel file manager inspired by applications like Midnight
 
 ```
 
-For the miscellaneous scripts and tools, refer to the [misc/README.md](misc/README.md).
-
 ## Prerequisites
 
 - **Node.js** (v20.19.0 or later recommended)
