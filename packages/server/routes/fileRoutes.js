@@ -85,7 +85,7 @@ export default function createFileRoutes(
             const fileStats = await fse.stat(actualFullPath);
             let type = "file";
             if (fileStats.isDirectory()) type = "folder";
-            else if (/\.(zip|rar|7z|tar)$/i.test(file.name)) type = "archive";
+            else if (/\.zip$/i.test(file.name)) type = "archive";
             else if (
               /\.(jpg|jpeg|png|gif|bmp|tiff|svg|webp|psd)$/i.test(file.name)
             )
