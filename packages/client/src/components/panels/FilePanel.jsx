@@ -10,6 +10,8 @@ import Resizer from "../ui/Resizer";
 import NewFolderItem from "../panels/NewFolderItem";
 import FileItem from "../panels/FileItem";
 import FilterInput from "../ui/FilterInput";
+import EmptyAreaContextMenu from "../context-menus/EmptyAreaContextMenu";
+import PathContextMenu from "../context-menus/PathContextMenu";
 
 const FilePanel = React.forwardRef(
   (
@@ -17,7 +19,6 @@ const FilePanel = React.forwardRef(
       panelData,
       activePanel,
       panelId,
-      onEmptyAreaContextMenu,
       renamingItem,
       isCreating,
       newFolderValue,
@@ -25,7 +26,6 @@ const FilePanel = React.forwardRef(
       onNavigate,
       onNavigateToPath,
       onOpenFile,
-      onContextMenu,
       onStartRename,
       onRenameChange,
       onRenameSubmit,
@@ -33,7 +33,6 @@ const FilePanel = React.forwardRef(
       onNewFolderChange,
       onNewFolderSubmit,
       onNewFolderCancel,
-      onPathContextMenu,
       loading,
       selectedItems,
       setSelectedItems,
@@ -58,6 +57,32 @@ const FilePanel = React.forwardRef(
       onFilterChange,
       onCloseFilter,
       filteredItems,
+      onNewFolder,
+      onRefreshPanel,
+      onRefreshBothPanels,
+      onSelectAll,
+      onUnselectAll,
+      onInvertSelection,
+      onQuickSelect,
+      onQuickUnselect,
+      onQuickFilter,
+      onSwapPanels,
+      onPreview,
+      onOpen,
+      onOpenWith,
+      onCopyToOtherPanel,
+      onRename,
+      onDelete,
+      onSetOtherPanelPath,
+      onCalculateSize,
+      onCompressInActivePanel,
+      onCompressToOtherPanel,
+      onDecompressInActivePanel,
+      onDecompressToOtherPanel,
+      onTestArchive,
+      appState,
+      onChooseFolder,
+      boundaryRef,
     },
     ref
   ) => {
@@ -363,17 +388,21 @@ const FilePanel = React.forwardRef(
                 className="bg-gray-700 text-white w-full focus:outline-none focus:ring-1 focus:ring-sky-500 rounded px-1"
               />
             ) : (
-              <div
-                onDoubleClick={onPathDoubleClick}
-                onContextMenu={(e) => onPathContextMenu(e, panelId)}
-                title={`${panelData.path || "..."} | Double click to edit`}
-                className="truncate"
+              <PathContextMenu
+                onChooseFolder={() => onChooseFolder(panelId)}
+                onSwapPanels={onSwapPanels}
               >
-                <Breadcrumbs
-                  path={panelData.path}
-                  onNavigate={onNavigateToPath}
-                />
-              </div>
+                <div
+                  onDoubleClick={onPathDoubleClick}
+                  title={`${panelData.path || "..."} | Double click to edit`}
+                  className="truncate"
+                >
+                  <Breadcrumbs
+                    path={panelData.path}
+                    onNavigate={onNavigateToPath}
+                  />
+                </div>
+              </PathContextMenu>
             )}
           </div>
           <div className="relative">
@@ -429,15 +458,22 @@ const FilePanel = React.forwardRef(
           </span>
         </div>
 
+        <EmptyAreaContextMenu
+          boundaryRef={boundaryRef}
+          onNewFolder={onNewFolder}
+          onRefreshPanel={onRefreshPanel}
+          onRefreshBothPanels={onRefreshBothPanels}
+          onSelectAll={onSelectAll}
+          onUnselectAll={onUnselectAll}
+          onInvertSelection={onInvertSelection}
+          onQuickSelect={onQuickSelect}
+          onQuickUnselect={onQuickUnselect}
+          onQuickFilter={onQuickFilter}
+          onSwapPanels={onSwapPanels}
+        >
         <div
           ref={scrollContainerRef}
           className="flex-grow overflow-y-auto pr-1 relative"
-          onContextMenu={(e) => {
-            // Ensure the click is on the container itself, not on a child element
-            if (e.target === e.currentTarget) {
-              onEmptyAreaContextMenu(e);
-            }
-          }}
         >
           {isCreating && (
             <NewFolderItem
@@ -470,13 +506,28 @@ const FilePanel = React.forwardRef(
                 onRenameCancel={onRenameCancel}
                 onClick={(e) => handleItemClick(item.name, e)}
                 onDoubleClick={() => handleDoubleClick(item)}
-                onContextMenu={(x, y, file) =>
-                  onContextMenu(x, y, file, panelData.path)
-                }
                 style={gridStyle}
+                onPreview={onPreview}
+                onOpen={onOpen}
+                onOpenWith={onOpenWith}
+                onCopyToOtherPanel={onCopyToOtherPanel}
+                onRename={onRename}
+                onDelete={onDelete}
+                onSetOtherPanelPath={onSetOtherPanelPath}
+                onCalculateSize={onCalculateSize}
+                onCompressInActivePanel={onCompressInActivePanel}
+                onCompressToOtherPanel={onCompressToOtherPanel}
+                onDecompressInActivePanel={onDecompressInActivePanel}
+                onDecompressToOtherPanel={onDecompressToOtherPanel}
+                onTestArchive={onTestArchive}
+                appState={appState}
+                boundaryRef={boundaryRef}
+                allItems={panelData.items}
+                selectedItems={selectedItems}
               />
             ))}
         </div>
+        </EmptyAreaContextMenu>
         {filterPanelId === panelId && (
           <FilterInput
             filter={filter}

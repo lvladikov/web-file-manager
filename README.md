@@ -16,24 +16,7 @@ This project is a dual-panel file manager inspired by applications like Midnight
 │   │   │   │   ├── panels/
 │   │   │   │   └── ui/
 │   │   │   ├── lib/
-│   │   │   │   ├── api.js
-│   │   │   │   └── utils.js
 │   │   │   ├── state/
-│   │   │   │   ├── index.js
-│   │   │   │   ├── useArchiveIntegrityTest.js
-│   │   │   │   ├── useCompress.js
-│   │   │   │   ├── useContextMenu.js
-│   │   │   │   ├── useCopy.js
-│   │   │   │   ├── useDecompress.js
-│   │   │   │   ├── useDelete.js
-│   │   │   │   ├── useKeyboardShortcuts.js
-│   │   │   │   ├── useModals.js
-│   │   │   │   ├── useNewFolder.js
-│   │   │   │   ├── usePanelOps.js
-│   │   │   │   ├── useRename.js
-│   │   │   │   ├── useSettings.js
-│   │   │   │   ├── useSizeCalculation.js
-│   │   │   │   └── useSwapPanels.js
 │   │   │   ├── App.jsx
 │   │   │   ├── index.css
 │   │   │   └── main.jsx
@@ -43,14 +26,7 @@ This project is a dual-panel file manager inspired by applications like Midnight
 │   │   └── vite.config.js
 │   └── server/ # Node.js Backend
 │       ├── lib/
-│       │   ├── config.js
-│       │   ├── utils.js
-│       │   └── websocket.js
 │       ├── routes/
-│       │   ├── configRoutes.js
-│       │   ├── fileRoutes.js
-│       │   ├── index.js
-│       │   └── mediaRoutes.js
 │       └── server.js
 ├── misc/
 │   ├── create-corrupt-zip.js # Misc Utility for creating corrupt archives for the purpose of testing

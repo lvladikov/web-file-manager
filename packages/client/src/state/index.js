@@ -7,7 +7,6 @@ import useRename from "./useRename";
 import useNewFolder from "./useNewFolder";
 import useCopy from "./useCopy";
 import useSizeCalculation from "./useSizeCalculation";
-import useContextMenu from "./useContextMenu";
 import useKeyboardShortcuts from "./useKeyboardShortcuts";
 import useSettings from "./useSettings";
 import useModals from "./useModals";
@@ -102,21 +101,7 @@ export default function appState() {
 
   const { isCalculatingSize, ...sizeCalculationHandlers } = sizeCalculation;
 
-  // 2. Hooks that depend on the hooks above
-  const contextMenu = useContextMenu({
-    selections,
-    panels,
-    setActivePanel,
-    setSelections,
-    setFocusedItem,
-    setAppBrowserModal: modals.setAppBrowserModal,
-    handleNavigate: panelOps.handleNavigate,
-    handleOpenFile: panelOps.handleOpenFile,
-    calculateSizeForMultipleFolders:
-      sizeCalculation.calculateSizeForMultipleFolders,
-  });
-
-  // 3. Feature hooks
+  // 2. Feature hooks
   const rename = useRename({
     panels,
     handleNavigate: panelOps.handleNavigate,
@@ -168,7 +153,6 @@ export default function appState() {
     setFocusedItem,
     setActivePanel,
     panelRefs,
-    closeContextMenus: contextMenu.closeContextMenus,
     wsRef,
   });
 
@@ -346,15 +330,13 @@ export default function appState() {
   }, [panels.left.path, panels.right.path]);
 
   // --- "Connector" Handlers & UI Composition ---
-  const openFolderBrowserForPanel = () => {
-    const { panelId } = contextMenu.pathContextMenu;
+  const openFolderBrowserForPanel = (panelId) => {
     const startPath = panels[panelId].path;
     modals.setFolderBrowserModal({
       isVisible: true,
       targetPanelId: panelId,
       initialPath: startPath,
     });
-    contextMenu.closeContextMenus();
   };
 
   const handleFolderBrowserConfirm = (selectedPath) => {
@@ -541,7 +523,6 @@ export default function appState() {
     ...newFolder,
     ...copy,
     ...del,
-    ...contextMenu,
     ...sizeCalculationHandlers,
     ...panelOps,
     ...compress,

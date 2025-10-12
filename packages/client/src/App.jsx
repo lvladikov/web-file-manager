@@ -1,14 +1,12 @@
 import { cancelSizeCalculation } from "./lib/api";
 import { isItemPreviewable, buildFullPath } from "./lib/utils";
+import { useRef } from "react";
 
 import appState from "./state";
 
 // Components
 import ActionBar from "./components/ui/ActionBar";
 import AppMenu from "./components/ui/AppMenu";
-import ContextMenu from "./components/context-menus/ContextMenu";
-import EmptyAreaContextMenu from "./components/context-menus/EmptyAreaContextMenu";
-import PathContextMenu from "./components/context-menus/PathContextMenu";
 import FilePanel from "./components/panels/FilePanel";
 import ApplicationBrowserModal from "./components/modals/ApplicationBrowserModal";
 import CalculatingSizeModal from "./components/modals/CalculatingSizeModal";
@@ -34,9 +32,6 @@ export default function App() {
     selectionAnchor,
     loading,
     error,
-    contextMenu,
-    pathContextMenu,
-    emptyAreaContextMenu,
     appBrowserModal,
     folderBrowserModal,
     copyProgress,
@@ -76,7 +71,6 @@ export default function App() {
     handleConfirmNewFolder,
     handleCancelNewFolder,
     performCopy,
-    handleContextMenuOpen,
     handleCancelCopy,
     handleDeleteItem,
     confirmDeletion,
@@ -88,8 +82,6 @@ export default function App() {
     handleContextOpen,
     handleContextOpenWith,
     handleSetOtherPanelPath,
-    handlePathContextMenu,
-    handleEmptyAreaContextMenu,
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,
     handlePathInputSubmit,
@@ -135,6 +127,7 @@ export default function App() {
     closeArchiveTestModal,
     handleSwapPanels,
   } = appState();
+  const mainRef = useRef(null);
 
   return (
     <div
@@ -334,209 +327,12 @@ export default function App() {
         onCancel={handleCancelArchiveTest}
         onClose={closeArchiveTestModal}
       />
-
-      {contextMenu.visible && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          targetItems={contextMenu.targetItems}
-          isPreviewable={
-            contextMenu.targetItems.length === 1 &&
-            isItemPreviewable(contextMenu.targetItems[0])
-          }
-          onPreview={() => {
-            if (contextMenu.targetItems.length === 1) {
-              setPreviewModal({
-                isVisible: true,
-                item: contextMenu.targetItems[0],
-              });
-            }
-            closeContextMenus();
-          }}
-          onOpen={handleContextOpen}
-          onOpenWith={handleContextOpenWith}
-          onCopyToOtherPanel={() => {
-            const sourcePanelId =
-              contextMenu.path === panels.left.path ? "left" : "right";
-            const destPanelId = sourcePanelId === "left" ? "right" : "left";
-            const sourcePath = panels[sourcePanelId].path;
-            const destinationPath = panels[destPanelId].path;
-            const items = filter[sourcePanelId].pattern
-              ? filteredItems[sourcePanelId]
-              : panels[sourcePanelId].items;
-            const sources = items
-              .filter((item) => selections[sourcePanelId].has(item.name))
-              .map((item) => buildFullPath(sourcePath, item.name));
-            performCopy(sources, destinationPath);
-            closeContextMenus();
-          }}
-          onRename={() => {
-            if (contextMenu.targetItems.length === 1) {
-              const panelId =
-                contextMenu.path === panels.left.path ? "left" : "right";
-              handleStartRename(panelId, contextMenu.targetItems[0].name);
-            }
-            closeContextMenus();
-          }}
-          onDelete={() => {
-            handleDeleteItem(contextMenu.targetItems);
-            closeContextMenus();
-          }}
-          onSetOtherPanelPath={handleSetOtherPanelPath}
-          onRefreshPanel={() => {
-            const panelId =
-              contextMenu.path === panels.left.path ? "left" : "right";
-            handleRefreshPanel(panelId);
-            closeContextMenus();
-          }}
-          onRefreshBothPanels={() => {
-            handleRefreshAllPanels();
-            closeContextMenus();
-          }}
-          onSelectAll={() => {
-            handleSelectAll();
-            closeContextMenus();
-          }}
-          onUnselectAll={() => {
-            handleUnselectAll();
-            closeContextMenus();
-          }}
-          onInvertSelection={() => {
-            handleInvertSelection();
-            closeContextMenus();
-          }}
-          onQuickSelect={() => {
-            handleStartQuickSelect();
-            closeContextMenus();
-          }}
-          onQuickUnselect={() => {
-            handleStartQuickUnselect();
-            closeContextMenus();
-          }}
-          onQuickFilter={() => {
-            handleStartFilter();
-            closeContextMenus();
-          }}
-          onCalculateSize={async () => {
-            const foldersToCalc = contextMenu.targetItems.filter(
-              (i) => i.type === "folder"
-            );
-            closeContextMenus();
-
-            if (foldersToCalc.length === 0) return;
-
-            const panelId =
-              contextMenu.path === panels.left.path ? "left" : "right";
-
-            // Loop through each selected folder and calculate its size sequentially.
-            for (const folder of foldersToCalc) {
-              try {
-                // The 'folder' object from contextMenu.targetItems already has `name` and `fullPath`.
-                const finalSize = await calculateFolderSize(
-                  folder,
-                  wsRef,
-                  setSizeCalcModal
-                );
-                // On success, update the specific item in the correct panel.
-                updateItemInPanel(panelId, folder.name, { size: finalSize });
-              } catch (err) {
-                // If any calculation fails, show an error and stop processing the rest.
-                setError(
-                  `Folder Size Calculation for "${folder.name}" failed: ${err.message}`
-                );
-                break; // Exit the loop
-              }
-            }
-          }}
-          onCompressInActivePanel={() => {
-            handleCompressInActivePanel();
-            closeContextMenus();
-          }}
-          onCompressToOtherPanel={() => {
-            handleCompressToOtherPanel();
-            closeContextMenus();
-          }}
-          onDecompressInActivePanel={() => {
-            handleDecompressInActivePanel();
-            closeContextMenus();
-          }}
-          onDecompressToOtherPanel={() => {
-            handleDecompressToOtherPanel();
-            closeContextMenus();
-          }}
-          onTestArchive={() => {
-            handleTestArchive();
-            closeContextMenus();
-          }}
-          onSwapPanels={() => {
-            handleSwapPanels();
-            closeContextMenus();
-          }}
-        />
-      )}
-      {pathContextMenu.visible && (
-        <PathContextMenu
-          x={pathContextMenu.x}
-          y={pathContextMenu.y}
-          onChooseFolder={openFolderBrowserForPanel}
-          onClose={closeContextMenus}
-          onSwapPanels={handleSwapPanels}
-        />
-      )}
-      {emptyAreaContextMenu.visible && (
-        <EmptyAreaContextMenu
-          x={emptyAreaContextMenu.x}
-          y={emptyAreaContextMenu.y}
-          onNewFolder={() => {
-            // Set the panel that was right-clicked as active before creating the folder
-            setActivePanel(emptyAreaContextMenu.panelId);
-            handleStartNewFolder(emptyAreaContextMenu.panelId);
-            closeContextMenus();
-          }}
-          onRefreshPanel={() => {
-            handleRefreshPanel(emptyAreaContextMenu.panelId);
-            closeContextMenus();
-          }}
-          onRefreshBothPanels={() => {
-            handleRefreshAllPanels();
-            closeContextMenus();
-          }}
-          onSelectAll={() => {
-            handleSelectAll();
-            closeContextMenus();
-          }}
-          onUnselectAll={() => {
-            handleUnselectAll();
-            closeContextMenus();
-          }}
-          onInvertSelection={() => {
-            handleInvertSelection();
-            closeContextMenus();
-          }}
-          onQuickSelect={() => {
-            handleStartQuickSelect();
-            closeContextMenus();
-          }}
-          onQuickUnselect={() => {
-            handleStartQuickUnselect();
-            closeContextMenus();
-          }}
-          onQuickFilter={() => {
-            handleStartFilter();
-            closeContextMenus();
-          }}
-          onSwapPanels={() => {
-            handleSwapPanels();
-            closeContextMenus();
-          }}
-          onClose={closeContextMenus}
-        />
-      )}
-      <main className="flex-grow flex p-2 space-x-2 overflow-hidden">
+      <main ref={mainRef} className="flex-grow flex p-2 space-x-2 overflow-hidden">
         {["left", "right"].map((panelId) => (
           <FilePanel
             ref={panelRefs[panelId]}
             key={panelId}
+            boundaryRef={mainRef}
             panelData={panels[panelId]}
             activePanel={activePanel}
             panelId={panelId}
@@ -560,14 +356,6 @@ export default function App() {
             }
             onNavigateToPath={(absPath) => handleNavigate(panelId, absPath, "")}
             onOpenFile={handleOpenFile}
-            onContextMenu={(x, y, file) => {
-              closeContextMenus();
-              handleContextMenuOpen(x, y, file, panelId);
-            }}
-            onPathContextMenu={handlePathContextMenu}
-            onEmptyAreaContextMenu={(e) =>
-              handleEmptyAreaContextMenu(e, panelId)
-            }
             loading={loading[panelId]}
             selectedItems={selections[panelId]}
             setSelectedItems={(newSel) =>
@@ -604,6 +392,73 @@ export default function App() {
             onFilterChange={handleFilterChange}
             onCloseFilter={handleCloseFilter}
             filteredItems={filteredItems[panelId]}
+            onNewFolder={() => handleStartNewFolder(panelId)}
+            onRefreshPanel={() => handleRefreshPanel(panelId)}
+            onRefreshBothPanels={handleRefreshAllPanels}
+            onSelectAll={() => handleSelectAll(panelId)}
+            onUnselectAll={() => handleUnselectAll(panelId)}
+            onInvertSelection={() => handleInvertSelection(panelId)}
+            onQuickSelect={() => handleStartQuickSelect(panelId)}
+            onQuickUnselect={() => handleStartQuickUnselect(panelId)}
+            onQuickFilter={() => handleStartFilter(panelId)}
+            onSwapPanels={handleSwapPanels}
+            onPreview={() => {
+              if (selections[panelId].size === 1) {
+                const itemName = [...selections[panelId]][0];
+                const item = panels[panelId].items.find(i => i.name === itemName);
+                if (item && isItemPreviewable(item)) {
+                  setPreviewModal({ isVisible: true, item });
+                }
+              }
+            }}
+            onOpen={() => handleContextOpen() }
+            onOpenWith={() => handleContextOpenWith() }
+            onCopyToOtherPanel={() => {
+              const sourcePanelId = panelId;
+              const destPanelId = sourcePanelId === "left" ? "right" : "left";
+              const sourcePath = panels[sourcePanelId].path;
+              const destinationPath = panels[destPanelId].path;
+              const items = filter[sourcePanelId].pattern
+                ? filteredItems[sourcePanelId]
+                : panels[sourcePanelId].items;
+              const sources = items
+                .filter((item) => selections[sourcePanelId].has(item.name))
+                .map((item) => buildFullPath(sourcePath, item.name));
+              performCopy(sources, destinationPath);
+            }}
+            onRename={() => {
+              if (selections[panelId].size === 1) {
+                const name = [...selections[panelId]][0];
+                if (name !== "..") {
+                  handleStartRename(panelId, name);
+                }
+              }
+            }}
+            onDelete={() => {
+              const items = filter[panelId].pattern
+                ? filteredItems[panelId]
+                : panels[panelId].items;
+              const itemsToDelete = items.filter((item) =>
+                selections[panelId].has(item.name)
+              );
+              handleDeleteItem(itemsToDelete);
+            }}
+            onSetOtherPanelPath={() => handleSetOtherPanelPath() }
+            onCalculateSize={() => {
+              const foldersToCalc = panels[panelId].items.filter(
+                (i) => i.type === "folder" && selections[panelId].has(i.name)
+              );
+              if (foldersToCalc.length > 0) {
+                calculateSizeForMultipleFolders(foldersToCalc, panelId);
+              }
+            }}
+            onCompressInActivePanel={handleCompressInActivePanel}
+            onCompressToOtherPanel={handleCompressToOtherPanel}
+            onDecompressInActivePanel={handleDecompressInActivePanel}
+            onDecompressToOtherPanel={handleDecompressToOtherPanel}
+            onTestArchive={handleTestArchive}
+            appState={appState}
+            onChooseFolder={openFolderBrowserForPanel}
           />
         ))}
       </main>

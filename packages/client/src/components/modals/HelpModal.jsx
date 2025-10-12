@@ -198,7 +198,7 @@ const HelpModal = ({ isVisible, onClose }) => {
                     <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
                   </li>
                   <li>
-                    <kbd>Decompress Archive</kbd>: Select a ZIP archive and choose "Decompress" from the context menu or "File > Decompress". You can decompress to the active panel or the other panel. A progress modal will appear, showing the current file being extracted and the overall progress.
+                    <kbd>Decompress Archive</kbd>: Select a ZIP archive and choose "Decompress" from the context menu or "File &gt; Decompress". You can decompress to the active panel or the other panel. A progress modal will appear, showing the current file being extracted and the overall progress.
                   </li>
                   <li>
                     <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive.

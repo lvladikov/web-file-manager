@@ -4,6 +4,7 @@ import { formatBytes } from "../../lib/utils";
 
 import Icon from "../ui/Icon";
 import TruncatedText from "../ui/TruncatedText";
+import AppContextMenu from "../context-menus/AppContextMenu";
 
 const FileItem = ({
   item,
@@ -16,8 +17,33 @@ const FileItem = ({
   onRenameCancel,
   onClick,
   onDoubleClick,
-  onContextMenu,
   style,
+  onPreview,
+  onOpen,
+  onOpenWith,
+  onCopyToOtherPanel,
+  onRename,
+  onDelete,
+  onSetOtherPanelPath,
+  onCalculateSize,
+  onCompressInActivePanel,
+  onCompressToOtherPanel,
+  onDecompressInActivePanel,
+  onDecompressToOtherPanel,
+  onTestArchive,
+  onSwapPanels,
+  onRefreshPanel,
+  onRefreshBothPanels,
+  onSelectAll,
+  onUnselectAll,
+  onInvertSelection,
+  onQuickSelect,
+  onQuickUnselect,
+  onQuickFilter,
+  appState,
+  boundaryRef,
+  allItems,
+  selectedItems,
 }) => {
   const inputRef = useRef(null);
 
@@ -32,7 +58,14 @@ const FileItem = ({
     if (e.key === "Escape") onRenameCancel();
   };
 
-  return (
+  let targetItems;
+  if (isSelected) {
+    targetItems = allItems.filter((i) => selectedItems.has(i.name));
+  } else {
+    targetItems = [item];
+  }
+
+  const renderFileItemContent = () => (
     <div
       data-name={item.name}
       className={`grid items-center p-1.5 rounded select-none 
@@ -49,17 +82,16 @@ const FileItem = ({
       onClick={isRenaming ? (e) => e.stopPropagation() : onClick}
       onDoubleClick={isRenaming ? (e) => e.stopPropagation() : onDoubleClick}
       onContextMenu={(e) => {
-        if (isRenaming || item.type === "parent") return;
-        e.preventDefault();
-        onContextMenu(e.pageX, e.pageY, item);
+        if (!isSelected) {
+          onClick(e);
+        }
       }}
       title={
         isRenaming
           ? ""
-          : `${item.name}${
-              item.type !== "folder" && item.type !== "parent"
-                ? " | Double-click to open"
-                : ""
+          : `${item.name}${item.type !== "folder" && item.type !== "parent"
+              ? " | Double-click to open"
+              : ""
             }`
       }
     >
@@ -99,6 +131,42 @@ const FileItem = ({
         {isRenaming ? "" : item.modified}
       </span>
     </div>
+  );
+
+  if (item.type === "parent") {
+    return renderFileItemContent();
+  }
+
+  return (
+    <AppContextMenu
+      targetItems={targetItems}
+      onPreview={onPreview}
+      onOpen={onOpen}
+      onOpenWith={onOpenWith}
+      onCopyToOtherPanel={onCopyToOtherPanel}
+      onRename={onRename}
+      onDelete={onDelete}
+      onSetOtherPanelPath={onSetOtherPanelPath}
+      onCalculateSize={onCalculateSize}
+      onCompressInActivePanel={onCompressInActivePanel}
+      onCompressToOtherPanel={onCompressToOtherPanel}
+      onDecompressInActivePanel={onDecompressInActivePanel}
+      onDecompressToOtherPanel={onDecompressToOtherPanel}
+      onTestArchive={onTestArchive}
+      onSwapPanels={onSwapPanels}
+      onRefreshPanel={onRefreshPanel}
+      onRefreshBothPanels={onRefreshBothPanels}
+      onSelectAll={onSelectAll}
+      onUnselectAll={onUnselectAll}
+      onInvertSelection={onInvertSelection}
+      onQuickSelect={onQuickSelect}
+      onQuickUnselect={onQuickUnselect}
+      onQuickFilter={onQuickFilter}
+      appState={appState}
+      boundaryRef={boundaryRef}
+    >
+      {renderFileItemContent()}
+    </AppContextMenu>
   );
 };
 
