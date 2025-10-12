@@ -5,33 +5,33 @@ This project is a dual-panel file manager inspired by applications like Midnight
 ## General Project Structure
 
 ```
-/
-├── packages/
-│   ├── client/ # React Frontend
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── context-menus/
-│   │   │   │   ├── help-diagrams/
-│   │   │   │   ├── modals/
-│   │   │   │   ├── panels/
-│   │   │   │   └── ui/
-│   │   │   ├── lib/
-│   │   │   ├── state/
-│   │   │   ├── App.jsx
-│   │   │   ├── index.css
-│   │   │   └── main.jsx
-│   │   ├── index.html
-│   │   ├── postcss.config.js
-│   │   ├── tailwind.config.js
-│   │   └── vite.config.js
-│   └── server/ # Node.js Backend
-│       ├── lib/
-│       ├── routes/
-│       └── server.js
-├── misc/
-│   ├── create-corrupt-zip.js # Misc Utility for creating corrupt archives for the purpose of testing
-│   └── README.md # Miscellaneous scripts and tools
-└── README.md
+/                                           # Project root directory
+├── packages/                               # Contains the client and server applications
+│   ├── client/                             # React frontend application
+│   │   ├── src/                            # Source code for the React application
+│   │   │   ├── components/                 # Reusable UI components
+│   │   │   │   ├── context-menus/          # Components for context menus
+│   │   │   │   ├── help-diagrams/          # Components for help diagrams
+│   │   │   │   ├── modals/                 # Components for modal dialogs
+│   │   │   │   ├── panels/                 # Components for file panels
+│   │   │   │   └── ui/                     # General UI components
+│   │   │   ├── lib/                        # Utility functions and API clients
+│   │   │   ├── state/                      # State management for the application
+│   │   │   ├── App.jsx                     # Main application component
+│   │   │   ├── index.css                   # Main CSS file
+│   │   │   └── main.jsx                    # Entry point for the React application
+│   │   ├── index.html                      # Main HTML file
+│   │   ├── postcss.config.js               # PostCSS configuration
+│   │   ├── tailwind.config.js              # Tailwind CSS configuration
+│   │   └── vite.config.js                  # Vite build configuration
+│   └── server/                             # Node.js backend application
+│       ├── lib/                            # Utility functions and server-side logic
+│       ├── routes/                         # API route definitions
+│       └── server.js                       # Entry point for the Node.js server
+├── misc/                                   # Miscellaneous scripts and tools
+│   ├── create-corrupt-zip.js               # Utility for creating corrupt archives for testing
+│   └── README.md                           # Documentation for miscellaneous scripts
+└── README.md                               # Main project README
 ```
 
 For the miscellaneous scripts and tools, refer to the [misc/README.md](misc/README.md).
@@ -122,7 +122,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **Top Menus**: "File" and "Select" menus provide access to comprehensive file management and selection tools.
 
-  - **File Menu:** Contains actions related to file operations such as Copy, Move, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
+  - **File Menu:** Contains actions related to file operations suchs as Copy, Move, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
   - **Select Menu:** Offers various ways to manage selections, including Select All, Unselect All, Invert Selection, Quick Select, Quick Unselect, and Quick Filter.
 
 - **Function Key Actions**: The bar at the bottom of the screen shows primary actions mapped to F1-F8 keys for common operations.
