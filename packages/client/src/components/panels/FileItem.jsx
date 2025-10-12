@@ -49,7 +49,13 @@ const FileItem = ({
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
-      inputRef.current.select();
+      // Delay focusing to allow other elements (like the context menu) to release focus first
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 150);
     }
   }, [isRenaming]);
 
@@ -89,9 +95,10 @@ const FileItem = ({
       title={
         isRenaming
           ? ""
-          : `${item.name}${item.type !== "folder" && item.type !== "parent"
-              ? " | Double-click to open"
-              : ""
+          : `${item.name}${
+              item.type !== "folder" && item.type !== "parent"
+                ? " | Double-click to open"
+                : ""
             }`
       }
     >
@@ -164,6 +171,8 @@ const FileItem = ({
       onQuickFilter={onQuickFilter}
       appState={appState}
       boundaryRef={boundaryRef}
+      isRenaming={isRenaming}
+      onRenameCancel={onRenameCancel}
     >
       {renderFileItemContent()}
     </AppContextMenu>

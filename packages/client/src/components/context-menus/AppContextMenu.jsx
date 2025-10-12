@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { isMac } from "../../lib/utils.js";
@@ -29,8 +29,24 @@ const AppContextMenu = ({
   onTestArchive,
   onSwapPanels,
   boundaryRef,
+  isRenaming,
+  onRenameCancel,
   children,
 }) => {
+  useEffect(() => {
+    const handleGlobalKeyDown = (event) => {
+      if (event.key === 'Escape' && isRenaming) {
+        onRenameCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown, true); // Use capture phase
+
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, [isRenaming, onRenameCancel]);
+
   if (!targetItems || targetItems.length === 0) {
     return <>{children}</>;
   }

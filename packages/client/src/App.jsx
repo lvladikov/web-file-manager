@@ -327,7 +327,10 @@ export default function App() {
         onCancel={handleCancelArchiveTest}
         onClose={closeArchiveTestModal}
       />
-      <main ref={mainRef} className="flex-grow flex p-2 space-x-2 overflow-hidden">
+      <main
+        ref={mainRef}
+        className="flex-grow flex p-2 space-x-2 overflow-hidden"
+      >
         {["left", "right"].map((panelId) => (
           <FilePanel
             ref={panelRefs[panelId]}
@@ -405,14 +408,16 @@ export default function App() {
             onPreview={() => {
               if (selections[panelId].size === 1) {
                 const itemName = [...selections[panelId]][0];
-                const item = panels[panelId].items.find(i => i.name === itemName);
+                const item = panels[panelId].items.find(
+                  (i) => i.name === itemName
+                );
                 if (item && isItemPreviewable(item)) {
                   setPreviewModal({ isVisible: true, item });
                 }
               }
             }}
-            onOpen={() => handleContextOpen() }
-            onOpenWith={() => handleContextOpenWith() }
+            onOpen={() => handleContextOpen()}
+            onOpenWith={() => handleContextOpenWith()}
             onCopyToOtherPanel={() => {
               const sourcePanelId = panelId;
               const destPanelId = sourcePanelId === "left" ? "right" : "left";
@@ -443,7 +448,7 @@ export default function App() {
               );
               handleDeleteItem(itemsToDelete);
             }}
-            onSetOtherPanelPath={() => handleSetOtherPanelPath() }
+            onSetOtherPanelPath={() => handleSetOtherPanelPath()}
             onCalculateSize={() => {
               const foldersToCalc = panels[panelId].items.filter(
                 (i) => i.type === "folder" && selections[panelId].has(i.name)
