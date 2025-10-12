@@ -346,9 +346,18 @@ export function initializeWebSocketServer(
             if (/\/$/.test(entry.fileName)) {
               fse.mkdirpSync(destPath);
               // Set modification time for directories
-              fse.utimes(destPath, entry.getLastModDate(), entry.getLastModDate(), (err) => {
-                if (err) console.error(`[ws:${jobId}] Error setting mtime for directory ${destPath}:`, err);
-              });
+              fse.utimes(
+                destPath,
+                entry.getLastModDate(),
+                entry.getLastModDate(),
+                (err) => {
+                  if (err)
+                    console.error(
+                      `[ws:${jobId}] Error setting mtime for directory ${destPath}:`,
+                      err
+                    );
+                }
+              );
               processedBytes += entry.uncompressedSize;
               zipfile.readEntry();
             } else {
@@ -411,9 +420,18 @@ export function initializeWebSocketServer(
                 writeStream.on("close", async () => {
                   // Set modification time for files after writing
                   if (job.status !== "cancelled") {
-                    fse.utimes(destPath, entry.getLastModDate(), entry.getLastModDate(), (err) => {
-                      if (err) console.error(`[ws:${jobId}] Error setting mtime for file ${destPath}:`, err);
-                    });
+                    fse.utimes(
+                      destPath,
+                      entry.getLastModDate(),
+                      entry.getLastModDate(),
+                      (err) => {
+                        if (err)
+                          console.error(
+                            `[ws:${jobId}] Error setting mtime for file ${destPath}:`,
+                            err
+                          );
+                      }
+                    );
                   }
                   if (job.status === "cancelled") {
                     console.log(
@@ -513,7 +531,10 @@ export function initializeWebSocketServer(
             let displayFileName = entry.fileName;
             // Basic check for malformed filenames (e.g., non-printable characters)
             if (!/^[ -~]*$/.test(entry.fileName)) {
-              displayFileName = `(corrupt filename: ${entry.fileName.substring(0, 20)}...)`;
+              displayFileName = `(corrupt filename: ${entry.fileName.substring(
+                0,
+                20
+              )}...)`;
             }
 
             if (ws.readyState === 1) {

@@ -12,7 +12,6 @@ const useCompress = ({
   setFocusedItem,
   setActivePanel,
   panelRefs,
-  closeContextMenus,
   wsRef,
 }) => {
   const [compressProgress, setCompressProgress] = useState({
@@ -81,7 +80,11 @@ const useCompress = ({
     });
 
     try {
-      const response = await compressFiles(itemPaths, destinationPath, sourcePath);
+      const response = await compressFiles(
+        itemPaths,
+        destinationPath,
+        sourcePath
+      );
       const { jobId } = response;
 
       setCompressProgress((prev) => ({ ...prev, jobId }));
@@ -184,13 +187,11 @@ const useCompress = ({
 
   const handleCompressInActivePanel = () => {
     handleCompress(activePanel);
-    closeContextMenus();
   };
 
   const handleCompressToOtherPanel = () => {
     const otherPanelId = activePanel === "left" ? "right" : "left";
     handleCompress(otherPanelId);
-    closeContextMenus();
   };
 
   return {

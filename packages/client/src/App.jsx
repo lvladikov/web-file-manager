@@ -49,7 +49,6 @@ export default function App() {
     autoLoadLyrics,
     helpModal,
     panelRefs,
-    wsRef,
 
     // Setters & Handlers
     setActivePanel,
@@ -60,12 +59,9 @@ export default function App() {
     setAppBrowserModal,
     setFolderBrowserModal,
     setPreviewModal,
-    setSizeCalcModal,
     setColumnWidths,
     setCreatingFolder,
     setHelpModal,
-    updateItemInPanel,
-    closeContextMenus,
     handleOpenFile,
     handleNavigate,
     handleConfirmNewFolder,

@@ -6,7 +6,15 @@ const NewFolderItem = ({ value, onChange, onSubmit, onCancel, style }) => {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    inputRef.current?.select();
+    if (inputRef.current) {
+      // Delay focusing to allow other elements (like the context menu) to release focus first
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 150);
+    }
   }, []);
 
   const handleKeyDown = (e) => {

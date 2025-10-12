@@ -460,16 +460,16 @@ const FilePanel = React.forwardRef(
 
         <EmptyAreaContextMenu
           boundaryRef={boundaryRef}
-          onNewFolder={onNewFolder}
-          onRefreshPanel={onRefreshPanel}
-          onRefreshBothPanels={onRefreshBothPanels}
-          onSelectAll={onSelectAll}
-          onUnselectAll={onUnselectAll}
-          onInvertSelection={onInvertSelection}
-          onQuickSelect={onQuickSelect}
-          onQuickUnselect={onQuickUnselect}
-          onQuickFilter={onQuickFilter}
-          onSwapPanels={onSwapPanels}
+          onNewFolder={() => onNewFolder(panelId)}
+          onRefreshPanel={() => onRefreshPanel(panelId)}
+          onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
+          onSelectAll={() => onSelectAll(panelId)}
+          onUnselectAll={() => onUnselectAll(panelId)}
+          onInvertSelection={() => onInvertSelection(panelId)}
+          onQuickSelect={() => onQuickSelect(panelId)}
+          onQuickUnselect={() => onQuickUnselect(panelId)}
+          onQuickFilter={() => onQuickFilter(panelId)}
+          onSwapPanels={() => onSwapPanels(panelId)}
         >
         <div
           ref={scrollContainerRef}
@@ -524,6 +524,15 @@ const FilePanel = React.forwardRef(
                 boundaryRef={boundaryRef}
                 allItems={panelData.items}
                 selectedItems={selectedItems}
+                onSelectAll={() => onSelectAll(panelId)}
+                onUnselectAll={() => onUnselectAll(panelId)}
+                onInvertSelection={() => onInvertSelection(panelId)}
+                onQuickSelect={() => onQuickSelect(panelId)}
+                onQuickUnselect={() => onQuickUnselect(panelId)}
+                onQuickFilter={() => onQuickFilter(panelId)}
+                onRefreshPanel={() => onRefreshPanel(panelId)}
+                onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
+                onSwapPanels={() => onSwapPanels(panelId)}
               />
             ))}
         </div>

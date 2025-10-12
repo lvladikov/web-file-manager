@@ -46,10 +46,6 @@ export default function appState() {
   const wsRef = useRef(null);
   const panelRefs = { left: useRef(null), right: useRef(null) };
 
-  const handleStartFilter = () => {
-    setFilterPanelId(activePanel);
-  };
-
   const handleCloseFilter = (panelId) => {
     setFilterPanelId(null);
     setFilter((prev) => ({
@@ -90,8 +86,8 @@ export default function appState() {
 
   // 1. Independent hooks that provide state and setters
   const settings = useSettings({ setError });
-  const panelOps = usePanelOps({ panels, setPanels, setLoading, setError });
   const modals = useModals();
+  const panelOps = usePanelOps({ panels, setPanels, setLoading, setError, setAppBrowserModal: modals.setAppBrowserModal, activePanel, focusedItem });
   const sizeCalculation = useSizeCalculation({
     panels,
     setError,
@@ -182,31 +178,31 @@ export default function appState() {
     handleNavigate: panelOps.handleNavigate,
   });
 
-  const handleSelectAll = useCallback(() => {
-    const items = filter[activePanel].pattern
-      ? filteredItems[activePanel]
-      : panels[activePanel]?.items;
+  const handleSelectAll = useCallback((panelId) => {
+    const items = filter[panelId].pattern
+      ? filteredItems[panelId]
+      : panels[panelId]?.items;
     if (!items) return;
     const allSelectableItems = items
       .filter((item) => item.name !== "..")
       .map((item) => item.name);
     setSelections((prev) => ({
       ...prev,
-      [activePanel]: new Set(allSelectableItems),
+      [panelId]: new Set(allSelectableItems),
     }));
-  }, [activePanel, panels, filter, filteredItems, setSelections]);
+  }, [panels, filter, filteredItems, setSelections]);
 
-  const handleUnselectAll = useCallback(() => {
-    setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
-  }, [activePanel, setSelections]);
+  const handleUnselectAll = useCallback((panelId) => {
+    setSelections((prev) => ({ ...prev, [panelId]: new Set() }));
+  }, [setSelections]);
 
-  const handleInvertSelection = useCallback(() => {
-    const items = filter[activePanel].pattern
-      ? filteredItems[activePanel]
-      : panels[activePanel]?.items;
+  const handleInvertSelection = useCallback((panelId) => {
+    const items = filter[panelId].pattern
+      ? filteredItems[panelId]
+      : panels[panelId]?.items;
     if (!items) return;
 
-    const currentSelection = selections[activePanel];
+    const currentSelection = selections[panelId];
     const allSelectableItems = items
       .filter((item) => item.name !== "..")
       .map((item) => item.name);
@@ -215,48 +211,50 @@ export default function appState() {
       allSelectableItems.filter((name) => !currentSelection.has(name))
     );
 
-    setSelections((prev) => ({ ...prev, [activePanel]: newSelection }));
-  }, [activePanel, panels, filter, filteredItems, selections, setSelections]);
+    setSelections((prev) => ({ ...prev, [panelId]: newSelection }));
+  }, [panels, filter, filteredItems, selections, setSelections]);
 
-  const handleStartQuickSelect = () => {
+  const handleStartQuickSelect = (panelId) => {
     modals.setQuickSelectModal({ isVisible: true, mode: "select" });
   };
 
-  const handleStartQuickUnselect = () => {
+  const handleStartQuickUnselect = (panelId) => {
     modals.setQuickSelectModal({ isVisible: true, mode: "unselect" });
   };
 
-  const handleQuickSelectConfirm = (
-    pattern,
-    useRegex,
-    caseSensitive,
-    resetSelection
-  ) => {
-    const items = filter[activePanel].pattern
-      ? filteredItems[activePanel]
-      : panels[activePanel]?.items;
-    if (!items) return;
+  const handleQuickSelectConfirm = useCallback(
+    (pattern, useRegex, caseSensitive, resetSelection) => {
+      const items = filter[activePanel].pattern
+        ? filteredItems[activePanel]
+        : panels[activePanel]?.items;
+      if (!items) return;
 
-    const currentSelection = resetSelection
-      ? new Set()
-      : new Set(selections[activePanel]);
-    const flags = caseSensitive ? "" : "i";
-    const regex = useRegex
-      ? new RegExp(pattern, flags)
-      : new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
+      const currentSelection = resetSelection
+        ? new Set()
+        : new Set(selections[activePanel]);
+      const flags = caseSensitive ? "" : "i";
+      const regex = useRegex
+        ? new RegExp(pattern, flags)
+        : new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
 
-    items.forEach((item) => {
-      if (item.name === "..") return;
-      if (regex.test(item.name)) {
-        if (modals.quickSelectModal.mode === "select") {
-          currentSelection.add(item.name);
-        } else {
-          currentSelection.delete(item.name);
+      items.forEach((item) => {
+        if (item.name === "..") return;
+        if (regex.test(item.name)) {
+          if (modals.quickSelectModal.mode === "select") {
+            currentSelection.add(item.name);
+          } else {
+            currentSelection.delete(item.name);
+          }
         }
-      }
-    });
+      });
 
-    setSelections((prev) => ({ ...prev, [activePanel]: currentSelection }));
+      setSelections((prev) => ({ ...prev, [activePanel]: currentSelection }));
+    },
+    [activePanel, panels, filter, filteredItems, selections, modals.quickSelectModal.mode, setSelections]
+  );
+
+  const handleStartFilter = (panelId) => {
+    setFilterPanelId(panelId);
   };
 
   useEffect(() => {
@@ -486,12 +484,14 @@ export default function appState() {
     quickSelectModal: modals.quickSelectModal,
     setQuickSelectModal: modals.setQuickSelectModal,
     handleQuickSelectConfirm,
-    handleStartFilter,
+    handleStartFilter: () => handleStartFilter(activePanel),
     filterPanelId,
     handleCloseFilter,
     handleSelectAll,
     handleSwapPanels,
   });
+
+  const { handleContextOpen, handleContextOpenWith, ...panelOpsHandlers } = panelOps;
 
   return {
     // Core State
@@ -524,7 +524,7 @@ export default function appState() {
     ...copy,
     ...del,
     ...sizeCalculationHandlers,
-    ...panelOps,
+    ...panelOpsHandlers,
     ...compress,
     ...decompress,
     ...archiveTest,
@@ -546,6 +546,8 @@ export default function appState() {
     handleFilterChange,
     filteredItems,
     handleSwapPanels,
+    handleContextOpen,
+    handleContextOpenWith,
     // UI Composition
     actionBarButtons,
   };
