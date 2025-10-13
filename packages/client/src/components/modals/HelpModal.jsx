@@ -137,7 +137,7 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <strong>Free/Used Space:</strong> On the right side, the total
                 disk space and available free space for the current
-                drive/partition are displayed. This gives you a quick overview
+                drive/partition are displayed. The percentage of free space is color-coded for a quick visual cue: <span className="text-green-400">green</span> for more than 25% free, <span className="text-yellow-400">yellow</span> for 10-25% free, and <span className="text-red-400">red</span> for less than 10% free. This gives you a quick overview
                 of storage utilization.
               </li>
               <li>
