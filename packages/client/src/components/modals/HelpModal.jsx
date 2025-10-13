@@ -10,6 +10,8 @@ import SvgContextMenuExample from "../help-diagrams/SvgContextMenuExample";
 import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
 import dualPanelsScreenshot from "../../../screenshots/dual-panels.png";
 import panelInfoScreenshot from "../../../screenshots/panel-info.png";
+import fileTruncationScreenshot from "../../../screenshots/file-truncation.png";
+import folderTruncationScreenshot from "../../../screenshots/folder-truncation.png";
 import SvgFileListExample from "../help-diagrams/SvgFileListExample";
 import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
 import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
@@ -109,6 +111,8 @@ const HelpModal = ({ isVisible, onClose }) => {
               (...), ensuring you can still see the beginning and end of the
               name.
             </p>
+            <img src={folderTruncationScreenshot} alt="Folder Truncation Screenshot" className="w-3/4 mx-auto rounded-lg shadow-lg" />
+            <img src={fileTruncationScreenshot} alt="File Truncation Screenshot" className="w-3/4 mx-auto rounded-lg shadow-lg" />
             <p className="inline-flex items-center align-middle">
               Icons next to each name help identify the type:
               <span className="inline-flex items-center align-middle mx-1">

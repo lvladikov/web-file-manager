@@ -86,6 +86,9 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **File & Folder Listing**: Each panel lists files and folders. Long names are dynamically truncated. Icons next to each name (folder icon for folders, text file icon for text files, image icon for images, etc.) help identify the type.
 
+    ![Folder Truncation Screenshot](packages/client/screenshots/folder-truncation.png)
+    ![File Truncation Screenshot](packages/client/screenshots/file-truncation.png)
+
 - **Panel Usage and Information**: At the bottom of each panel, useful information is displayed. This includes the total disk space and available free space for the current drive/partition, a summary of selected items, and the ability to swap panels. Hovering over the selected items text reveals a tooltip with a detailed breakdown of selected files and folders, their combined size, and a hint on how to calculate full folder sizes if applicable. You can quickly swap the content of the two panels using <kbd>Cmd/Ctrl + U</kbd>.
 
     ![Panel Info Screenshot](packages/client/screenshots/panel-info.png)
