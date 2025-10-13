@@ -95,6 +95,23 @@ export default function createFileRoutes(
             else if (/\.(mp3|m4a|aac|flac|wav|ogg|wma)$/i.test(file.name))
               type = "audio";
             else if (/\.pdf$/i.test(file.name)) type = "pdf";
+            else if (/\.(doc|docx)$/i.test(file.name)) type = "doc";
+            else if (/\.html$/i.test(file.name)) type = "html";
+            else if (/\.css$/i.test(file.name)) type = "css";
+            else if (/\.(js|jsx)$/i.test(file.name)) type = "javascript";
+            else if (/\.(ts|tsx)$/i.test(file.name)) type = "typescript";
+            else if (/\.json$/i.test(file.name)) type = "json";
+            else if (/\.py$/i.test(file.name)) type = "python";
+            else if (/\.sh$/i.test(file.name)) type = "shell";
+            else if (/\.sql$/i.test(file.name)) type = "sql";
+            else if (/\.md$/i.test(file.name)) type = "markdown";
+            else if (/\.(yml|yaml)$/i.test(file.name)) type = "yaml";
+            else if (/\.xml$/i.test(file.name)) type = "xml";
+            else if (/\.log$/i.test(file.name)) type = "log";
+            else if (/\.(cfg|ini)$/i.test(file.name)) type = "config";
+            else if (/dockerfile/i.test(file.name) || /docker-compose\.yml/i.test(file.name)) type = "docker";
+            else if (/\.gitignore/i.test(file.name)) type = "git";
+            else if (/\.(c|h|cpp|hpp|cs|go|php|rb|rs|swift|kt|dart|pl|lua|scala|hs|erl|exs|clj|r|java|rb)$/i.test(file.name)) type = "code";
             return {
               name: file.name,
               type,

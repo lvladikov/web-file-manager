@@ -2,6 +2,10 @@
 
 This project is a dual-panel file manager inspired by applications like Midnight Commander and Double Commander, built with a React frontend and a Node.js (Express) backend. The project is structured as a monorepo using npm workspaces.
 
+## General Look and Feel
+
+![Dual Panel File Manager Screenshot](packages/client/screenshots/dual-panels.png)
+
 ## General Project Structure
 
 ```
@@ -9,6 +13,7 @@ This project is a dual-panel file manager inspired by applications like Midnight
 /                                    # Project root directory
 ├── packages/                        # Contains the client and server applications
 │   ├── client/                      # React frontend application
+│   │   ├── screenshots/             # Screnshots used by README.md and Help Modal
 │   │   ├── src/                     # Source code for the React application
 │   │   │   ├── components/          # Reusable UI components
 │   │   │   │   ├── context-menus/   # Components for context menus

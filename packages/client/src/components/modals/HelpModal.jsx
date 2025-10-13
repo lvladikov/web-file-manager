@@ -8,15 +8,15 @@ import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
 import SvgBreadcrumbsExample from "../help-diagrams/SvgBreadcrumbsExample";
 import SvgContextMenuExample from "../help-diagrams/SvgContextMenuExample";
 import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
-import SvgDualPanelExample from "../help-diagrams/SvgDualPanelExample";
+import dualPanelsScreenshot from "../../../screenshots/dual-panels.png";
 import SvgFileListExample from "../help-diagrams/SvgFileListExample";
 import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
 import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
 import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
 import SvgPanelStatusExample from "../help-diagrams/SvgPanelStatusExample";
 
-const HelpSection = ({ title, children }) => (
-  <section className="mb-8">
+const HelpSection = ({ title, id, children }) => (
+  <section id={id} className="mb-8">
     <h2 className="text-2xl font-bold text-sky-400 border-b-2 border-sky-700 pb-2 mb-4">
       {title}
     </h2>
@@ -27,13 +27,37 @@ const HelpSection = ({ title, children }) => (
 const HelpModal = ({ isVisible, onClose }) => {
   if (!isVisible) return null;
 
+  const sections = [
+    "General Purpose",
+    "File & Folder Listing",
+    "Panel Usage and Information",
+    "Real-time Folder Monitoring",
+    "Navigation & Selection",
+    "Quick Select / Unselect & Quick Filter",
+    "Previewing Files",
+    "Context Menus",
+    "Calculate Folder Size & Progress",
+    "Path Bar & Breadcrumbs",
+    "Favourites",
+    "Top Menus",
+    "Function Key Actions",
+    "Copy Operation & Conflict Modes",
+  ];
+
+  const handleLinkClick = (e, section) => {
+    e.preventDefault();
+    const id = section.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-gray-800 text-white rounded-lg shadow-2xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col"
+        className="bg-gray-800 text-white rounded-lg shadow-2xl w-full max-w-6xl h-full max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex justify-between items-center p-4 border-b border-gray-600 flex-shrink-0">
@@ -49,17 +73,34 @@ const HelpModal = ({ isVisible, onClose }) => {
           </button>
         </header>
         <main className="flex-grow p-6 overflow-y-auto">
-          <HelpSection title="General Purpose">
+          <div className="mb-8 p-4 bg-gray-900 rounded-lg">
+            <h2 className="text-xl font-bold text-sky-300 mb-3">Table of Contents</h2>
+            <ul className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {sections.map((section) => (
+                <li key={section}>
+                  <a
+                    href={`#${section.toLowerCase().replace(/ /g, "-").replace(/&/g, "and")}`}
+                    onClick={(e) => handleLinkClick(e, section)}
+                    className="text-gray-300 hover:text-sky-400 hover:underline"
+                  >
+                    {section}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <HelpSection id="general-purpose" title="General Purpose">
             <p>
               This is a dual-panel file manager designed for efficient file
               operations. The two independent panels allow you to browse two
               different locations simultaneously, making it easy to move, copy,
               and compare files and folders between them.
             </p>
-            <SvgDualPanelExample />
+            <img src={dualPanelsScreenshot} alt="Dual Panel Screenshot" className="w-full rounded-lg shadow-lg" />
           </HelpSection>
 
-          <HelpSection title="File & Folder Listing">
+          <HelpSection id="file-and-folder-listing" title="File & Folder Listing">
             <p>
               Each panel lists the files and folders in the current directory.
               To handle long names in limited space, the application dynamically
@@ -82,7 +123,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
           </HelpSection>
 
-          <HelpSection title="Panel Usage and Information">
+          <HelpSection id="panel-usage-and-information" title="Panel Usage and Information">
             <p>
               At the bottom of each panel, you'll find useful information about
               the current directory and selected items:
@@ -114,7 +155,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgPanelStatusExample />
           </HelpSection>
 
-          <HelpSection title="Real-time Folder Monitoring">
+          <HelpSection id="real-time-folder-monitoring" title="Real-time Folder Monitoring">
             <p>
               The application automatically monitors the directories shown in
               both panels for any changes made outside of the app. If you
@@ -129,7 +170,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
           </HelpSection>
 
-          <HelpSection title="Navigation & Selection">
+          <HelpSection id="navigation-and-selection" title="Navigation & Selection">
             <p>
               You can navigate the file system using either the mouse or the
               keyboard.
@@ -175,7 +216,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgFileListExample />
           </HelpSection>
 
-          <HelpSection title="Quick Select / Unselect & Quick Filter">
+          <HelpSection id="quick-select-/-unselect-and-quick-filter" title="Quick Select / Unselect & Quick Filter">
             <p>
               The application provides powerful tools for quickly selecting,
               unselecting, or filtering items based on a pattern.
@@ -206,7 +247,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             </ul>
           </HelpSection>
 
-          <HelpSection title="Previewing Files">
+          <HelpSection id="previewing-files" title="Previewing Files">
             <p>
               Certain file types can be previewed directly within the
               application by focusing the item and pressing the{" "}
@@ -220,7 +261,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
           </HelpSection>
 
-          <HelpSection title="Context Menus">
+          <HelpSection id="context-menus" title="Context Menus">
             <p>
               Right-clicking on an item (or in an empty area) opens a context
               menu with relevant actions. The menu is divided into logical
@@ -275,7 +316,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgContextMenuExample />
           </HelpSection>
 
-          <HelpSection title="Calculate Folder Size & Progress">
+          <HelpSection id="calculate-folder-size-and-progress" title="Calculate Folder Size & Progress">
             <p>
               You can calculate the size of a folder (including all its
               subfolders and files) by selecting it and choosing "Calculate
@@ -298,7 +339,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgCalculateSizeExample />
           </HelpSection>
 
-          <HelpSection title="Path Bar & Breadcrumbs">
+          <HelpSection id="path-bar-and-breadcrumbs" title="Path Bar & Breadcrumbs">
             <p>
               At the top of each panel, the current directory path is displayed.
               For long paths that don't fit, it automatically truncates middle
@@ -313,7 +354,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgBreadcrumbsExample />
           </HelpSection>
 
-          <HelpSection title="Favourites">
+          <HelpSection id="favourites" title="Favourites">
             <p>
               The star icon next to the path bar allows you to manage your
               favourite paths. Clicking it opens a dropdown where you can add
@@ -324,7 +365,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgFavouritesExample />
           </HelpSection>
 
-          <HelpSection title="Top Menus">
+          <HelpSection id="top-menus" title="Top Menus">
             <p>
               At the very top-left of the application, you'll find two dropdown
               menus: "File" and "Select". These menus provide access to a
@@ -346,7 +387,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgTopMenusExample />
           </HelpSection>
 
-          <HelpSection title="Function Key Actions">
+          <HelpSection id="function-key-actions" title="Function Key Actions">
             <p>
               The bar at the bottom of the screen shows the primary actions
               mapped to the function keys (F1-F8). These provide keyboard
@@ -377,7 +418,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgActionBarExample />
           </HelpSection>
 
-          <HelpSection title="Copy Operation & Conflict Modes">
+          <HelpSection id="copy-operation-and-conflict-modes" title="Copy Operation & Conflict Modes">
             <p>
               When you press <kbd>F5</kbd> to copy, items are copied from the
               active panel to the directory shown in the inactive panel. If an
