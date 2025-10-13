@@ -4,7 +4,8 @@ import { isMac } from "../../lib/utils";
 
 const itemClassName =
   "px-4 py-2 flex justify-between hover:bg-sky-600 cursor-pointer";
-const disabledItemClassName = "px-4 py-2 flex justify-between text-gray-500 cursor-not-allowed";
+const disabledItemClassName =
+  "px-4 py-2 flex justify-between text-gray-500 cursor-not-allowed";
 const separatorClassName = "border-t border-gray-600 mx-2 my-1";
 
 const MenuItem = ({ label, shortcut, onClick, disabled = false }) => (
@@ -41,6 +42,12 @@ const FileMenu = ({ ...props }) => {
     activePanelSelections,
     calculateSizeLabel,
     handleItemClick,
+    onPreview,
+    onOpen,
+    onOpenWith,
+    canPreview,
+    canOpen,
+    canOpenWith,
   } = props;
 
   const metaKey = isMac ? "CMD" : "Ctrl";
@@ -54,6 +61,24 @@ const FileMenu = ({ ...props }) => {
       </NavigationMenu.Trigger>
       <NavigationMenu.Content className="absolute top-full left-0 mt-1 w-80 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-white font-mono text-sm">
         <MenuItem
+          label="Preview"
+          shortcut="Space"
+          onClick={() => handleItemClick(onPreview)}
+          disabled={!canPreview}
+        />
+        <MenuItem
+          label="Open"
+          shortcut="Enter"
+          onClick={() => handleItemClick(onOpen)}
+          disabled={!canOpen}
+        />
+        <MenuItem
+          label="Open with..."
+          onClick={() => handleItemClick(onOpenWith)}
+          disabled={!canOpenWith}
+        />
+        <div className={separatorClassName} />
+        <MenuItem
           label="Copy to other panel"
           shortcut="F5"
           onClick={() => handleItemClick(onCopyToOtherPanel)}
@@ -65,7 +90,11 @@ const FileMenu = ({ ...props }) => {
           onClick={() => handleItemClick(onPlaceholder)}
           disabled
         />
-        <MenuItem label="Copy to ..." onClick={() => handleItemClick(onPlaceholder)} disabled />
+        <MenuItem
+          label="Copy to ..."
+          onClick={() => handleItemClick(onPlaceholder)}
+          disabled
+        />
         <div className={separatorClassName} />
         <MenuItem
           label="Move to other panel"
@@ -79,7 +108,11 @@ const FileMenu = ({ ...props }) => {
           onClick={() => handleItemClick(onPlaceholder)}
           disabled
         />
-        <MenuItem label="Move to ..." onClick={() => handleItemClick(onPlaceholder)} disabled />
+        <MenuItem
+          label="Move to ..."
+          onClick={() => handleItemClick(onPlaceholder)}
+          disabled
+        />
         <div className={separatorClassName} />
         <MenuItem
           label="Rename"
@@ -117,7 +150,10 @@ const FileMenu = ({ ...props }) => {
               label="Decompress to other panel"
               onClick={() => handleItemClick(onDecompressToOtherPanel)}
             />
-            <MenuItem label="Test Archive" onClick={() => handleItemClick(onTestArchive)} />
+            <MenuItem
+              label="Test Archive"
+              onClick={() => handleItemClick(onTestArchive)}
+            />
             <div className={separatorClassName} />
           </>
         )}
@@ -136,8 +172,14 @@ const FileMenu = ({ ...props }) => {
           </>
         )}
         <div className={separatorClassName} />
-        <MenuItem label="Refresh active panel" onClick={() => handleItemClick(onRefreshPanel)} />
-        <MenuItem label="Refresh both panels" onClick={() => handleItemClick(onRefreshBothPanels)} />
+        <MenuItem
+          label="Refresh active panel"
+          onClick={() => handleItemClick(onRefreshPanel)}
+        />
+        <MenuItem
+          label="Refresh both panels"
+          onClick={() => handleItemClick(onRefreshBothPanels)}
+        />
         <div className={separatorClassName} />
         <MenuItem
           label="Swap Panels"
@@ -206,11 +248,7 @@ const SelectMenu = ({ ...props }) => {
 };
 
 const AppMenu = (props) => {
-  const {
-    activePanelSelections,
-    panels,
-    activePanel,
-  } = props;
+  const { activePanelSelections, panels, activePanel } = props;
 
   const [openMenu, setOpenMenu] = useState("");
 

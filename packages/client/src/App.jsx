@@ -21,7 +21,6 @@ import QuickSelectModal from "./components/modals/QuickSelectModal";
 import CompressionProgressModal from "./components/modals/CompressionProgressModal";
 import DecompressionProgressModal from "./components/modals/DecompressionProgressModal";
 import ArchiveTestIntegrityProgressModal from "./components/modals/ArchiveTestIntegrityProgressModal";
-import ZipPreview from "./components/modals/preview-views/ZipPreview";
 
 export default function App() {
   const {
@@ -126,6 +125,24 @@ export default function App() {
   } = appState();
   const mainRef = useRef(null);
 
+  const selectedNames = [...selections[activePanel]];
+  const selectedItemsDetails = selectedNames
+    .map((name) => panels[activePanel].items.find((i) => i.name === name))
+    .filter(Boolean);
+
+  const singleItemSelected = selectedItemsDetails.length === 1;
+  const firstSelectedItemDetails = singleItemSelected
+    ? selectedItemsDetails[0]
+    : null;
+
+  const canPreview =
+    singleItemSelected && isItemPreviewable(firstSelectedItemDetails);
+  const canOpen = singleItemSelected;
+  const canOpenWith =
+    singleItemSelected &&
+    firstSelectedItemDetails?.type !== "folder" &&
+    firstSelectedItemDetails?.type !== "parent";
+
   return (
     <div
       className="flex flex-col h-screen bg-gray-900 text-white"
@@ -207,6 +224,24 @@ export default function App() {
           onDecompressToOtherPanel={handleDecompressToOtherPanel}
           onTestArchive={handleTestArchive}
           onSwapPanels={handleSwapPanels}
+          onPreview={() => {
+            if (selections[activePanel].size === 1) {
+              const itemName = [...selections[activePanel]][0];
+              const item = panels[activePanel].items.find(
+                (i) => i.name === itemName
+              );
+              if (!item) return;
+
+              if (item.type === "archive" || isItemPreviewable(item)) {
+                setPreviewModal({ isVisible: true, item });
+              }
+            }
+          }}
+          onOpen={handleContextOpen}
+          onOpenWith={handleContextOpenWith}
+          canPreview={canPreview}
+          canOpen={canOpen}
+          canOpenWith={canOpenWith}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
