@@ -82,7 +82,10 @@ export default function useDelete({
     if (deleteTargets.length === 0) return;
     try {
       await Promise.all(deleteTargets.map((item) => deleteItem(item.fullPath)));
+      // Refresh both panels
+      const otherPanelId = activePanel === "left" ? "right" : "left";
       await handleNavigate(activePanel, panels[activePanel].path, "");
+      await handleNavigate(otherPanelId, panels[otherPanelId].path, "");
     } catch (err) {
       setError(`Delete failed: ${err.message}`);
     } finally {

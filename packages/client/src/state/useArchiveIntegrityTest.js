@@ -75,9 +75,8 @@ const useArchiveIntegrityTest = ({
       setArchiveTestProgress((prev) => ({ ...prev, jobId }));
 
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsHost = window.location.host.replace(/:\d+$/, ":3001");
       const ws = new WebSocket(
-        `${wsProtocol}//${wsHost}?jobId=${jobId}&type=archive-test`
+        `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=archive-test`
       );
       wsRef.current = ws;
 

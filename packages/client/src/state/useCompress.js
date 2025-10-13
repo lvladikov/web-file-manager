@@ -89,8 +89,9 @@ const useCompress = ({
 
       setCompressProgress((prev) => ({ ...prev, jobId }));
 
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(
-        `ws://localhost:3001?jobId=${jobId}&type=compress`
+        `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=compress`
       );
       wsRef.current = ws; // Store WebSocket in ref if needed for global access/cancellation
 
@@ -123,8 +124,9 @@ const useCompress = ({
           const zipFileName = basename(data.outputPath);
           const targetPanel = targetPanelId;
 
-          // Refresh the target panel to show the new zip file
-          handleRefreshPanel(targetPanel);
+          // Refresh both panels to ensure UI is up-to-date
+          handleRefreshPanel("left");
+          handleRefreshPanel("right");
 
           // After refresh, select the item and focus the panel
           // This might require a slight delay or a mechanism to wait for panel data to load

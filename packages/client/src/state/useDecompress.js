@@ -106,10 +106,7 @@ const useDecompress = ({
 
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(
-        `${wsProtocol}//${window.location.host.replace(
-          /:\d+$/,
-          ":3001"
-        )}?jobId=${jobId}&type=decompress`
+        `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=decompress`
       );
       wsRef.current = ws;
 
@@ -156,7 +153,8 @@ const useDecompress = ({
             });
           } else {
             // Successful completion
-            handleRefreshPanel(targetPanelId);
+            handleRefreshPanel("left");
+            handleRefreshPanel("right");
             setSelections((prev) => ({
               ...prev,
               [targetPanelId]: new Set([subfolderName]),

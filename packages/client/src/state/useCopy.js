@@ -183,8 +183,10 @@ export default function useCopy({
         case "cancelled":
         case "error": {
           ws.close();
-          const destPanelId = activePanel === "left" ? "right" : "left";
-          handleNavigate(destPanelId, panels[destPanelId].path, "");
+          const sourcePanelId = activePanel;
+          const destPanelId = sourcePanelId === "left" ? "right" : "left";
+          handleNavigate(sourcePanelId, panels[sourcePanelId].path, ""); // Refresh source
+          handleNavigate(destPanelId, panels[destPanelId].path, ""); // Refresh destination
           if (data.type === "error") setError(`Copy error: ${data.message}`);
           panelRefs[activePanel].current?.focus();
           break;

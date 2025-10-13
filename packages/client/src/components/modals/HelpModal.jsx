@@ -69,28 +69,64 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
             <p className="inline-flex items-center align-middle">
               Icons next to each name help identify the type:
-              <span className="inline-flex items-center align-middle mx-1"><Icon type="folder" className="mr-1" /> for folders,</span>
-              <span className="inline-flex items-center align-middle mx-1"><Icon type="file" className="mr-1" /> for text files,</span>
-              <span className="inline-flex items-center align-middle mx-1"><Icon type="image" className="mr-1" /> for images,</span> etc.
+              <span className="inline-flex items-center align-middle mx-1">
+                <Icon type="folder" className="mr-1" /> for folders,
+              </span>
+              <span className="inline-flex items-center align-middle mx-1">
+                <Icon type="file" className="mr-1" /> for text files,
+              </span>
+              <span className="inline-flex items-center align-middle mx-1">
+                <Icon type="image" className="mr-1" /> for images,
+              </span>{" "}
+              etc.
             </p>
           </HelpSection>
 
           <HelpSection title="Panel Usage and Information">
             <p>
-              At the bottom of each panel, you'll find useful information about the current directory and selected items:
+              At the bottom of each panel, you'll find useful information about
+              the current directory and selected items:
             </p>
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
-                <strong>Free/Used Space:</strong> On the right side, the total disk space and available free space for the current drive/partition are displayed. This gives you a quick overview of storage utilization.
+                <strong>Free/Used Space:</strong> On the right side, the total
+                disk space and available free space for the current
+                drive/partition are displayed. This gives you a quick overview
+                of storage utilization.
               </li>
               <li>
-                <strong>Selected Items Summary:</strong> On the left side, a summary of your current selection is shown, including the total number of items selected. Hovering over this text will reveal a tooltip with a detailed breakdown of selected files and folders, and their combined size. If folders are selected, the tooltip will also provide a hint on how to calculate their full contents' size.
+                <strong>Selected Items Summary:</strong> On the left side, a
+                summary of your current selection is shown, including the total
+                number of items selected. Hovering over this text will reveal a
+                tooltip with a detailed breakdown of selected files and folders,
+                and their combined size. If folders are selected, the tooltip
+                will also provide a hint on how to calculate their full
+                contents' size.
               </li>
               <li>
-                <strong>Swap Panels:</strong> You can quickly swap the content of the two panels using <kbd>{isMac ? "Cmd" : "Ctrl"} + U</kbd>. This is useful when you want to change which panel is the source and which is the destination for file operations, or simply to re-arrange your view.
+                <strong>Swap Panels:</strong> You can quickly swap the content
+                of the two panels using <kbd>{isMac ? "Cmd" : "Ctrl"} + U</kbd>.
+                This is useful when you want to change which panel is the source
+                and which is the destination for file operations, or simply to
+                re-arrange your view.
               </li>
             </ul>
             <SvgPanelStatusExample />
+          </HelpSection>
+
+          <HelpSection title="Real-time Folder Monitoring">
+            <p>
+              The application automatically monitors the directories shown in
+              both panels for any changes made outside of the app. If you
+              create, delete, or rename a file or folder in one of the visible
+              directories using another program (like your operating system's
+              file explorer), the panel will automatically refresh to reflect
+              these changes in real-time.
+            </p>
+            <p>
+              This ensures that the file listings are always up-to-date without
+              requiring a manual refresh.
+            </p>
           </HelpSection>
 
           <HelpSection title="Navigation & Selection">
@@ -127,8 +163,8 @@ const HelpModal = ({ isVisible, onClose }) => {
                     items.
                   </li>
                   <li>
-                    Press <kbd>{isMac ? "Cmd" : "Ctrl"} + D</kbd> to unselect all
-                    items.
+                    Press <kbd>{isMac ? "Cmd" : "Ctrl"} + D</kbd> to unselect
+                    all items.
                   </li>
                   <li>
                     Press <kbd>*</kbd> to invert the current selection.
@@ -146,18 +182,26 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
-                <strong>Quick Select (<kbd>+</kbd>):</strong> Opens a dialog to
-                select files and folders that match a specific pattern. You can
-                use wildcards (*) or regular expressions.
+                <strong>
+                  Quick Select (<kbd>+</kbd>):
+                </strong>{" "}
+                Opens a dialog to select files and folders that match a specific
+                pattern. You can use wildcards (*) or regular expressions.
               </li>
               <li>
-                <strong>Quick Unselect (<kbd>-</kbd>):</strong> Opens a dialog to
-                unselect items based on a pattern.
+                <strong>
+                  Quick Unselect (<kbd>-</kbd>):
+                </strong>{" "}
+                Opens a dialog to unselect items based on a pattern.
               </li>
               <li>
-                <strong>Quick Filter (<kbd>.</kbd>):</strong> Opens an input at the
-                bottom of the panel to filter the visible items in real-time.
-                This is useful for quickly finding items in large directories. File operations like Copy and Delete will only apply to the filtered items.
+                <strong>
+                  Quick Filter (<kbd>.</kbd>):
+                </strong>{" "}
+                Opens an input at the bottom of the panel to filter the visible
+                items in real-time. This is useful for quickly finding items in
+                large directories. File operations like Copy and Delete will
+                only apply to the filtered items.
               </li>
             </ul>
           </HelpSection>
@@ -195,13 +239,20 @@ const HelpModal = ({ isVisible, onClose }) => {
                     operation on the selected item.
                   </li>
                   <li>
-                    <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
+                    <kbd>Compress</kbd>: Compresses the selected items into a
+                    zip archive in the active panel or transfers it to the other
+                    panel.
                   </li>
                   <li>
-                    <kbd>Decompress Archive</kbd>: Select a ZIP archive and choose "Decompress" from the context menu or "File &gt; Decompress". You can decompress to the active panel or the other panel. A progress modal will appear, showing the current file being extracted and the overall progress.
+                    <kbd>Decompress Archive</kbd>: Select a ZIP archive and
+                    choose "Decompress" from the context menu or "File &gt;
+                    Decompress". You can decompress to the active panel or the
+                    other panel. A progress modal will appear, showing the
+                    current file being extracted and the overall progress.
                   </li>
                   <li>
-                    <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive.
+                    <kbd>Test Archive</kbd>: Verifies the integrity of a
+                    selected ZIP archive.
                   </li>
                   <li>
                     <kbd>Copy / Cut (to clipboard)</kbd>: (Coming soon) Standard
@@ -226,16 +277,23 @@ const HelpModal = ({ isVisible, onClose }) => {
 
           <HelpSection title="Calculate Folder Size & Progress">
             <p>
-              You can calculate the size of a folder (including all its subfolders and files)
-              by selecting it and choosing "Calculate Size" from the context menu,
-              or by focusing on a folder and pressing <kbd>Spacebar</kbd>. This will open a progress modal
-              titled "Calculating Folder Size..." that shows the current file being processed and the "Size so far".
-              You can cancel the operation at any time.
+              You can calculate the size of a folder (including all its
+              subfolders and files) by selecting it and choosing "Calculate
+              Size" from the context menu, or by focusing on a folder and
+              pressing <kbd>Spacebar</kbd>. This will open a progress modal
+              titled "Calculating Folder Size..." that shows the current file
+              being processed and the "Size so far". You can cancel the
+              operation at any time.
             </p>
             <p>
-              During any long-running operation (like calculating folder size, copying, or compressing files), a progress dialog will appear, often displaying the instantaneous speed of transfer.
-              If you need to see the panels behind the dialog, you can click and hold on the animated icon (e.g., spinning circle or pulsing search icon) in the dialog's header.
-              This will make the dialog semi-transparent (20% opacity). Releasing the mouse button will restore its full visibility.
+              During any long-running operation (like calculating folder size,
+              copying, or compressing files), a progress dialog will appear,
+              often displaying the instantaneous speed of transfer. If you need
+              to see the panels behind the dialog, you can click and hold on the
+              animated icon (e.g., spinning circle or pulsing search icon) in
+              the dialog's header. This will make the dialog semi-transparent
+              (20% opacity). Releasing the mouse button will restore its full
+              visibility.
             </p>
             <SvgCalculateSizeExample />
           </HelpSection>
@@ -257,30 +315,32 @@ const HelpModal = ({ isVisible, onClose }) => {
 
           <HelpSection title="Favourites">
             <p>
-              The star icon next to the path bar allows you to manage your favourite paths.
-              Clicking it opens a dropdown where you can add the current path to your favourites,
-              or select a previously saved favourite path to navigate to it instantly.
-              Favourites are remembered across sessions.
+              The star icon next to the path bar allows you to manage your
+              favourite paths. Clicking it opens a dropdown where you can add
+              the current path to your favourites, or select a previously saved
+              favourite path to navigate to it instantly. Favourites are
+              remembered across sessions.
             </p>
             <SvgFavouritesExample />
           </HelpSection>
 
           <HelpSection title="Top Menus">
             <p>
-              At the very top-left of the application, you'll find two dropdown menus:
-              "File" and "Select". These menus provide access to a comprehensive set of
-              file management and selection tools.
+              At the very top-left of the application, you'll find two dropdown
+              menus: "File" and "Select". These menus provide access to a
+              comprehensive set of file management and selection tools.
             </p>
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
-                <strong>File Menu:</strong> Contains actions related to file operations
-                such as Copy, Move, Rename, Delete, Compress, Calculate Size, and Refresh.
-                Many of these actions have corresponding function key shortcuts.
+                <strong>File Menu:</strong> Contains actions related to file
+                operations such as Copy, Move, Rename, Delete, Compress,
+                Calculate Size, and Refresh. Many of these actions have
+                corresponding function key shortcuts.
               </li>
               <li>
-                <strong>Select Menu:</strong> Offers various ways to manage selections,
-                including Select All, Unselect All, Invert Selection, Quick Select,
-                Quick Unselect, and Quick Filter.
+                <strong>Select Menu:</strong> Offers various ways to manage
+                selections, including Select All, Unselect All, Invert
+                Selection, Quick Select, Quick Unselect, and Quick Filter.
               </li>
             </ul>
             <SvgTopMenusExample />
