@@ -60,24 +60,29 @@ const FileMenu = ({ ...props }) => {
         File
       </NavigationMenu.Trigger>
       <NavigationMenu.Content className="absolute top-full left-0 mt-1 w-80 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-white font-mono text-sm">
-        <MenuItem
-          label="Preview"
-          shortcut="Space"
-          onClick={() => handleItemClick(onPreview)}
-          disabled={!canPreview}
-        />
-        <MenuItem
-          label="Open"
-          shortcut="Enter"
-          onClick={() => handleItemClick(onOpen)}
-          disabled={!canOpen}
-        />
-        <MenuItem
-          label="Open with..."
-          onClick={() => handleItemClick(onOpenWith)}
-          disabled={!canOpenWith}
-        />
-        <div className={separatorClassName} />
+        {canPreview && (
+          <MenuItem
+            label="Preview"
+            shortcut="Space"
+            onClick={() => handleItemClick(onPreview)}
+          />
+        )}
+        {canOpen && (
+          <MenuItem
+            label="Open"
+            shortcut="Enter"
+            onClick={() => handleItemClick(onOpen)}
+          />
+        )}
+        {canOpenWith && (
+          <MenuItem
+            label="Open with..."
+            onClick={() => handleItemClick(onOpenWith)}
+          />
+        )}
+        {(canPreview || canOpen || canOpenWith) && (
+          <div className={separatorClassName} />
+        )}
         <MenuItem
           label="Copy to other panel"
           shortcut="F5"
@@ -160,6 +165,7 @@ const FileMenu = ({ ...props }) => {
         <MenuItem
           label={calculateSizeLabel}
           onClick={() => handleItemClick(onCalculateSize)}
+          shortcut="Space"
           disabled={!canCalculateSize}
         />
         {canSetOtherPanelPath && (

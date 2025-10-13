@@ -226,7 +226,8 @@ const AppContextMenu = ({
                     onSelect={onCalculateSize}
                     className={itemClassName}
                   >
-                    {calculateSizeLabel}
+                    <span>{calculateSizeLabel}</span>
+                    <span className="text-gray-400">Space</span>
                   </ContextMenu.Item>
                   {count === 1 && firstItem.type === "folder" && (
                     <ContextMenu.Item
