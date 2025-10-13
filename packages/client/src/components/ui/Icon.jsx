@@ -44,6 +44,7 @@ const Icon = ({ type, className }) => {
     docker: <Container className={`${base} text-blue-400`} />,
     git: <GitCommit className={`${base} text-red-500`} />,
     code: <FileCode className={`${base} text-gray-400`} />,
+    file: <FileText className={`${base} text-gray-400`} />, // Explicitly handle generic file type
   };
   return icons[type] || <FileText className={`${base} text-gray-400`} />;
 };

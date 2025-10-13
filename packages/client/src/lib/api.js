@@ -294,6 +294,17 @@ const cancelArchiveTest = async (jobId) => {
   return response.json();
 };
 
+const fetchZipContents = async (filePath) => {
+  const response = await fetch(
+    `/api/zip-contents?filePath=${encodeURIComponent(filePath)}`
+  );
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to fetch zip contents.");
+  }
+  return response.json();
+};
+
 export {
   createNewFolder,
   deleteItem,
@@ -322,4 +333,5 @@ export {
   cancelDecompress,
   testArchive,
   cancelArchiveTest,
+  fetchZipContents,
 };

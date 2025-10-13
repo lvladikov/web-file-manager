@@ -113,7 +113,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
     ![Folder Up Screenshot](packages/client/screenshots/folder-up.png)
 
-- **File Preview**: Preview images, videos, PDFs, and text files by focusing an item and pressing <kbd>Spacebar</kbd>.
+- **File Preview**: Preview images, videos, PDFs, text files, and zip archives by focusing an item and pressing <kbd>Spacebar</kbd>.
 
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions (Viewing, File Operations, Organization, Folder Tools).
 
@@ -145,7 +145,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - <kbd>F2</kbd>: Rename the currently focused item.
 
-  - <kbd>F3</kbd>: View/Open the focused item with its default application.
+  - <kbd>F3</kbd>: Preview the focused item if possible (images, text, PDFs, audio, video, zip archives), otherwise open it with its default application.
 
   - <kbd>F5</kbd>: Copy selected items from the active panel to the other panel.
 

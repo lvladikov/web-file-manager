@@ -6,7 +6,7 @@ import os from "os";
 import crypto from "crypto";
 import checkDiskSpace from "check-disk-space";
 import archiver from "archiver";
-import { performCopyCancellation, getDirTotalSize } from "../lib/utils.js";
+import { performCopyCancellation, getDirTotalSize, getZipContents } from "../lib/utils.js";
 
 export default function createFileRoutes(
   activeCopyJobs,
@@ -16,6 +16,22 @@ export default function createFileRoutes(
   activeArchiveTestJobs
 ) {
   const router = express.Router();
+
+  // Endpoint to get contents of a zip file
+  router.get("/zip-contents", async (req, res) => {
+    const { filePath } = req.query;
+    if (!filePath) {
+      return res.status(400).json({ message: "Zip file path is required." });
+    }
+
+    try {
+      const contents = await getZipContents(filePath);
+      res.json(contents);
+    } catch (error) {
+      console.error("Error reading zip file contents:", error);
+      res.status(500).json({ message: "Error reading zip file contents." });
+    }
+  });
 
   // Endpoint to get disk space information
   router.get("/disk-space", async (req, res) => {

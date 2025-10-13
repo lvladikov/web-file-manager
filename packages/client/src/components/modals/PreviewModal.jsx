@@ -26,6 +26,7 @@ import TextPreview from "./preview-views/TextPreview";
 import UnsupportedPreview from "./preview-views/UnsupportedPreview";
 import ImagePreview from "./preview-views/ImagePreview";
 import VideoPreview from "./preview-views/VideoPreview";
+import ZipPreview from "./preview-views/ZipPreview";
 
 const PreviewModal = ({
   isVisible,
@@ -54,11 +55,14 @@ const PreviewModal = ({
   const [videoHasError, setVideoHasError] = useState(false);
   const [coverArtUrl, setCoverArtUrl] = useState(null);
 
+  const zipPreviewRef = useRef(null);
+
   const [codeLines, setCodeLines] = useState([]);
   const [showLineNumbers, setShowLineNumbers] = useState(false);
 
   const getPreviewType = (item) => {
     if (!item) return "none";
+    if (item.type === "archive") return "zip";
     if (isPreviewablePdf(item.name)) return "pdf";
     if (isPreviewableImage(item.name)) return "image";
     if (isPreviewableVideo(item.name)) return "video";
@@ -177,6 +181,13 @@ const PreviewModal = ({
       if (e.key === "Escape" && !document.fullscreenElement) {
         e.preventDefault();
         onClose();
+      }
+      if (previewType === "zip") {
+        // Delegate all key presses to the ZipPreview component
+        if (zipPreviewRef.current && zipPreviewRef.current.handleKeyDown) {
+          zipPreviewRef.current.handleKeyDown(e);
+        }
+        return; // Crucially, stop further processing in PreviewModal's handler
       }
       if (e.key === " ") {
         if (
@@ -476,6 +487,15 @@ const PreviewModal = ({
               onStartSizeCalculation={onStartSizeCalculation}
               onOpenFile={onOpenFile}
               onClose={onClose}
+            />
+          )}
+
+          {previewType === "zip" && (
+            <ZipPreview
+              ref={zipPreviewRef}
+              filePath={fullPath}
+              onClose={onClose}
+              isVisible={isVisible}
             />
           )}
         </div>

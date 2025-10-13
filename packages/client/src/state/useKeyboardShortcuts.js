@@ -201,7 +201,7 @@ export default function useKeyboardShortcuts(props) {
           "PageUp",
           "PageDown",
         ].includes(e.key);
-        if (e.key === "Escape") {
+        if (e.key === "Escape") { 
           e.preventDefault();
           setPreviewModal({ isVisible: false, item: null });
           return;
@@ -235,6 +235,23 @@ export default function useKeyboardShortcuts(props) {
             setAppBrowserModal((s) => ({ ...s, isVisible: false }));
           if (helpModal.isVisible) setHelpModal({ isVisible: false });
           if (error) setError(null);
+
+      // If ZipPreview is open, trap most shortcuts within it
+      if (previewModal.isVisible && previewModal.item?.type === "archive") {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setPreviewModal({ isVisible: false, item: null });
+        }
+        // Allow tab to move focus within the modal, but prevent default to stop it from leaving the modal
+        if (e.key === "Tab") {
+          e.preventDefault();
+          // The BrowserModal (used by ZipPreview) should handle its own internal tab navigation
+          // We just prevent the event from propagating further to the main app
+        }
+        // For all other keys, do NOT prevent default, allowing BrowserModal to handle them.
+        return;
+      }
+
         }
         return;
       }
@@ -294,11 +311,9 @@ export default function useKeyboardShortcuts(props) {
             (i) => i.name === focusedName
           );
           if (!item) return;
-          if (isItemPreviewable(item)) {
-            setPreviewModal({ isVisible: true, item: item });
-          } else if (item.type === "folder") {
-            handleStartSizeCalculation(item);
-          }
+          // For archives, now we just set the preview modal with the item
+          // PreviewModal will handle rendering ZipPreview internally
+          setPreviewModal({ isVisible: true, item: item });
         }
         return;
       }
@@ -349,8 +364,14 @@ export default function useKeyboardShortcuts(props) {
           const item = panels[activePanel].items.find(
             (i) => i.name === focusedName
           );
-          if (item && item.type !== "folder" && item.type !== "parent") {
-            handleOpenFile(activePath, item.name);
+          if (!item) return;
+
+          // For archives and previewable items, now we just set the preview modal with the item
+          // PreviewModal will handle rendering ZipPreview internally
+          if (item.type === "archive" || isItemPreviewable(item)) {
+            setPreviewModal({ isVisible: true, item: item });
+          } else if (item.type !== "folder" && item.type !== "parent") {
+            handleOpenFile(panels[activePanel].path, item.name);
           }
         }
         return;

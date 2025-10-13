@@ -26,15 +26,15 @@ export default function useModals() {
   });
 
   return {
-    appBrowserModal,
-    setAppBrowserModal,
-    folderBrowserModal,
-    setFolderBrowserModal,
     previewModal,
     setPreviewModal,
-    helpModal,
-    setHelpModal,
+    folderBrowserModal,
+    setFolderBrowserModal,
+    appBrowserModal,
+    setAppBrowserModal,
     quickSelectModal,
     setQuickSelectModal,
+    helpModal,
+    setHelpModal,
   };
 }

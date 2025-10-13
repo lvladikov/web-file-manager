@@ -561,6 +561,7 @@ export default function appState() {
     handleCloseFilter,
     handleSelectAll,
     handleSwapPanels,
+    openZipPreviewModal: modals.openZipPreviewModal,
   });
 
   const panelsRef = useRef(panels);

@@ -21,6 +21,7 @@ import QuickSelectModal from "./components/modals/QuickSelectModal";
 import CompressionProgressModal from "./components/modals/CompressionProgressModal";
 import DecompressionProgressModal from "./components/modals/DecompressionProgressModal";
 import ArchiveTestIntegrityProgressModal from "./components/modals/ArchiveTestIntegrityProgressModal";
+import ZipPreview from "./components/modals/preview-views/ZipPreview";
 
 export default function App() {
   const {
@@ -220,6 +221,11 @@ export default function App() {
             initialPath: "",
           })
         }
+        onFileDoubleClick={(item) => {
+          if (item.type === "archive") {
+            setPreviewModal({ isVisible: true, item });
+          }
+        }}
       />
       <ApplicationBrowserModal
         isVisible={appBrowserModal.isVisible}
@@ -233,6 +239,11 @@ export default function App() {
             appPath
           );
           setAppBrowserModal((s) => ({ ...s, isVisible: false }));
+        }}
+        onFileDoubleClick={(item) => {
+          if (item.type === "archive") {
+            setPreviewModal({ isVisible: true, item });
+          }
         }}
       />
       <CalculatingSizeModal
@@ -328,6 +339,7 @@ export default function App() {
         onCancel={handleCancelArchiveTest}
         onClose={closeArchiveTestModal}
       />
+
       <main
         ref={mainRef}
         className="flex-grow flex p-2 space-x-2 overflow-hidden"
@@ -412,7 +424,11 @@ export default function App() {
                 const item = panels[panelId].items.find(
                   (i) => i.name === itemName
                 );
-                if (item && isItemPreviewable(item)) {
+                if (!item) return;
+
+                if (item.type === "archive") {
+                  setPreviewModal({ isVisible: true, item });
+                } else if (isItemPreviewable(item)) {
                   setPreviewModal({ isVisible: true, item });
                 }
               }

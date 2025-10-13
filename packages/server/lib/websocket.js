@@ -165,7 +165,9 @@ export function initializeWebSocketServer(
               job.totalSize = totalSize; // Store total size in the job object
 
               if (ws.readyState === 1) {
-                ws.send(JSON.stringify({ type: "start", totalSize: totalSize }));
+                ws.send(
+                  JSON.stringify({ type: "start", totalSize: totalSize })
+                );
               }
 
               job.sizeSoFar = 0;
@@ -501,7 +503,9 @@ export function initializeWebSocketServer(
                       const bytesSinceLastUpdate =
                         processedBytes - lastProcessedBytes;
                       const instantaneousSpeed =
-                        timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+                        timeElapsed > 0
+                          ? bytesSinceLastUpdate / timeElapsed
+                          : 0;
 
                       if (ws.readyState === 1) {
                         ws.send(
@@ -513,7 +517,8 @@ export function initializeWebSocketServer(
                             processedFiles: processedFiles,
                             currentFile: entry.filename,
                             currentFileTotalSize: entry.uncompressedSize,
-                            currentFileBytesProcessed: currentFileBytesProcessed,
+                            currentFileBytesProcessed:
+                              currentFileBytesProcessed,
                             instantaneousSpeed: instantaneousSpeed,
                           })
                         );
@@ -826,7 +831,7 @@ export function initializeWebSocketServer(
               if (watchedPaths && data.path && !watchedPaths.has(data.path)) {
                 watcher.watch(data.path);
                 watchedPaths.add(data.path);
-                console.log(`[ws] Watching path: ${data.path}`);
+                // console.log(`[ws] Watching path: ${data.path}`); //Uncomment for debugging
               }
               break;
             }
@@ -835,7 +840,7 @@ export function initializeWebSocketServer(
               if (watchedPaths && data.path && watchedPaths.has(data.path)) {
                 watcher.unwatch(data.path);
                 watchedPaths.delete(data.path);
-                console.log(`[ws] Unwatching path: ${data.path}`);
+                // console.log(`[ws] Unwatching path: ${data.path}`); //Uncomment for debugging
               }
               break;
             }

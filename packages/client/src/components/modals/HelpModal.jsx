@@ -305,8 +305,8 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
             <p>
               Supported types include: images (jpg, png, gif), text files (txt,
-              md, js), PDFs, audio (mp3, flac), and some video formats (mp4,
-              webm).
+              md, js), PDFs, audio (mp3, flac), video (mp4, webm), and zip
+              archives.
             </p>
           </HelpSection>
 
@@ -456,8 +456,7 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <kbd>F2</kbd>: Rename the currently focused item.
               </li>
               <li>
-                <kbd>F3</kbd>: View/Open the focused item with its default
-                application.
+                <kbd>F3</kbd>: Preview the focused item if possible (images, text, PDFs, audio, video, zip archives), otherwise open it with its default application.
               </li>
               <li>
                 <kbd>F5</kbd>: Copy selected items from the active panel to the
