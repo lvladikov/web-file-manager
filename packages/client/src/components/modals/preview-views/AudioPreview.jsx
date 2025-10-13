@@ -9,7 +9,6 @@ const AudioPreview = ({
   audioRef,
   item,
   fullPath,
-  activePath,
   autoLoadLyrics,
   onToggleAutoLoadLyrics,
 }) => {
@@ -52,7 +51,6 @@ const AudioPreview = ({
     }
 
     try {
-      const fullPath = buildFullPath(activePath, item.name);
       const metaRes = await fetch(
         `/api/track-info?path=${encodeURIComponent(fullPath)}`
       );

@@ -75,6 +75,7 @@ export default function useKeyboardShortcuts(props) {
         const isNavKey = [
           "ArrowUp",
           "ArrowDown",
+          "Tab",
           "Home",
           "End",
           "PageUp",

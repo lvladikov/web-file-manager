@@ -135,13 +135,21 @@ const BrowserModal = forwardRef(
 
         if (e.key === "Tab") {
           e.preventDefault();
-          if (document.activeElement === listRef.current) {
-            confirmButtonRef.current?.focus();
-          } else if (document.activeElement === confirmButtonRef.current) {
-            cancelButtonRef.current?.focus();
-          } else {
-            listRef.current?.focus();
-          }
+          const focusableElements = [
+            listRef.current,
+            confirmButtonRef.current,
+            cancelButtonRef.current,
+          ].filter(Boolean);
+
+          const currentIndex = focusableElements.indexOf(
+            document.activeElement
+          );
+          const nextIndex = e.shiftKey
+            ? (currentIndex - 1 + focusableElements.length) %
+              focusableElements.length
+            : (currentIndex + 1) % focusableElements.length;
+
+          focusableElements[nextIndex]?.focus();
           return;
         }
 

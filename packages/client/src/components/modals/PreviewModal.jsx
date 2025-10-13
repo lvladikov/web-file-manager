@@ -106,7 +106,7 @@ const PreviewModal = ({
   useEffect(() => {
     if (isVisible && previewType === "audio" && item) {
       const fetchCoverArt = async () => {
-        const fullPath = buildFullPath(activePath, item.name);
+        const { fullPath } = item;
         try {
           const res = await fetch(
             `/api/audio-cover?path=${encodeURIComponent(fullPath)}`
@@ -126,7 +126,7 @@ const PreviewModal = ({
       };
       fetchCoverArt();
     }
-  }, [isVisible, item, activePath, previewType]);
+  }, [isVisible, item, previewType]);
 
   useEffect(() => {
     if (previewType !== "text" || !textContent || textError) {
@@ -227,7 +227,7 @@ const PreviewModal = ({
       const fetchText = async () => {
         setTextContent("Loading...");
         setTextError("");
-        const fullPath = buildFullPath(activePath, item.name);
+        const { fullPath } = item;
         try {
           const res = await fetch(
             `/api/text-content?path=${encodeURIComponent(fullPath)}`
@@ -242,7 +242,7 @@ const PreviewModal = ({
       };
       fetchText();
     }
-  }, [isVisible, item, activePath, previewType]);
+  }, [isVisible, item, previewType]);
 
   useEffect(() => {
     const activeMediaElement =
@@ -278,7 +278,7 @@ const PreviewModal = ({
   };
 
   if (!isVisible || !item) return null;
-  const fullPath = buildFullPath(activePath, item.name);
+  const { fullPath } = item;
   const language = getPrismLanguage(item?.name);
 
   return (
@@ -465,7 +465,6 @@ const PreviewModal = ({
                 audioRef={audioRef}
                 item={item}
                 fullPath={fullPath}
-                activePath={activePath}
                 autoLoadLyrics={autoLoadLyrics}
                 onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
               />
