@@ -84,22 +84,25 @@ const BrowserModal = forwardRef(
       [onConfirm, confirmButtonText, currentPath]
     );
 
-    const handleNavigate = useCallback(async (basePath, target) => {
-      try {
-        setLoading(true);
-        setError(null);
-        setFocusedItem(null);
-        const dirData = fetchItems
-          ? await fetchItems(basePath, target)
-          : await fetchDirectory(basePath, target);
-        setCurrentPath(dirData.path);
-        setItems(dirData.items);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }, [fetchItems]);
+    const handleNavigate = useCallback(
+      async (basePath, target) => {
+        try {
+          setLoading(true);
+          setError(null);
+          setFocusedItem(null);
+          const dirData = fetchItems
+            ? await fetchItems(basePath, target)
+            : await fetchDirectory(basePath, target);
+          setCurrentPath(dirData.path);
+          setItems(dirData.items);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      [fetchItems]
+    );
 
     useEffect(() => {
       if (isVisible) {
@@ -243,7 +246,7 @@ const BrowserModal = forwardRef(
     return (
       <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
         <div className="bg-gray-800 rounded-lg shadow-xl p-4 w-full max-w-2xl h-3/4 flex flex-col border border-sky-500">
-          <h3 className="text-xl font-bold text-sky-400 flex-shrink-0">
+          <h3 className="text-xl font-bold text-sky-400 flex-shrink-0 mb-4">
             {title}
           </h3>
           {children && (
