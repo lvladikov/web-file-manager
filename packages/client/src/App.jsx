@@ -256,6 +256,7 @@ export default function App() {
       />
       <ProgressModal
         {...copyProgress}
+        isVisible={copyProgress.isVisible && !overwritePrompt.isVisible}
         currentFileBytesProcessed={copyProgress.currentFileBytesProcessed}
         currentFileSize={copyProgress.currentFileSize}
         startTime={copyProgress.startTime}
@@ -266,7 +267,11 @@ export default function App() {
         isVisible={overwritePrompt.isVisible}
         item={overwritePrompt.item}
         onDecision={handleOverwriteDecision}
-        onCancel={handleCancelCopy}
+        onCancel={
+          overwritePrompt.jobType === "copy"
+            ? handleCancelCopy
+            : handleCancelDecompress
+        }
         sourceCount={copyProgress.sourceCount}
       />
       <QuickSelectModal
@@ -302,7 +307,7 @@ export default function App() {
       />
       <DecompressionProgressModal
         key={`decompress-${decompressProgress.jobId}`}
-        isVisible={decompressProgress.isVisible}
+        isVisible={decompressProgress.isVisible && !overwritePrompt.isVisible}
         currentFile={decompressProgress.currentFile}
         totalBytes={decompressProgress.totalBytes}
         processedBytes={decompressProgress.processedBytes}

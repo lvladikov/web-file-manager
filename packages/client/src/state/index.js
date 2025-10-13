@@ -41,6 +41,11 @@ export default function appState() {
   });
   const [isFiltering, setIsFiltering] = useState({ left: false, right: false });
   const [filterPanelId, setFilterPanelId] = useState(null);
+  const [overwritePrompt, setOverwritePrompt] = useState({
+    isVisible: false,
+    item: { name: null, type: "file" },
+    jobType: null,
+  });
 
   // --- Core Refs ---
   const wsRef = useRef(null);
@@ -87,7 +92,15 @@ export default function appState() {
   // 1. Independent hooks that provide state and setters
   const settings = useSettings({ setError });
   const modals = useModals();
-  const panelOps = usePanelOps({ panels, setPanels, setLoading, setError, setAppBrowserModal: modals.setAppBrowserModal, activePanel, focusedItem });
+  const panelOps = usePanelOps({
+    panels,
+    setPanels,
+    setLoading,
+    setError,
+    setAppBrowserModal: modals.setAppBrowserModal,
+    activePanel,
+    focusedItem,
+  });
   const sizeCalculation = useSizeCalculation({
     panels,
     setError,
@@ -127,6 +140,8 @@ export default function appState() {
     handleCancelRename: rename.handleCancelRename,
     handleCancelNewFolder: newFolder.handleCancelNewFolder,
     wsRef,
+    overwritePrompt,
+    setOverwritePrompt,
   });
   const del = useDelete({
     activePanel,
@@ -163,6 +178,8 @@ export default function appState() {
     setSelections,
     setFocusedItem,
     panelRefs,
+    overwritePrompt,
+    setOverwritePrompt,
   });
 
   const archiveTest = useArchiveIntegrityTest({
@@ -178,41 +195,50 @@ export default function appState() {
     handleNavigate: panelOps.handleNavigate,
   });
 
-  const handleSelectAll = useCallback((panelId) => {
-    const items = filter[panelId].pattern
-      ? filteredItems[panelId]
-      : panels[panelId]?.items;
-    if (!items) return;
-    const allSelectableItems = items
-      .filter((item) => item.name !== "..")
-      .map((item) => item.name);
-    setSelections((prev) => ({
-      ...prev,
-      [panelId]: new Set(allSelectableItems),
-    }));
-  }, [panels, filter, filteredItems, setSelections]);
+  const handleSelectAll = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? filteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
+      const allSelectableItems = items
+        .filter((item) => item.name !== "..")
+        .map((item) => item.name);
+      setSelections((prev) => ({
+        ...prev,
+        [panelId]: new Set(allSelectableItems),
+      }));
+    },
+    [panels, filter, filteredItems, setSelections]
+  );
 
-  const handleUnselectAll = useCallback((panelId) => {
-    setSelections((prev) => ({ ...prev, [panelId]: new Set() }));
-  }, [setSelections]);
+  const handleUnselectAll = useCallback(
+    (panelId) => {
+      setSelections((prev) => ({ ...prev, [panelId]: new Set() }));
+    },
+    [setSelections]
+  );
 
-  const handleInvertSelection = useCallback((panelId) => {
-    const items = filter[panelId].pattern
-      ? filteredItems[panelId]
-      : panels[panelId]?.items;
-    if (!items) return;
+  const handleInvertSelection = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? filteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
 
-    const currentSelection = selections[panelId];
-    const allSelectableItems = items
-      .filter((item) => item.name !== "..")
-      .map((item) => item.name);
+      const currentSelection = selections[panelId];
+      const allSelectableItems = items
+        .filter((item) => item.name !== "..")
+        .map((item) => item.name);
 
-    const newSelection = new Set(
-      allSelectableItems.filter((name) => !currentSelection.has(name))
-    );
+      const newSelection = new Set(
+        allSelectableItems.filter((name) => !currentSelection.has(name))
+      );
 
-    setSelections((prev) => ({ ...prev, [panelId]: newSelection }));
-  }, [panels, filter, filteredItems, selections, setSelections]);
+      setSelections((prev) => ({ ...prev, [panelId]: newSelection }));
+    },
+    [panels, filter, filteredItems, selections, setSelections]
+  );
 
   const handleStartQuickSelect = (panelId) => {
     modals.setQuickSelectModal({ isVisible: true, mode: "select" });
@@ -250,7 +276,15 @@ export default function appState() {
 
       setSelections((prev) => ({ ...prev, [activePanel]: currentSelection }));
     },
-    [activePanel, panels, filter, filteredItems, selections, modals.quickSelectModal.mode, setSelections]
+    [
+      activePanel,
+      panels,
+      filter,
+      filteredItems,
+      selections,
+      modals.quickSelectModal.mode,
+      setSelections,
+    ]
   );
 
   const handleStartFilter = (panelId) => {
@@ -444,6 +478,15 @@ export default function appState() {
     ]
   );
 
+  const handleOverwriteDecision = (decision) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({ type: "overwrite_response", decision })
+      );
+    }
+    setOverwritePrompt({ isVisible: false, item: null });
+  };
+
   useKeyboardShortcuts({
     deleteModalVisible: del.deleteModalVisible,
     handleCancelDelete: del.handleCancelDelete,
@@ -451,7 +494,7 @@ export default function appState() {
     previewModal: modals.previewModal,
     setPreviewModal: modals.setPreviewModal,
     copyProgress: copy.copyProgress,
-    overwritePrompt: copy.overwritePrompt,
+    overwritePrompt: overwritePrompt,
     handleCancelCopy: copy.handleCancelCopy,
     folderBrowserModal: modals.folderBrowserModal,
     setFolderBrowserModal: modals.setFolderBrowserModal,
@@ -491,7 +534,8 @@ export default function appState() {
     handleSwapPanels,
   });
 
-  const { handleContextOpen, handleContextOpenWith, ...panelOpsHandlers } = panelOps;
+  const { handleContextOpen, handleContextOpenWith, ...panelOpsHandlers } =
+    panelOps;
 
   return {
     // Core State
@@ -507,6 +551,7 @@ export default function appState() {
     panelRefs,
     activeSelection,
     activePath,
+    overwritePrompt,
     // Core Setters
     setActivePanel,
     setPanels,
@@ -516,6 +561,7 @@ export default function appState() {
     setLoading,
     setError,
     setEditingPath,
+    setOverwritePrompt,
     // State & Handlers from Hooks
     ...settings,
     ...modals,
@@ -548,6 +594,7 @@ export default function appState() {
     handleSwapPanels,
     handleContextOpen,
     handleContextOpenWith,
+    handleOverwriteDecision,
     // UI Composition
     actionBarButtons,
   };

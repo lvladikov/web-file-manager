@@ -13,6 +13,8 @@ export default function useCopy({
   handleCancelRename,
   handleCancelNewFolder,
   wsRef,
+  overwritePrompt,
+  setOverwritePrompt,
 }) {
   const [copyProgress, setCopyProgress] = useState({
     isVisible: false,
@@ -26,10 +28,6 @@ export default function useCopy({
     sourceCount: 0,
     startTime: null,
     lastUpdateTime: null,
-  });
-  const [overwritePrompt, setOverwritePrompt] = useState({
-    isVisible: false,
-    item: { name: null, type: "file" },
   });
 
   // --- START: useRef pattern to prevent re-renders ---
@@ -96,11 +94,18 @@ export default function useCopy({
     }
 
     const sources = filteredItems
-      .filter(item => activeSelection.has(item.name))
+      .filter((item) => activeSelection.has(item.name))
       .map((item) => buildFullPath(sourcePath, item.name));
 
     await performCopy(sources, destinationPath);
-  }, [activePanel, panels, activeSelection, filteredItems, performCopy, setError]);
+  }, [
+    activePanel,
+    panels,
+    activeSelection,
+    filteredItems,
+    performCopy,
+    setError,
+  ]);
 
   const handleCancelCopy = useCallback(async () => {
     if (
@@ -118,16 +123,13 @@ export default function useCopy({
         setError(`Failed to send cancel request: ${err.message}`);
       }
     }
-  }, [copyProgress.jobId, overwritePrompt.isVisible, setError, wsRef]);
-
-  const handleOverwriteDecision = (decision) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({ type: "overwrite_response", decision })
-      );
-    }
-    setOverwritePrompt({ isVisible: false, item: null });
-  };
+  }, [
+    copyProgress.jobId,
+    overwritePrompt.isVisible,
+    setError,
+    wsRef,
+    setOverwritePrompt,
+  ]);
 
   useEffect(() => {
     if (!copyProgress.jobId) return;
@@ -149,7 +151,10 @@ export default function useCopy({
       switch (data.type) {
         case "scan_progress":
         case "copy_progress":
-          setCopyProgress((prev) => ({ ...prev, currentFile: truncatePath(data.file, 60) }));
+          setCopyProgress((prev) => ({
+            ...prev,
+            currentFile: truncatePath(data.file, 60),
+          }));
           break;
         case "scan_complete":
           setCopyProgress((prev) => ({
@@ -171,6 +176,7 @@ export default function useCopy({
           setOverwritePrompt({
             isVisible: true,
             item: { name: data.file, type: data.itemType },
+            jobType: "copy",
           });
           break;
         case "complete":
@@ -218,16 +224,13 @@ export default function useCopy({
         ws.close();
       }
     };
-  }, [copyProgress.jobId, wsRef]);
+  }, [copyProgress.jobId, wsRef, setOverwritePrompt]);
 
   return {
     copyProgress,
     setCopyProgress,
-    overwritePrompt,
-    setOverwritePrompt,
     handleCopyAction,
     handleCancelCopy,
-    handleOverwriteDecision,
     performCopy,
   };
 }

@@ -58,7 +58,16 @@ export function initializeWebSocketServer(
         const data = JSON.parse(message);
         if (data.type === "overwrite_response") {
           if (data.decision === "cancel") {
-            performCopyCancellation(job);
+            if (jobType === "copy") {
+              performCopyCancellation(job);
+            } else if (jobType === "decompress") {
+              job.status = "cancelled";
+              job.controller.abort();
+              if (job.resolveOverwrite) {
+                job.overwriteDecision = "cancel";
+                job.resolveOverwrite();
+              }
+            }
           } else if (job.resolveOverwrite) {
             job.overwriteDecision = data.decision;
             job.resolveOverwrite();
@@ -287,6 +296,37 @@ export function initializeWebSocketServer(
         (async () => {
           let zipfile;
           try {
+            job.overwriteDecision = "prompt"; // Initialize
+
+            // Top-level folder check
+            if (await fse.pathExists(job.destination)) {
+              if (ws.readyState === 1) {
+                ws.send(
+                  JSON.stringify({
+                    type: "overwrite_prompt",
+                    file: path.basename(job.destination),
+                    itemType: "folder",
+                  })
+                );
+                await new Promise(
+                  (resolve) => (job.resolveOverwrite = resolve)
+                );
+              }
+
+              if (
+                job.overwriteDecision === "skip" ||
+                job.overwriteDecision === "cancel"
+              ) {
+                if (ws.readyState === 1) {
+                  ws.send(
+                    JSON.stringify({ type: "complete", status: "skipped" })
+                  );
+                  ws.close();
+                }
+                return;
+              }
+            }
+
             zipfile = await open(job.source);
             job.zipfile = zipfile;
             job.currentWriteStream = null;
@@ -324,6 +364,72 @@ export function initializeWebSocketServer(
               }
 
               const destPath = path.join(job.destination, entry.filename);
+
+              // OVERWRITE LOGIC START
+              if (await fse.pathExists(destPath)) {
+                let decision = job.overwriteDecision;
+                const needsPrompt = ["prompt", "overwrite", "skip"].includes(
+                  decision
+                );
+
+                if (needsPrompt) {
+                  if (job.ws && job.ws.readyState === 1) {
+                    job.ws.send(
+                      JSON.stringify({
+                        type: "overwrite_prompt",
+                        file: entry.filename,
+                        itemType: entry.filename.endsWith("/")
+                          ? "folder"
+                          : "file",
+                      })
+                    );
+                    await new Promise(
+                      (resolve) => (job.resolveOverwrite = resolve)
+                    );
+                    decision = job.overwriteDecision;
+                  }
+                }
+
+                const evaluateDecision = () => {
+                  switch (decision) {
+                    case "skip":
+                    case "skip_all":
+                      return true;
+                    case "if_newer":
+                      return true; // For decompression, if_newer is effectively a skip
+                    case "size_differs": {
+                      if (entry.filename.endsWith("/")) return false;
+                      const destStats = fse.statSync(destPath);
+                      return entry.uncompressedSize === destStats.size;
+                    }
+                    case "smaller_only": {
+                      if (entry.filename.endsWith("/")) return false;
+                      const destStats = fse.statSync(destPath);
+                      return destStats.size >= entry.uncompressedSize;
+                    }
+                    case "no_zero_length": {
+                      return entry.uncompressedSize === 0;
+                    }
+                    default:
+                      return false;
+                  }
+                };
+
+                if (evaluateDecision()) {
+                  processedBytes += entry.uncompressedSize;
+                  if (!entry.filename.endsWith("/")) {
+                    processedFiles++;
+                  }
+                  if (job.overwriteDecision === "skip")
+                    job.overwriteDecision = "prompt";
+                  continue; // Skip to next entry
+                }
+
+                if (decision === "overwrite") {
+                  job.overwriteDecision = "prompt";
+                }
+              }
+              // OVERWRITE LOGIC END
 
               if (entry.filename.endsWith("/")) {
                 fse.mkdirpSync(destPath);

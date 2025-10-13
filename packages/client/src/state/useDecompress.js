@@ -13,6 +13,8 @@ const useDecompress = ({
   setSelections,
   setFocusedItem,
   panelRefs,
+  overwritePrompt,
+  setOverwritePrompt,
 }) => {
   const [decompressProgress, setDecompressProgress] = useState({
     isVisible: false,
@@ -28,7 +30,15 @@ const useDecompress = ({
   });
 
   const handleCancelDecompress = () => {
-    if (decompressProgress.jobId) {
+    if (
+      overwritePrompt.isVisible &&
+      wsRef.current?.readyState === WebSocket.OPEN
+    ) {
+      wsRef.current.send(
+        JSON.stringify({ type: "overwrite_response", decision: "cancel" })
+      );
+      setOverwritePrompt({ isVisible: false, item: null, jobType: null });
+    } else if (decompressProgress.jobId) {
       cancelDecompress(decompressProgress.jobId);
     }
     // Immediately close the modal and reset state on client-side cancellation
@@ -122,8 +132,14 @@ const useDecompress = ({
             currentFileBytesProcessed: data.currentFileBytesProcessed,
             instantaneousSpeed: data.instantaneousSpeed,
           }));
+        } else if (data.type === "overwrite_prompt") {
+          setOverwritePrompt({
+            isVisible: true,
+            item: { name: data.file, type: data.itemType },
+            jobType: "decompress",
+          });
         } else if (data.type === "complete") {
-          if (data.status === "cancelled") {
+          if (data.status === "cancelled" || data.status === "skipped") {
             // Job was cancelled, just let ws.onclose handle the state reset.
             setDecompressProgress({
               isVisible: false,
@@ -157,7 +173,11 @@ const useDecompress = ({
           }
         } else if (data.type === "failed" || data.type === "error") {
           const errorMessage = data.title
-            ? `${data.title} ${data.details || data.message ? `(${data.details || data.message})` : ""}`
+            ? `${data.title} ${
+                data.details || data.message
+                  ? `(${data.details || data.message})`
+                  : ""
+              }`
             : data.details || data.message || "Decompression failed.";
           setError(errorMessage);
           setDecompressProgress((prev) => ({ ...prev, isVisible: false })); // Close modal on error
