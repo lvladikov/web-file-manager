@@ -38,13 +38,15 @@ const PreviewInfo = ({ previewType }) => {
     return null;
   }
 
-  const text =
-    "Use navigation keys (Arrows, Home, End, Page Up, Page Down) to change the item being previewed in the background panel. This is perfect for browsing through images, videos, or text files.";
-
   return (
     <div className="flex items-start p-3 bg-gray-800 text-sm text-gray-400 border-b border-gray-700 flex-shrink-0">
-      <Info className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-sky-400" />
-      <p className="min-w-0">{text}</p>
+      <Info className="w-5 h-5 mr-3 flex-shrink-0 text-sky-400" />
+      <p
+        className="min-w-0"
+        title="This is perfect for browsing through images, videos, or text files."
+      >
+        Use navigation keys (Up/Down) to change the item being previewed.
+      </p>
     </div>
   );
 };

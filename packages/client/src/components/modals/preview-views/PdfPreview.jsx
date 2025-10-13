@@ -78,7 +78,7 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
         isFullscreen
           ? { width: "100%", height: "100%", transition: "none" }
           : {
-              height: "calc(100vh - 8rem)",
+              height: "calc(100vh - 14rem)",
               maxWidth: "90vw",
               margin: "auto",
               transition: "none",

@@ -1,12 +1,7 @@
-import React, {
-  useCallback,
-  useRef,
-  useImperativeHandle,
-  forwardRef,
-} from "react";
+import React, { useCallback, useRef, forwardRef } from "react";
+import { Info } from "lucide-react";
 import BrowserModal from "../BrowserModal";
 import { fetchZipContents } from "../../../lib/api";
-import { formatBytes } from "../../../lib/utils";
 
 const ZipPreview = forwardRef(({ filePath, onClose, isVisible }, ref) => {
   const zipFileName = filePath.split("/").pop();
@@ -157,10 +152,12 @@ const ZipPreview = forwardRef(({ filePath, onClose, isVisible }, ref) => {
       filterItem={() => true} // All items are selectable for preview
       fetchItems={fetchZipDirectory}
     >
-      <p className="text-sm text-gray-400 -mt-2">
-        Use navigation keys (Arrows, Home, End, Page Up, Page Down, Backspace)
-        to browse the archive contents.
-      </p>
+      <div className="flex items-start bg-gray-800 text-sm text-gray-400 flex-shrink-0">
+        <Info className="w-5 h-5 mr-3 flex-shrink-0 text-sky-400" />
+        <p className="min-w-0">
+          Use navigation keys (Up/Down, Enter) to browse the archive contents.
+        </p>
+      </div>
     </BrowserModal>
   );
 });

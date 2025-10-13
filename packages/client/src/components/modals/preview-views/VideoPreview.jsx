@@ -18,7 +18,7 @@ const VideoPreview = ({
           ? {}
           : {
               width: "100%",
-              height: "calc(100vh - 8rem)",
+              height: "calc(100vh - 14rem)",
               maxWidth: "90vw",
               margin: "auto",
             }
