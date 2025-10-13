@@ -318,6 +318,7 @@ export function initializeWebSocketServer(
         if (jobType === "decompress") {
           (async () => {
             let zipfile;
+            let progressInterval;
             try {
               job.overwriteDecision = "prompt"; // Initialize
 
@@ -370,6 +371,9 @@ export function initializeWebSocketServer(
               let processedFiles = 0;
               let lastUpdateTime = Date.now();
               let lastProcessedBytes = 0;
+              job.currentFile = "Preparing...";
+              job.currentFileTotalSize = 0;
+              job.currentFileBytesProcessed = 0;
 
               if (ws.readyState === 1) {
                 ws.send(
@@ -381,10 +385,42 @@ export function initializeWebSocketServer(
                 );
               }
 
+              progressInterval = setInterval(() => {
+                if (ws.readyState === 1) {
+                  const currentTime = Date.now();
+                  const timeElapsed = (currentTime - lastUpdateTime) / 1000;
+                  const bytesSinceLastUpdate =
+                    processedBytes - lastProcessedBytes;
+                  const instantaneousSpeed =
+                    timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+
+                  ws.send(
+                    JSON.stringify({
+                      type: "progress",
+                      total: totalUncompressedSize,
+                      processed: processedBytes,
+                      totalFiles: totalFiles,
+                      processedFiles: processedFiles,
+                      currentFile: job.currentFile,
+                      currentFileTotalSize: job.currentFileTotalSize,
+                      currentFileBytesProcessed: job.currentFileBytesProcessed,
+                      instantaneousSpeed: instantaneousSpeed,
+                    })
+                  );
+
+                  lastProcessedBytes = processedBytes;
+                  lastUpdateTime = currentTime;
+                }
+              }, 250);
+
               for await (const entry of zipfile) {
                 if (job.status === "cancelled") {
                   break; // Exit loop if cancelled
                 }
+
+                job.currentFile = entry.filename;
+                job.currentFileTotalSize = entry.uncompressedSize;
+                job.currentFileBytesProcessed = 0;
 
                 const destPath = path.join(job.destination, entry.filename);
 
@@ -493,39 +529,9 @@ export function initializeWebSocketServer(
                     const writeStream = fse.createWriteStream(destPath);
                     job.currentWriteStream = writeStream;
 
-                    let currentFileBytesProcessed = 0;
-
                     readStream.on("data", (chunk) => {
                       processedBytes += chunk.length;
-                      currentFileBytesProcessed += chunk.length;
-                      const currentTime = Date.now();
-                      const timeElapsed = (currentTime - lastUpdateTime) / 1000;
-                      const bytesSinceLastUpdate =
-                        processedBytes - lastProcessedBytes;
-                      const instantaneousSpeed =
-                        timeElapsed > 0
-                          ? bytesSinceLastUpdate / timeElapsed
-                          : 0;
-
-                      if (ws.readyState === 1) {
-                        ws.send(
-                          JSON.stringify({
-                            type: "progress",
-                            total: totalUncompressedSize,
-                            processed: processedBytes,
-                            totalFiles: totalFiles,
-                            processedFiles: processedFiles,
-                            currentFile: entry.filename,
-                            currentFileTotalSize: entry.uncompressedSize,
-                            currentFileBytesProcessed:
-                              currentFileBytesProcessed,
-                            instantaneousSpeed: instantaneousSpeed,
-                          })
-                        );
-                      }
-
-                      lastProcessedBytes = processedBytes;
-                      lastUpdateTime = currentTime;
+                      job.currentFileBytesProcessed += chunk.length;
                     });
 
                     readStream.on("error", (readErr) => {
@@ -646,6 +652,7 @@ export function initializeWebSocketServer(
                 ws.close();
               }
             } finally {
+              clearInterval(progressInterval);
               if (zipfile) {
                 zipfile.close();
               }
