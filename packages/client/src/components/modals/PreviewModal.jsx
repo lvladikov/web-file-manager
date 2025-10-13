@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 import {
-  buildFullPath,
   isPreviewableImage,
   isPreviewablePdf,
   isPreviewableVideo,
@@ -60,6 +59,8 @@ const PreviewModal = ({
   onStartSizeCalculation,
   autoLoadLyrics,
   onToggleAutoLoadLyrics,
+  onDecompressInActivePanel,
+  onDecompressToOtherPanel,
 }) => {
   const previewContainerRef = useRef(null);
   const videoRef = useRef(null);
@@ -292,6 +293,8 @@ const PreviewModal = ({
                     ${
                       isFullscreen
                         ? "w-full h-full p-0 border-none rounded-none"
+                        : previewType === "zip"
+                        ? "w-full max-w-4xl h-[80vh]"
                         : "max-w-[90vw] max-h-[90vh]"
                     }`}
         onClick={(e) => e.stopPropagation()}
@@ -496,14 +499,14 @@ const PreviewModal = ({
               />
             )}
             {previewType === "zip" && (
-              <div className="absolute inset-0">
-                <ZipPreview
-                  ref={zipPreviewRef}
-                  filePath={fullPath}
-                  onClose={onClose}
-                  isVisible={isVisible}
-                />
-              </div>
+              <ZipPreview
+                ref={zipPreviewRef}
+                filePath={fullPath}
+                onClose={onClose}
+                isVisible={isVisible}
+                onDecompressInActivePanel={onDecompressInActivePanel}
+                onDecompressToOtherPanel={onDecompressToOtherPanel}
+              />
             )}
           </div>
         </div>

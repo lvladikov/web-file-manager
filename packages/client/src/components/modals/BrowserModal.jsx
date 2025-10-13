@@ -26,6 +26,9 @@ const BrowserModal = forwardRef(
       children,
       fetchItems,
       onFileDoubleClick,
+      onDecompressInActivePanel,
+      onDecompressToOtherPanel,
+      isEmbedded,
     },
     ref
   ) => {
@@ -38,6 +41,8 @@ const BrowserModal = forwardRef(
     const listRef = useRef(null);
     const confirmButtonRef = useRef(null);
     const cancelButtonRef = useRef(null);
+    const decompressActiveButtonRef = useRef(null);
+    const decompressOtherButtonRef = useRef(null);
     const pathRef = useRef(currentPath);
 
     useEffect(() => {
@@ -137,6 +142,8 @@ const BrowserModal = forwardRef(
           e.preventDefault();
           const focusableElements = [
             listRef.current,
+            decompressActiveButtonRef.current,
+            decompressOtherButtonRef.current,
             confirmButtonRef.current,
             cancelButtonRef.current,
           ].filter(Boolean);
@@ -251,96 +258,135 @@ const BrowserModal = forwardRef(
 
     if (!isVisible) return null;
 
+    const modalContent = (
+      <div
+        className={`bg-gray-800 rounded-lg shadow-xl p-4 flex flex-col ${
+          isEmbedded
+            ? "w-full h-full border-none"
+            : "w-full max-w-2xl h-3/4 border border-sky-500"
+        }`}
+      >
+        <h3 className="text-xl font-bold text-sky-400 flex-shrink-0 mb-4">
+          {title}
+        </h3>
+        {children && (
+          <div className="text-gray-400 mb-4 flex-shrink-0 whitespace-normal">
+            {children}
+          </div>
+        )}
+        {error && (
+          <div className="text-red-400 bg-red-900/50 p-2 rounded mb-2 text-center">
+            {error}
+          </div>
+        )}
+        <div className="bg-gray-900 p-2 rounded-t-md mb-2 flex items-center text-sm">
+          <HardDrive className="w-5 h-5 mr-3 text-gray-400" />
+          <span className="font-bold truncate">
+            {currentPath || "Loading..."}
+          </span>
+        </div>
+        <div
+          key={currentPath}
+          ref={listRef}
+          tabIndex={-1}
+          className="flex-grow overflow-y-auto border border-gray-700 rounded-b-md p-1 relative outline-none focus:ring-2 focus:ring-sky-500"
+        >
+          {loading && (
+            <div className="absolute inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-10">
+              <LoaderCircle className="w-8 h-8 animate-spin text-sky-400" />
+            </div>
+          )}
+          {!loading &&
+            items.map((item) => {
+              const isSelectable = filterItem(item);
+              return (
+                <div
+                  key={item.name}
+                  data-name={item.name}
+                  className={`flex items-center p-1.5 rounded select-none ${
+                    !isSelectable ? "text-gray-500" : "cursor-pointer"
+                  } ${
+                    focusedItem?.name === item.name
+                      ? "bg-blue-600"
+                      : isSelectable
+                      ? "hover:bg-gray-700"
+                      : ""
+                  }`}
+                  onClick={() => isSelectable && setFocusedItem(item)}
+                  onDoubleClick={() => {
+                    const isFolder =
+                      item.type === "folder" || item.type === "parent";
+                    if (isFolder) {
+                      handleNavigate(pathRef.current, item.name);
+                    } else if (isSelectable) {
+                      if (onFileDoubleClick) {
+                        onFileDoubleClick(item);
+                      } else {
+                        handleConfirm(item);
+                      }
+                    }
+                  }}
+                >
+                  <Icon type={item.type} className="mr-1" />
+                  <span className="flex-grow truncate">{item.name}</span>
+                </div>
+              );
+            })}
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-4 flex-shrink-0">
+          {onDecompressInActivePanel && (
+            <button
+              ref={decompressActiveButtonRef}
+              onClick={() => {
+                onDecompressInActivePanel();
+                onClose();
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg w-full sm:w-auto text-center"
+            >
+              Decompress to active panel
+            </button>
+          )}
+          {onDecompressToOtherPanel && (
+            <button
+              ref={decompressOtherButtonRef}
+              onClick={() => {
+                onDecompressToOtherPanel();
+                onClose();
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg w-full sm:w-auto text-center"
+            >
+              Decompress to other panel
+            </button>
+          )}
+          <div className="hidden sm:block sm:flex-grow" />
+          <button
+            ref={cancelButtonRef}
+            onClick={onClose}
+            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg w-full sm:w-auto text-center"
+          >
+            Cancel
+          </button>
+          {confirmButtonText && (
+            <button
+              ref={confirmButtonRef}
+              onClick={() => handleConfirm()}
+              disabled={confirmButtonText !== "Select Folder" && !focusedItem}
+              className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-500 w-full sm:w-auto text-center"
+            >
+              {confirmButtonText}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+
+    if (isEmbedded) {
+      return modalContent;
+    }
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div className="bg-gray-800 rounded-lg shadow-xl p-4 w-full max-w-2xl h-3/4 flex flex-col border border-sky-500">
-          <h3 className="text-xl font-bold text-sky-400 flex-shrink-0 mb-4">
-            {title}
-          </h3>
-          {children && (
-            <div className="text-gray-400 mb-4 flex-shrink-0 whitespace-normal">
-              {children}
-            </div>
-          )}
-          {error && (
-            <div className="text-red-400 bg-red-900/50 p-2 rounded mb-2 text-center">
-              {error}
-            </div>
-          )}
-          <div className="bg-gray-900 p-2 rounded-t-md mb-2 flex items-center text-sm">
-            <HardDrive className="w-5 h-5 mr-3 text-gray-400" />
-            <span className="font-bold truncate">
-              {currentPath || "Loading..."}
-            </span>
-          </div>
-          <div
-            key={currentPath}
-            ref={listRef}
-            tabIndex={-1}
-            className="flex-grow overflow-y-auto border border-gray-700 rounded-b-md p-1 relative outline-none focus:ring-2 focus:ring-sky-500"
-          >
-            {loading && (
-              <div className="absolute inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-10">
-                <LoaderCircle className="w-8 h-8 animate-spin text-sky-400" />
-              </div>
-            )}
-            {!loading &&
-              items.map((item) => {
-                const isSelectable = filterItem(item);
-                return (
-                  <div
-                    key={item.name}
-                    data-name={item.name}
-                    className={`flex items-center p-1.5 rounded select-none ${
-                      !isSelectable ? "text-gray-500" : "cursor-pointer"
-                    } ${
-                      focusedItem?.name === item.name
-                        ? "bg-blue-600"
-                        : isSelectable
-                        ? "hover:bg-gray-700"
-                        : ""
-                    }`}
-                    onClick={() => isSelectable && setFocusedItem(item)}
-                    onDoubleClick={() => {
-                      const isFolder =
-                        item.type === "folder" || item.type === "parent";
-                      if (isFolder) {
-                        handleNavigate(pathRef.current, item.name);
-                      } else if (isSelectable) {
-                        if (onFileDoubleClick) {
-                          onFileDoubleClick(item);
-                        } else {
-                          handleConfirm(item);
-                        }
-                      }
-                    }}
-                  >
-                    <Icon type={item.type} className="mr-1" />
-                    <span className="flex-grow truncate">{item.name}</span>
-                  </div>
-                );
-              })}
-          </div>
-          <div className="flex justify-end space-x-4 mt-4 flex-shrink-0">
-            <button
-              ref={cancelButtonRef}
-              onClick={onClose}
-              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg"
-            >
-              Cancel
-            </button>
-            {confirmButtonText && (
-              <button
-                ref={confirmButtonRef}
-                onClick={() => handleConfirm()}
-                disabled={confirmButtonText !== "Select Folder" && !focusedItem}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-500"
-              >
-                {confirmButtonText}
-              </button>
-            )}
-          </div>
-        </div>
+        {modalContent}
       </div>
     );
   }

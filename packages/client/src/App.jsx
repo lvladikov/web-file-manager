@@ -299,6 +299,8 @@ export default function App() {
         onClose={() => setPreviewModal({ isVisible: false, item: null })}
         autoLoadLyrics={autoLoadLyrics}
         onToggleAutoLoadLyrics={handleToggleAutoLoadLyrics}
+        onDecompressInActivePanel={handleDecompressInActivePanel}
+        onDecompressToOtherPanel={handleDecompressToOtherPanel}
       />
       <ProgressModal
         {...copyProgress}
@@ -461,9 +463,7 @@ export default function App() {
                 );
                 if (!item) return;
 
-                if (item.type === "archive") {
-                  setPreviewModal({ isVisible: true, item });
-                } else if (isItemPreviewable(item)) {
+                if (item.type === "archive" || isItemPreviewable(item)) {
                   setPreviewModal({ isVisible: true, item });
                 }
               }
