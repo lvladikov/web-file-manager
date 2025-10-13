@@ -35,15 +35,15 @@ const AppContextMenu = ({
 }) => {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
-      if (event.key === 'Escape' && isRenaming) {
+      if (event.key === "Escape" && isRenaming) {
         onRenameCancel();
       }
     };
 
-    document.addEventListener('keydown', handleGlobalKeyDown, true); // Use capture phase
+    document.addEventListener("keydown", handleGlobalKeyDown, true); // Use capture phase
 
     return () => {
-      document.removeEventListener('keydown', handleGlobalKeyDown, true);
+      document.removeEventListener("keydown", handleGlobalKeyDown, true);
     };
   }, [isRenaming, onRenameCancel]);
 
@@ -95,7 +95,7 @@ const AppContextMenu = ({
         <ContextMenu.Content
           collisionBoundary={boundaryRef.current}
           collisionPadding={80}
-          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden"
+          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
         >
           <ScrollArea.Root className="w-full h-full" type="auto">
             <ScrollArea.Viewport
@@ -107,12 +107,14 @@ const AppContextMenu = ({
                   onSelect={onPreview}
                   className={itemClassName}
                 >
-                  Preview (Space)
+                  <span>Preview</span>
+                  <span className="text-gray-400">Space</span>
                 </ContextMenu.Item>
               )}
               {!isMultiSelect && (
                 <ContextMenu.Item onSelect={onOpen} className={itemClassName}>
-                  Open (Enter)
+                  <span>Open</span>
+                  <span className="text-gray-400">Enter</span>
                 </ContextMenu.Item>
               )}
               {!isMultiSelect && firstItem.type !== "folder" && (
@@ -130,25 +132,29 @@ const AppContextMenu = ({
                 onSelect={onCopyToOtherPanel}
                 className={itemClassName}
               >
-                Copy to other panel (F5)
+                <span>Copy to other panel</span>
+                <span className="text-gray-400">F5</span>
               </ContextMenu.Item>
               <ContextMenu.Item
                 onSelect={onPlaceholder}
                 className={`${itemClassName} text-gray-400`}
               >
-                Copy to clipboard ({metaKey}+C)
+                <span>Copy to clipboard</span>
+                <span className="text-gray-400">{metaKey}+C</span>
               </ContextMenu.Item>
               <ContextMenu.Item
                 onSelect={onPlaceholder}
                 className={`${itemClassName} text-gray-400`}
               >
-                Move (Cut) to clipboard ({metaKey}+X)
+                <span>Move (Cut) to clipboard</span>
+                <span className="text-gray-400">{metaKey}+X</span>
               </ContextMenu.Item>
               <ContextMenu.Item
                 onSelect={onPlaceholder}
                 className={`${itemClassName} text-gray-400`}
               >
-                Move to other panel (F6)
+                <span>Move to other panel</span>
+                <span className="text-gray-400">F6</span>
               </ContextMenu.Item>
               <ContextMenu.Item
                 onSelect={onPlaceholder}
@@ -161,14 +167,16 @@ const AppContextMenu = ({
 
               {!isMultiSelect && (
                 <ContextMenu.Item onSelect={onRename} className={itemClassName}>
-                  Rename (F2)
+                  <span>Rename</span>
+                  <span className="text-gray-400">F2</span>
                 </ContextMenu.Item>
               )}
               <ContextMenu.Item
                 onSelect={onDelete}
                 className={`${itemClassName} text-red-400 hover:text-red-300`}
               >
-                {deleteLabel} (F8)
+                <span>{deleteLabel}</span>
+                <span className="text-gray-400">F8</span>
               </ContextMenu.Item>
 
               <div className={separatorClassName}></div>

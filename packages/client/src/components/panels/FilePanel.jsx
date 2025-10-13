@@ -107,7 +107,9 @@ const FilePanel = React.forwardRef(
       let files = 0;
       let folders = 0;
       let totalSize = 0;
-      const selectedFullItems = panelData.items.filter(item => selectedItems.has(item.name));
+      const selectedFullItems = panelData.items.filter((item) =>
+        selectedItems.has(item.name)
+      );
 
       selectedFullItems.forEach((item) => {
         if (item.type === "folder") {
@@ -117,7 +119,8 @@ const FilePanel = React.forwardRef(
           if (item.size !== null) {
             totalSize += item.size;
           }
-        } else { // All other file types (file, archive, image, video, audio, pdf)
+        } else {
+          // All other file types (file, archive, image, video, audio, pdf)
           files++;
           if (item.size !== null) {
             totalSize += item.size;
@@ -354,11 +357,15 @@ const FilePanel = React.forwardRef(
       }
     };
 
-    const tooltipText = selectedItems.size === 0
-      ? "No items selected"
-      : selectedFolderCount > 0
+    const tooltipText =
+      selectedItems.size === 0
+        ? "No items selected"
+        : selectedFolderCount > 0
         ? `${selectedFolderCount} folders, ${selectedFileCount} files selected. To include folder sizes, right-click on the items list and select 'Calculate size of ${selectedFolderCount} folders'.`
-        : `${selectedFolderCount} folders, ${selectedFileCount} files selected (${formatBytes(selectedItemsTotalSize, false)})`;
+        : `${selectedFolderCount} folders, ${selectedFileCount} files selected (${formatBytes(
+            selectedItemsTotalSize,
+            false
+          )})`;
 
     return (
       <div
@@ -471,71 +478,71 @@ const FilePanel = React.forwardRef(
           onQuickFilter={() => onQuickFilter(panelId)}
           onSwapPanels={() => onSwapPanels(panelId)}
         >
-        <div
-          ref={scrollContainerRef}
-          className="flex-grow overflow-y-auto pr-1 relative"
-        >
-          {isCreating && (
-            <NewFolderItem
-              value={newFolderValue}
-              onChange={onNewFolderChange}
-              onSubmit={onNewFolderSubmit}
-              onCancel={onNewFolderCancel}
-              style={gridStyle}
-            />
-          )}
-          {loading && (
-            <div className="absolute inset-0 bg-gray-800/50 flex items-center justify-center z-10">
-              <LoaderCircle className="w-8 h-8 animate-spin text-sky-400" />
-            </div>
-          )}
-          {Array.isArray(filteredItems) &&
-            filteredItems.map((item) => (
-              <FileItem
-                key={`${panelData.path}-${item.name}`}
-                item={item}
-                isSelected={selectedItems.has(item.name)}
-                isFocused={focusedItem === item.name}
-                isRenaming={
-                  renamingItem.panelId === panelId &&
-                  renamingItem.name === item.name
-                }
-                renameValue={renamingItem.value}
-                onRenameChange={onRenameChange}
-                onRenameSubmit={onRenameSubmit}
-                onRenameCancel={onRenameCancel}
-                onClick={(e) => handleItemClick(item.name, e)}
-                onDoubleClick={() => handleDoubleClick(item)}
+          <div
+            ref={scrollContainerRef}
+            className="flex-grow overflow-y-auto overflow-x-hidden relative"
+          >
+            {isCreating && (
+              <NewFolderItem
+                value={newFolderValue}
+                onChange={onNewFolderChange}
+                onSubmit={onNewFolderSubmit}
+                onCancel={onNewFolderCancel}
                 style={gridStyle}
-                onPreview={onPreview}
-                onOpen={onOpen}
-                onOpenWith={onOpenWith}
-                onCopyToOtherPanel={onCopyToOtherPanel}
-                onRename={onRename}
-                onDelete={onDelete}
-                onSetOtherPanelPath={onSetOtherPanelPath}
-                onCalculateSize={onCalculateSize}
-                onCompressInActivePanel={onCompressInActivePanel}
-                onCompressToOtherPanel={onCompressToOtherPanel}
-                onDecompressInActivePanel={onDecompressInActivePanel}
-                onDecompressToOtherPanel={onDecompressToOtherPanel}
-                onTestArchive={onTestArchive}
-                appState={appState}
-                boundaryRef={boundaryRef}
-                allItems={panelData.items}
-                selectedItems={selectedItems}
-                onSelectAll={() => onSelectAll(panelId)}
-                onUnselectAll={() => onUnselectAll(panelId)}
-                onInvertSelection={() => onInvertSelection(panelId)}
-                onQuickSelect={() => onQuickSelect(panelId)}
-                onQuickUnselect={() => onQuickUnselect(panelId)}
-                onQuickFilter={() => onQuickFilter(panelId)}
-                onRefreshPanel={() => onRefreshPanel(panelId)}
-                onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
-                onSwapPanels={() => onSwapPanels(panelId)}
               />
-            ))}
-        </div>
+            )}
+            {loading && (
+              <div className="absolute inset-0 bg-gray-800/50 flex items-center justify-center z-10">
+                <LoaderCircle className="w-8 h-8 animate-spin text-sky-400" />
+              </div>
+            )}
+            {Array.isArray(filteredItems) &&
+              filteredItems.map((item) => (
+                <FileItem
+                  key={`${panelData.path}-${item.name}`}
+                  item={item}
+                  isSelected={selectedItems.has(item.name)}
+                  isFocused={focusedItem === item.name}
+                  isRenaming={
+                    renamingItem.panelId === panelId &&
+                    renamingItem.name === item.name
+                  }
+                  renameValue={renamingItem.value}
+                  onRenameChange={onRenameChange}
+                  onRenameSubmit={onRenameSubmit}
+                  onRenameCancel={onRenameCancel}
+                  onClick={(e) => handleItemClick(item.name, e)}
+                  onDoubleClick={() => handleDoubleClick(item)}
+                  style={gridStyle}
+                  onPreview={onPreview}
+                  onOpen={onOpen}
+                  onOpenWith={onOpenWith}
+                  onCopyToOtherPanel={onCopyToOtherPanel}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                  onSetOtherPanelPath={onSetOtherPanelPath}
+                  onCalculateSize={onCalculateSize}
+                  onCompressInActivePanel={onCompressInActivePanel}
+                  onCompressToOtherPanel={onCompressToOtherPanel}
+                  onDecompressInActivePanel={onDecompressInActivePanel}
+                  onDecompressToOtherPanel={onDecompressToOtherPanel}
+                  onTestArchive={onTestArchive}
+                  appState={appState}
+                  boundaryRef={boundaryRef}
+                  allItems={panelData.items}
+                  selectedItems={selectedItems}
+                  onSelectAll={() => onSelectAll(panelId)}
+                  onUnselectAll={() => onUnselectAll(panelId)}
+                  onInvertSelection={() => onInvertSelection(panelId)}
+                  onQuickSelect={() => onQuickSelect(panelId)}
+                  onQuickUnselect={() => onQuickUnselect(panelId)}
+                  onQuickFilter={() => onQuickFilter(panelId)}
+                  onRefreshPanel={() => onRefreshPanel(panelId)}
+                  onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
+                  onSwapPanels={() => onSwapPanels(panelId)}
+                />
+              ))}
+          </div>
         </EmptyAreaContextMenu>
         {filterPanelId === panelId && (
           <FilterInput
@@ -550,36 +557,54 @@ const FilePanel = React.forwardRef(
             {selectedItems.size} / {panelData.items.length} items selected
             {selectedItems.size > 0 && (
               <>
-                {' ('}
-                <span className="text-sky-400">{formatBytes(selectedItemsTotalSize, false)}</span>
-                {')'}
+                {" ("}
+                <span className="text-sky-400">
+                  {formatBytes(selectedItemsTotalSize, false)}
+                </span>
+                {")"}
               </>
             )}
           </p>
-          {diskSpace && (() => {
-            const freePercentage = ((diskSpace.free / diskSpace.size) * 100);
-            let percentageColorClass = 'text-gray-300';
-            if (freePercentage > 25) {
-              percentageColorClass = 'text-green-400';
-            } else if (freePercentage >= 10 && freePercentage <= 25) {
-              percentageColorClass = 'text-yellow-400';
-            } else {
-              percentageColorClass = 'text-red-400';
-            }
-            return (
-              <p
-                className="text-gray-400"
-                title={`${formatBytes(
-                  diskSpace.free,
-                  true
-                )} free out of ${formatBytes(diskSpace.size, true)} total | (${freePercentage.toFixed(1)}% free / ${((diskSpace.size - diskSpace.free) / diskSpace.size * 100).toFixed(1)}% used)`}
-              >
-                <span className="text-sky-400">{formatBytes(diskSpace.free, false)}</span>/
-                <span className="text-sky-400">{formatBytes(diskSpace.size, false)}</span> (
-                <span className={percentageColorClass}>{freePercentage.toFixed(1)}%</span>)
-              </p>
-            );
-          })()}
+          {diskSpace &&
+            (() => {
+              const freePercentage = (diskSpace.free / diskSpace.size) * 100;
+              let percentageColorClass = "text-gray-300";
+              if (freePercentage > 25) {
+                percentageColorClass = "text-green-400";
+              } else if (freePercentage >= 10 && freePercentage <= 25) {
+                percentageColorClass = "text-yellow-400";
+              } else {
+                percentageColorClass = "text-red-400";
+              }
+              return (
+                <p
+                  className="text-gray-400"
+                  title={`${formatBytes(
+                    diskSpace.free,
+                    true
+                  )} free out of ${formatBytes(
+                    diskSpace.size,
+                    true
+                  )} total | (${freePercentage.toFixed(1)}% free / ${(
+                    ((diskSpace.size - diskSpace.free) / diskSpace.size) *
+                    100
+                  ).toFixed(1)}% used)`}
+                >
+                  <span className="text-sky-400">
+                    {formatBytes(diskSpace.free, false)}
+                  </span>
+                  /
+                  <span className="text-sky-400">
+                    {formatBytes(diskSpace.size, false)}
+                  </span>{" "}
+                  (
+                  <span className={percentageColorClass}>
+                    {freePercentage.toFixed(1)}%
+                  </span>
+                  )
+                </p>
+              );
+            })()}
         </div>
       </div>
     );

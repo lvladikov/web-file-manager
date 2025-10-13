@@ -108,7 +108,10 @@ const FileItem = ({
       >
         <Icon type={item.type} />
       </div>
-      <div style={{ gridColumn: "2 / 3" }} className="pr-4 min-w-0">
+      <div
+        style={{ gridColumn: "2 / 3" }}
+        className="pr-4 min-w-0 overflow-hidden"
+      >
         {isRenaming ? (
           <input
             ref={inputRef}
