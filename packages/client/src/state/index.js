@@ -96,14 +96,22 @@ export default function appState() {
   const wsFileWatcher = useRef(null);
 
   const watchPath = useCallback((path) => {
-    if (wsFileWatcher.current && wsFileWatcher.current.readyState === WebSocket.OPEN) {
+    if (
+      wsFileWatcher.current &&
+      wsFileWatcher.current.readyState === WebSocket.OPEN
+    ) {
       wsFileWatcher.current.send(JSON.stringify({ type: "watch_path", path }));
     }
   }, []);
 
   const unwatchPath = useCallback((path) => {
-    if (wsFileWatcher.current && wsFileWatcher.current.readyState === WebSocket.OPEN) {
-      wsFileWatcher.current.send(JSON.stringify({ type: "unwatch_path", path }));
+    if (
+      wsFileWatcher.current &&
+      wsFileWatcher.current.readyState === WebSocket.OPEN
+    ) {
+      wsFileWatcher.current.send(
+        JSON.stringify({ type: "unwatch_path", path })
+      );
     }
   }, []);
 
@@ -536,6 +544,7 @@ export default function appState() {
     setError,
     activePanel,
     panels,
+    selections,
     focusedItem,
     selectionAnchor,
     activePath,
@@ -550,6 +559,8 @@ export default function appState() {
     handleStartNewFolder: newFolder.handleStartNewFolder,
     handleDeleteItem: del.handleDeleteItem,
     handleStartSizeCalculation: sizeCalculation.handleStartSizeCalculation,
+    calculateSizeForMultipleFolders:
+      sizeCalculation.calculateSizeForMultipleFolders,
     handleInvertSelection,
     handleStartQuickSelect,
     handleStartQuickUnselect,

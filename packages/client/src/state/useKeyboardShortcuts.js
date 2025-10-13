@@ -51,7 +51,13 @@ export default function useKeyboardShortcuts(props) {
         handleCloseFilter,
         handleSelectAll,
         handleSwapPanels,
+        calculateSizeForMultipleFolders,
       } = latestProps.current;
+
+      if (!panels || !panels.left || !panels.right) {
+        // Defensive guard to ensure panels are fully initialized
+        return;
+      }
 
       // Handle modals that should trap all keyboard input first.
       if (previewModal.isVisible) {
@@ -353,15 +359,51 @@ export default function useKeyboardShortcuts(props) {
       }
       if (e.key === " ") {
         e.preventDefault();
-        const focusedName = focusedItem[activePanel];
-        if (focusedName) {
-          const item = panels[activePanel].items.find(
-            (i) => i.name === focusedName
+        const {
+          activePanel,
+          selections,
+          panels,
+          focusedItem,
+          calculateSizeForMultipleFolders,
+          handleStartSizeCalculation,
+          setPreviewModal,
+        } = latestProps.current;
+
+        if (!panels || !panels[activePanel]) return;
+
+        const activeSelection = selections[activePanel];
+        const panelItems = panels[activePanel].items;
+
+        if (activeSelection.size > 0) {
+          const selectedItems = panelItems.filter((item) =>
+            activeSelection.has(item.name)
           );
-          if (!item) return;
-          // For archives, now we just set the preview modal with the item
-          // PreviewModal will handle rendering ZipPreview internally
-          setPreviewModal({ isVisible: true, item: item });
+          const selectedFolders = selectedItems.filter(
+            (item) => item.type === "folder"
+          );
+
+          if (selectedFolders.length > 1) {
+            calculateSizeForMultipleFolders(selectedFolders, activePanel);
+          } else if (selectedFolders.length === 1) {
+            handleStartSizeCalculation(selectedFolders[0]);
+          } else if (
+            selectedItems.length === 1 &&
+            isItemPreviewable(selectedItems[0])
+          ) {
+            setPreviewModal({ isVisible: true, item: selectedItems[0] });
+          }
+        } else {
+          const focusedName = focusedItem[activePanel];
+          if (focusedName) {
+            const item = panelItems.find((i) => i.name === focusedName);
+            if (item) {
+              if (item.type === "folder") {
+                handleStartSizeCalculation(item);
+              } else if (isItemPreviewable(item)) {
+                setPreviewModal({ isVisible: true, item: item });
+              }
+            }
+          }
         }
         return;
       }
