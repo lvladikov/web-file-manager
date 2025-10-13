@@ -248,7 +248,7 @@ export default function useKeyboardShortcuts(props) {
       const isModKey = isMac ? e.metaKey : e.ctrlKey;
       if (isModKey && e.key === "a") {
         e.preventDefault();
-        handleSelectAll();
+        handleSelectAll(activePanel);
         return;
       }
       if (isModKey && e.key === "d") {
@@ -263,7 +263,7 @@ export default function useKeyboardShortcuts(props) {
       }
       if (e.key === "*") {
         e.preventDefault();
-        handleInvertSelection();
+        handleInvertSelection(activePanel);
         return;
       }
       if (e.key === "+") {
