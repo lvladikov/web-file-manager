@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-import { formatBytes } from "../../lib/utils";
+import { formatBytes, isItemPreviewable } from "../../lib/utils";
 
 import Icon from "../ui/Icon";
 import TruncatedText from "../ui/TruncatedText";
@@ -144,9 +144,12 @@ const FileItem = ({
     return renderFileItemContent();
   }
 
+  const isPreviewable = isItemPreviewable(item);
+
   return (
     <AppContextMenu
       targetItems={targetItems}
+      isPreviewable={isPreviewable}
       onPreview={onPreview}
       onOpen={onOpen}
       onOpenWith={onOpenWith}

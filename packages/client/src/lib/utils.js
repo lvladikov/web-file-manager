@@ -49,7 +49,8 @@ const isPreviewableText = (itemName = "") => {
 };
 
 const isItemPreviewable = (item) => {
-  if (!item) return false;
+  if (!item || item.type === "folder") return false;
+  if (item.type === "archive") return true; // Zip files are previewable
   return (
     isPreviewableImage(item.name) ||
     isPreviewableVideo(item.name) ||
