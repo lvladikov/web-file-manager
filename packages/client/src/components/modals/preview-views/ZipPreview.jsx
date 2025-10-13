@@ -7,14 +7,6 @@ const ZipPreview = forwardRef(({ filePath, onClose, isVisible }, ref) => {
   const zipFileName = filePath.split('/').pop();
   const browserModalRef = useRef(null);
 
-  useImperativeHandle(ref, () => ({
-    handleKeyDown: (e) => {
-      if (browserModalRef.current) {
-        browserModalRef.current.handleKeyDown(e);
-      }
-    },
-  }));
-
   const fetchZipDirectory = useCallback(async (basePath, target) => {
 
     // Normalize basePath and target to use '/' as separator
@@ -183,6 +175,7 @@ const ZipPreview = forwardRef(({ filePath, onClose, isVisible }, ref) => {
       ref={browserModalRef}
       isVisible={isVisible}
       onClose={onClose} // For a preview, confirming just closes it
+      onConfirm={onClose} // Confirming an item in ZipPreview should just close the modal
       initialPath="/" // Start at the root of the zip archive
       title={`Zip Archive: ${zipFileName}`}
       confirmButtonText={null} // Remove the redundant 'Close Preview' button
