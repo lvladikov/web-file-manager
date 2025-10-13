@@ -630,115 +630,125 @@ export function initializeWebSocketServer(
       if (jobType === "archive-test") {
         (async () => {
           let zipfile;
-          let testedFiles = 0;
           const failedFiles = [];
+          let testedFiles = 0;
+          let totalFiles = null;
           let generalError = null;
-          let totalFiles = 0; // Initialize totalFiles here
+          let currentFile = null;
           let jobComplete = false;
+
+          const sendComplete = () => {
+            if (jobComplete || ws.readyState !== 1) return;
+            jobComplete = true;
+
+            // Fallback: if ZIP couldn't even start, ensure at least one failed file entry
+            if (failedFiles.length === 0 && generalError) {
+              failedFiles.push({
+                fileName: currentFile || "unknown",
+                message: generalError,
+              });
+            }
+
+            ws.send(
+              JSON.stringify({
+                type: "complete",
+                report: {
+                  totalFiles,
+                  testedFiles,
+                  failedFiles,
+                  generalError,
+                },
+              })
+            );
+            ws.close();
+          };
+
+          const testEntry = async (entry) => {
+            try {
+              const readStream = await entry.openReadStream();
+              const nullStream = new NullWritable();
+              await new Promise((resolve, reject) => {
+                readStream.on("error", reject);
+                nullStream.on("error", reject);
+                nullStream.on("finish", resolve);
+
+                job.controller.signal.onabort = () => {
+                  readStream.destroy();
+                  nullStream.destroy();
+                  reject(new Error("Archive test cancelled"));
+                };
+
+                readStream.pipe(nullStream);
+              });
+            } catch (err) {
+              // Provide most detailed message available
+              const message =
+                err.message ||
+                err.code ||
+                (err.cause && err.cause.message) ||
+                "Error reading entry stream";
+              throw new Error(message);
+            }
+          };
 
           try {
             zipfile = await open(job.source);
             job.zipfile = zipfile;
-            totalFiles = zipfile.entryCount; // Assign value here
+            totalFiles = zipfile.entryCount || null;
 
             if (ws.readyState === 1) {
-              ws.send(
-                JSON.stringify({ type: "start", totalFiles: totalFiles })
-              );
+              ws.send(JSON.stringify({ type: "start", totalFiles }));
             }
 
-            const sendCompletionReport = () => {
-              if (jobComplete || ws.readyState !== 1) return;
-              jobComplete = true;
-              console.log(`[ws:${jobId}] Sending completion report.`);
-              ws.send(
-                JSON.stringify({
-                  type: "complete",
-                  report: {
-                    totalFiles,
-                    testedFiles,
-                    failedFiles,
-                    generalError,
-                  },
-                })
-              );
-              ws.close();
-            };
-
             for await (const entry of zipfile) {
-              if (job.status === "cancelled") {
-                break; // Exit loop if cancelled
-              }
+              if (job.status === "cancelled") break;
 
+              currentFile = entry.filename;
               testedFiles++;
-              let displayFileName = entry.filename; // Send full filename
 
               if (ws.readyState === 1) {
                 ws.send(
                   JSON.stringify({
                     type: "progress",
                     testedFiles,
-                    currentFile: displayFileName,
+                    currentFile,
                   })
                 );
               }
 
               try {
-                const readStream = await entry.openReadStream();
-                const nullStream = new NullWritable();
-
-                await new Promise((resolve, reject) => {
-                  readStream.on("error", reject);
-                  nullStream.on("error", reject);
-                  nullStream.on("finish", resolve);
-
-                  // Handle cancellation
-                  job.controller.signal.onabort = () => {
-                    readStream.destroy();
-                    nullStream.destroy();
-                    reject(new Error("Archive test cancelled"));
-                  };
-
-                  readStream.pipe(nullStream);
-                });
-              } catch (streamErr) {
-                console.error(
-                  `[ws:${jobId}] Stream error for ${entry.filename}:`,
-                  streamErr
-                );
+                await testEntry(entry);
+              } catch (err) {
                 failedFiles.push({
                   fileName: entry.filename,
-                  message: streamErr.message,
+                  message: err.message,
                 });
               }
             }
+          } catch (err) {
+            console.error(`[ws:${jobId}] Archive test error:`, err);
+            generalError = err.message || String(err);
 
-            console.log(`[ws:${jobId}] Reached end of archive.`);
-            sendCompletionReport();
-          } catch (error) {
-            console.error(`[ws:${jobId}] General archive error:`, error);
-            generalError = error.message;
-            if (ws.readyState === 1) {
-              try {
-                ws.send(
-                  JSON.stringify({
-                    type: "failed",
-                    title: "Failed to open or process archive",
-                    details: error.message,
-                  })
-                );
-              } catch (sendError) {
-                console.error(
-                  `[ws:${jobId}] Error sending failed status to client:`,
-                  sendError
-                );
-              }
-              ws.close();
+            // Only add current file if not already in failedFiles
+            if (
+              currentFile &&
+              !failedFiles.some((f) => f.fileName === currentFile)
+            ) {
+              const perFileMessage =
+                err.message && !/Central Directory/i.test(err.message)
+                  ? err.message
+                  : err.code || "Error processing this file";
+
+              failedFiles.push({
+                fileName: currentFile,
+                message: perFileMessage,
+              });
             }
           } finally {
-            if (zipfile) {
-              zipfile.close();
-            }
+            try {
+              if (zipfile) await zipfile.close();
+            } catch {}
+            sendComplete();
           }
         })();
       }

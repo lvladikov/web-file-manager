@@ -21,8 +21,8 @@ const ArchiveTestIntegrityProgressModal = ({
 
   const isFinished = !!report || !!error;
   const hasFailures = !!error;
-  const progressPercentage =
-    totalFiles > 0 ? (testedFiles / totalFiles) * 100 : 0;
+  const hasTotal = typeof totalFiles === "number" && totalFiles > 0;
+  const progressPercentage = hasTotal ? (testedFiles / totalFiles) * 100 : 0;
 
   const renderTitle = () => {
     if (isFinished) {
@@ -69,15 +69,21 @@ const ArchiveTestIntegrityProgressModal = ({
               {currentFile}
             </p>
             <div className="w-full bg-gray-700 rounded-full h-2.5 mt-2">
-              <div
-                className="bg-sky-500 h-2.5 rounded-full"
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
+              {hasTotal && (
+                <div
+                  className="bg-sky-500 h-2.5 rounded-full"
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              )}
             </div>
             <div className="flex justify-between items-center text-sm text-gray-400 mt-1">
-              <span>{progressPercentage.toFixed(1)}%</span>
               <span>
-                {testedFiles} / {totalFiles} Files
+                {hasTotal ? `${progressPercentage.toFixed(1)}%` : "Scanning..."}
+              </span>
+              <span>
+                {hasTotal
+                  ? `${testedFiles} / ${totalFiles} Files`
+                  : `${testedFiles} Files Tested`}
               </span>
             </div>
           </div>
