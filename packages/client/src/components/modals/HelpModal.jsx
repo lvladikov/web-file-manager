@@ -9,11 +9,12 @@ import SvgBreadcrumbsExample from "../help-diagrams/SvgBreadcrumbsExample";
 import SvgContextMenuExample from "../help-diagrams/SvgContextMenuExample";
 import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
 import dualPanelsScreenshot from "../../../screenshots/dual-panels.png";
+import panelInfoScreenshot from "../../../screenshots/panel-info.png";
 import SvgFileListExample from "../help-diagrams/SvgFileListExample";
 import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
 import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
 import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
-import SvgPanelStatusExample from "../help-diagrams/SvgPanelStatusExample";
+
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -152,7 +153,7 @@ const HelpModal = ({ isVisible, onClose }) => {
                 re-arrange your view.
               </li>
             </ul>
-            <SvgPanelStatusExample />
+            <img src={panelInfoScreenshot} alt="Panel Info Screenshot" className="w-1/2 mx-auto rounded-lg shadow-lg" />
           </HelpSection>
 
           <HelpSection id="real-time-folder-monitoring" title="Real-time Folder Monitoring">
