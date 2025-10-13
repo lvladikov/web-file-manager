@@ -12,11 +12,11 @@ import dualPanelsScreenshot from "../../../screenshots/dual-panels.png";
 import panelInfoScreenshot from "../../../screenshots/panel-info.png";
 import fileTruncationScreenshot from "../../../screenshots/file-truncation.png";
 import folderTruncationScreenshot from "../../../screenshots/folder-truncation.png";
-import SvgFileListExample from "../help-diagrams/SvgFileListExample";
+import folderUpScreenshot from "../../../screenshots/folder-up.png";
+
 import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
 import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
 import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
-
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -53,7 +53,6 @@ const HelpModal = ({ isVisible, onClose }) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4"
@@ -77,12 +76,17 @@ const HelpModal = ({ isVisible, onClose }) => {
         </header>
         <main className="flex-grow p-6 overflow-y-auto">
           <div className="mb-8 p-4 bg-gray-900 rounded-lg">
-            <h2 className="text-xl font-bold text-sky-300 mb-3">Table of Contents</h2>
+            <h2 className="text-xl font-bold text-sky-300 mb-3">
+              Table of Contents
+            </h2>
             <ul className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {sections.map((section) => (
                 <li key={section}>
                   <a
-                    href={`#${section.toLowerCase().replace(/ /g, "-").replace(/&/g, "and")}`}
+                    href={`#${section
+                      .toLowerCase()
+                      .replace(/ /g, "-")
+                      .replace(/&/g, "and")}`}
                     onClick={(e) => handleLinkClick(e, section)}
                     className="text-gray-300 hover:text-sky-400 hover:underline"
                   >
@@ -100,10 +104,17 @@ const HelpModal = ({ isVisible, onClose }) => {
               different locations simultaneously, making it easy to move, copy,
               and compare files and folders between them.
             </p>
-            <img src={dualPanelsScreenshot} alt="Dual Panel Screenshot" className="w-full rounded-lg shadow-lg" />
+            <img
+              src={dualPanelsScreenshot}
+              alt="Dual Panel Screenshot"
+              className="w-full rounded-lg shadow-lg"
+            />
           </HelpSection>
 
-          <HelpSection id="file-and-folder-listing" title="File & Folder Listing">
+          <HelpSection
+            id="file-and-folder-listing"
+            title="File & Folder Listing"
+          >
             <p>
               Each panel lists the files and folders in the current directory.
               To handle long names in limited space, the application dynamically
@@ -111,8 +122,16 @@ const HelpModal = ({ isVisible, onClose }) => {
               (...), ensuring you can still see the beginning and end of the
               name.
             </p>
-            <img src={folderTruncationScreenshot} alt="Folder Truncation Screenshot" className="w-3/4 mx-auto rounded-lg shadow-lg" />
-            <img src={fileTruncationScreenshot} alt="File Truncation Screenshot" className="w-3/4 mx-auto rounded-lg shadow-lg" />
+            <img
+              src={folderTruncationScreenshot}
+              alt="Folder Truncation Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
+            <img
+              src={fileTruncationScreenshot}
+              alt="File Truncation Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
             <p className="inline-flex items-center align-middle">
               Icons next to each name help identify the type:
               <span className="inline-flex items-center align-middle mx-1">
@@ -128,7 +147,10 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
           </HelpSection>
 
-          <HelpSection id="panel-usage-and-information" title="Panel Usage and Information">
+          <HelpSection
+            id="panel-usage-and-information"
+            title="Panel Usage and Information"
+          >
             <p>
               At the bottom of each panel, you'll find useful information about
               the current directory and selected items:
@@ -137,8 +159,13 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <strong>Free/Used Space:</strong> On the right side, the total
                 disk space and available free space for the current
-                drive/partition are displayed. The percentage of free space is color-coded for a quick visual cue: <span className="text-green-400">green</span> for more than 25% free, <span className="text-yellow-400">yellow</span> for 10-25% free, and <span className="text-red-400">red</span> for less than 10% free. This gives you a quick overview
-                of storage utilization.
+                drive/partition are displayed. The percentage of free space is
+                color-coded for a quick visual cue:{" "}
+                <span className="text-green-400">green</span> for more than 25%
+                free, <span className="text-yellow-400">yellow</span> for 10-25%
+                free, and <span className="text-red-400">red</span> for less
+                than 10% free. This gives you a quick overview of storage
+                utilization.
               </li>
               <li>
                 <strong>Selected Items Summary:</strong> On the left side, a
@@ -157,10 +184,17 @@ const HelpModal = ({ isVisible, onClose }) => {
                 re-arrange your view.
               </li>
             </ul>
-            <img src={panelInfoScreenshot} alt="Panel Info Screenshot" className="w-1/2 mx-auto rounded-lg shadow-lg" />
+            <img
+              src={panelInfoScreenshot}
+              alt="Panel Info Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
-          <HelpSection id="real-time-folder-monitoring" title="Real-time Folder Monitoring">
+          <HelpSection
+            id="real-time-folder-monitoring"
+            title="Real-time Folder Monitoring"
+          >
             <p>
               The application automatically monitors the directories shown in
               both panels for any changes made outside of the app. If you
@@ -175,7 +209,10 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
           </HelpSection>
 
-          <HelpSection id="navigation-and-selection" title="Navigation & Selection">
+          <HelpSection
+            id="navigation-and-selection"
+            title="Navigation & Selection"
+          >
             <p>
               You can navigate the file system using either the mouse or the
               keyboard.
@@ -218,10 +255,17 @@ const HelpModal = ({ isVisible, onClose }) => {
                 </ul>
               </li>
             </ul>
-            <SvgFileListExample />
+            <img
+              src={folderUpScreenshot}
+              alt="Folder Up Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
-          <HelpSection id="quick-select-/-unselect-and-quick-filter" title="Quick Select / Unselect & Quick Filter">
+          <HelpSection
+            id="quick-select-/-unselect-and-quick-filter"
+            title="Quick Select / Unselect & Quick Filter"
+          >
             <p>
               The application provides powerful tools for quickly selecting,
               unselecting, or filtering items based on a pattern.
@@ -321,7 +365,10 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgContextMenuExample />
           </HelpSection>
 
-          <HelpSection id="calculate-folder-size-and-progress" title="Calculate Folder Size & Progress">
+          <HelpSection
+            id="calculate-folder-size-and-progress"
+            title="Calculate Folder Size & Progress"
+          >
             <p>
               You can calculate the size of a folder (including all its
               subfolders and files) by selecting it and choosing "Calculate
@@ -344,7 +391,10 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgCalculateSizeExample />
           </HelpSection>
 
-          <HelpSection id="path-bar-and-breadcrumbs" title="Path Bar & Breadcrumbs">
+          <HelpSection
+            id="path-bar-and-breadcrumbs"
+            title="Path Bar & Breadcrumbs"
+          >
             <p>
               At the top of each panel, the current directory path is displayed.
               For long paths that don't fit, it automatically truncates middle
@@ -423,7 +473,10 @@ const HelpModal = ({ isVisible, onClose }) => {
             <SvgActionBarExample />
           </HelpSection>
 
-          <HelpSection id="copy-operation-and-conflict-modes" title="Copy Operation & Conflict Modes">
+          <HelpSection
+            id="copy-operation-and-conflict-modes"
+            title="Copy Operation & Conflict Modes"
+          >
             <p>
               When you press <kbd>F5</kbd> to copy, items are copied from the
               active panel to the directory shown in the inactive panel. If an

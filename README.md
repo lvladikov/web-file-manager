@@ -86,12 +86,12 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **File & Folder Listing**: Each panel lists files and folders. Long names are dynamically truncated. Icons next to each name (folder icon for folders, text file icon for text files, image icon for images, etc.) help identify the type.
 
-    ![Folder Truncation Screenshot](packages/client/screenshots/folder-truncation.png)
-    ![File Truncation Screenshot](packages/client/screenshots/file-truncation.png)
+  ![Folder Truncation Screenshot](packages/client/screenshots/folder-truncation.png)
+  ![File Truncation Screenshot](packages/client/screenshots/file-truncation.png)
 
 - **Panel Usage and Information**: At the bottom of each panel, useful information is displayed. This includes the total disk space and available free space for the current drive/partition, a summary of selected items, and the ability to swap panels. The free space percentage is color-coded to provide a quick visual cue: 🟢 green for more than 25% free, 🟡 yellow for 10-25% free, and 🔴 red for less than 10% free. Hovering over the selected items text reveals a tooltip with a detailed breakdown of selected files and folders, their combined size, and a hint on how to calculate full folder sizes if applicable. You can quickly swap the content of the two panels using <kbd>Cmd/Ctrl + U</kbd>.
 
-    ![Panel Info Screenshot](packages/client/screenshots/panel-info.png)
+  ![Panel Info Screenshot](packages/client/screenshots/panel-info.png)
 
 - **Real-time Folder Monitoring**: The application automatically monitors the directories shown in both panels for any changes made outside of the app. If you create, delete, or rename a file or folder in one of the visible directories using another program (like your operating system's file explorer), the panel will automatically refresh to reflect these changes in real-time.
 
@@ -110,6 +110,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
   - **Quick Unselect** (<kbd>-</kbd>): Opens a dialog to unselect items based on a pattern.
 
   - **Quick Filter** (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy and Delete will only apply to the filtered items.
+
+    ![Folder Up Screenshot](packages/client/screenshots/folder-up.png)
 
 - **File Preview**: Preview images, videos, PDFs, and text files by focusing an item and pressing <kbd>Spacebar</kbd>.
 
