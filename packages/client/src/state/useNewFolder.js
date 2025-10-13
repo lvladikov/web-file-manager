@@ -51,13 +51,13 @@ export default function useNewFolder({
     const newFolderPath = buildFullPath(panel.path, value);
     try {
       await createNewFolder(newFolderPath);
+      handleCancelNewFolder(); // Reset state before navigation
       await handleNavigate(panelId, panel.path, "");
       setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
       setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
       setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
     } catch (err) {
       setError(err.message);
-    } finally {
       handleCancelNewFolder();
     }
   }, [
