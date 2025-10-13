@@ -116,6 +116,24 @@ export default function createFileRoutes(
 
       let validItems = items.filter((item) => !item.error);
 
+      // Sort items: folders first, then files starting with '_', then others, all alphabetically.
+      validItems.sort((a, b) => {
+        // Group by type: folders first
+        if (a.type === 'folder' && b.type !== 'folder') return -1;
+        if (a.type !== 'folder' && b.type === 'folder') return 1;
+
+        // Within files, group by underscore prefix
+        if (a.type !== 'folder' && b.type !== 'folder') {
+          const a_ = a.name.startsWith('_');
+          const b_ = b.name.startsWith('_');
+          if (a_ && !b_) return -1;
+          if (!a_ && b_) return 1;
+        }
+
+        // Default sort by name
+        return a.name.localeCompare(b.name);
+      });
+
       // On macOS, prevent listing 'Macintosh HD' when in /Volumes to avoid recursion
       if (os.platform() === "darwin" && currentPath === "/Volumes") {
         validItems = validItems.filter((item) => item.name !== "Macintosh HD");
