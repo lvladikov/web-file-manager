@@ -25,7 +25,7 @@ const BrowserModal = forwardRef(
       confirmButtonText,
       children,
       fetchItems,
-      onFileDoubleClick, // New prop
+      onFileDoubleClick,
     },
     ref
   ) => {
@@ -250,7 +250,7 @@ const BrowserModal = forwardRef(
             {title}
           </h3>
           {children && (
-            <div className="text-gray-400 truncate mb-4 flex-shrink-0">
+            <div className="text-gray-400 mb-4 flex-shrink-0 whitespace-normal">
               {children}
             </div>
           )}
@@ -267,7 +267,7 @@ const BrowserModal = forwardRef(
           </div>
           <div
             key={currentPath}
-            ref={ref}
+            ref={listRef}
             tabIndex={-1}
             className="flex-grow overflow-y-auto border border-gray-700 rounded-b-md p-1 relative outline-none focus:ring-2 focus:ring-sky-500"
           >

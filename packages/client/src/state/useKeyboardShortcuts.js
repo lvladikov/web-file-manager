@@ -53,16 +53,62 @@ export default function useKeyboardShortcuts(props) {
         handleSwapPanels,
       } = latestProps.current;
 
+      // Handle modals that should trap all keyboard input first.
+      if (previewModal.isVisible) {
+        // If it's a zip preview, it handles all keys internally except Escape.
+        if (previewModal.item?.type === "archive") {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            setPreviewModal({ isVisible: false, item: null });
+          }
+          // For any other key, stop this handler and let the modal's handler take over.
+          return;
+        }
+
+        // For other previews, allow navigation keys to pass through to the main panel handler.
+        const isNavKey = [
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+          "PageUp",
+          "PageDown",
+        ].includes(e.key);
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setPreviewModal({ isVisible: false, item: null });
+          return;
+        }
+
+        // For non-nav keys, stop processing.
+        if (!isNavKey) {
+          return;
+        }
+      }
+
       if (overwritePrompt.isVisible) {
         e.stopPropagation();
         const yesButton = document.getElementById("overwrite-yes-button");
         const noButton = document.getElementById("overwrite-no-button");
-        const overwriteAllButton = document.getElementById("overwrite-overwrite_all-button");
-        const ifNewerButton = document.getElementById("overwrite-if_newer-button");
-        const skipAllButton = document.getElementById("overwrite-skip_all-button");
-        const noZeroLengthButton = document.getElementById("overwrite-no_zero_length-button");
-        const sizeDiffersButton = document.getElementById("overwrite-size_differs-button");
-        const smallerOnlyButton = document.getElementById("overwrite-smaller_only-button");
+        const overwriteAllButton = document.getElementById(
+          "overwrite-overwrite_all-button"
+        );
+        const ifNewerButton = document.getElementById(
+          "overwrite-if_newer-button"
+        );
+        const skipAllButton = document.getElementById(
+          "overwrite-skip_all-button"
+        );
+        const noZeroLengthButton = document.getElementById(
+          "overwrite-no_zero_length-button"
+        );
+        const sizeDiffersButton = document.getElementById(
+          "overwrite-size_differs-button"
+        );
+        const smallerOnlyButton = document.getElementById(
+          "overwrite-smaller_only-button"
+        );
         const cancelButton = document.getElementById("overwrite-cancel-button");
 
         const focusableElements = [
@@ -83,8 +129,13 @@ export default function useKeyboardShortcuts(props) {
         }
         if (e.key === "Tab") {
           e.preventDefault();
-          const currentIndex = focusableElements.indexOf(document.activeElement);
-          const nextIndex = e.shiftKey ? (currentIndex - 1 + focusableElements.length) % focusableElements.length : (currentIndex + 1) % focusableElements.length;
+          const currentIndex = focusableElements.indexOf(
+            document.activeElement
+          );
+          const nextIndex = e.shiftKey
+            ? (currentIndex - 1 + focusableElements.length) %
+              focusableElements.length
+            : (currentIndex + 1) % focusableElements.length;
           focusableElements[nextIndex]?.focus();
         }
         return;
@@ -101,8 +152,7 @@ export default function useKeyboardShortcuts(props) {
           e.preventDefault();
           if (document.activeElement === deleteButton) {
             confirmDeletion();
-          }
-          else {
+          } else {
             handleCancelDelete();
           }
         } else if (e.key === "Tab") {
@@ -110,8 +160,7 @@ export default function useKeyboardShortcuts(props) {
           if (e.shiftKey) {
             if (document.activeElement === deleteButton) cancelButton?.focus();
             else deleteButton?.focus();
-          }
-          else {
+          } else {
             if (document.activeElement === cancelButton) deleteButton?.focus();
             else deleteButton?.focus();
           }
@@ -125,29 +174,47 @@ export default function useKeyboardShortcuts(props) {
         const resetButton = document.getElementById("reset-selection");
         const regexButton = document.getElementById("use-regex");
         const caseButton = document.getElementById("case-sensitive");
-        const cancelButton = document.getElementById("quick-select-cancel-button");
-        const confirmButton = document.getElementById("quick-select-confirm-button");
+        const cancelButton = document.getElementById(
+          "quick-select-cancel-button"
+        );
+        const confirmButton = document.getElementById(
+          "quick-select-confirm-button"
+        );
 
-        const focusableElements = [patternInput, resetButton, regexButton, caseButton, cancelButton, confirmButton];
+        const focusableElements = [
+          patternInput,
+          resetButton,
+          regexButton,
+          caseButton,
+          cancelButton,
+          confirmButton,
+        ];
 
         if (e.key === "Escape") {
           e.preventDefault();
-          latestProps.current.setQuickSelectModal({ isVisible: false, mode: 'select' });
+          latestProps.current.setQuickSelectModal({
+            isVisible: false,
+            mode: "select",
+          });
         }
         if (e.key === "Enter") {
           e.preventDefault();
           if (document.activeElement !== cancelButton) {
             confirmButton.click();
-          }
-          else {
+          } else {
             cancelButton.click();
           }
         }
         if (e.key === "Tab") {
-            e.preventDefault();
-            const currentIndex = focusableElements.indexOf(document.activeElement);
-            const nextIndex = e.shiftKey ? (currentIndex - 1 + focusableElements.length) % focusableElements.length : (currentIndex + 1) % focusableElements.length;
-            focusableElements[nextIndex]?.focus();
+          e.preventDefault();
+          const currentIndex = focusableElements.indexOf(
+            document.activeElement
+          );
+          const nextIndex = e.shiftKey
+            ? (currentIndex - 1 + focusableElements.length) %
+              focusableElements.length
+            : (currentIndex + 1) % focusableElements.length;
+          focusableElements[nextIndex]?.focus();
         }
         return;
       }
@@ -168,7 +235,14 @@ export default function useKeyboardShortcuts(props) {
         const isQuickUnselect = e.key === "-";
         const allowedFKeys = ["F5", "F6", "F8"]; // F2 might be allowed in the future for multi-rename
 
-        if (isSelectAll || isUnselectAll || isInvertSelection || isQuickSelect || isQuickUnselect || allowedFKeys.includes(e.key)) {
+        if (
+          isSelectAll ||
+          isUnselectAll ||
+          isInvertSelection ||
+          isQuickSelect ||
+          isQuickUnselect ||
+          allowedFKeys.includes(e.key)
+        ) {
           // Allow event to propagate for these specific shortcuts
         } else {
           e.stopPropagation();
@@ -176,7 +250,12 @@ export default function useKeyboardShortcuts(props) {
           const caseButton = document.getElementById("filter-case-button");
           const closeButton = document.getElementById("filter-close-button");
 
-          const focusableElements = [filterInput, regexButton, caseButton, closeButton];
+          const focusableElements = [
+            filterInput,
+            regexButton,
+            caseButton,
+            closeButton,
+          ];
 
           if (e.key === "Escape") {
             e.preventDefault();
@@ -184,40 +263,26 @@ export default function useKeyboardShortcuts(props) {
           }
           if (e.key === "Tab") {
             e.preventDefault();
-            const currentIndex = focusableElements.indexOf(document.activeElement);
-            const nextIndex = e.shiftKey ? (currentIndex - 1 + focusableElements.length) % focusableElements.length : (currentIndex + 1) % focusableElements.length;
+            const currentIndex = focusableElements.indexOf(
+              document.activeElement
+            );
+            const nextIndex = e.shiftKey
+              ? (currentIndex - 1 + focusableElements.length) %
+                focusableElements.length
+              : (currentIndex + 1) % focusableElements.length;
             focusableElements[nextIndex]?.focus();
           }
           return;
         }
       }
 
-      if (previewModal.isVisible) {
-        const isNavKey = [
-          "ArrowUp",
-          "ArrowDown",
-          "Home",
-          "End",
-          "PageUp",
-          "PageDown",
-        ].includes(e.key);
-        if (e.key === "Escape") { 
-          e.preventDefault();
-          setPreviewModal({ isVisible: false, item: null });
-          return;
-        }
-        if (!isNavKey) {
-          return;
-        }
-      }
       if (copyProgress.isVisible) {
         if (e.key === "Escape") {
           e.preventDefault();
           handleCancelCopy();
         }
         return;
-      }
-      else if (
+      } else if (
         folderBrowserModal.isVisible ||
         appBrowserModal.isVisible ||
         sizeCalcModal.isVisible ||
@@ -235,23 +300,6 @@ export default function useKeyboardShortcuts(props) {
             setAppBrowserModal((s) => ({ ...s, isVisible: false }));
           if (helpModal.isVisible) setHelpModal({ isVisible: false });
           if (error) setError(null);
-
-      // If ZipPreview is open, trap most shortcuts within it
-      if (previewModal.isVisible && previewModal.item?.type === "archive") {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          setPreviewModal({ isVisible: false, item: null });
-        }
-        // Allow tab to move focus within the modal, but prevent default to stop it from leaving the modal
-        if (e.key === "Tab") {
-          e.preventDefault();
-          // The BrowserModal (used by ZipPreview) should handle its own internal tab navigation
-          // We just prevent the event from propagating further to the main app
-        }
-        // For all other keys, do NOT prevent default, allowing BrowserModal to handle them.
-        return;
-      }
-
         }
         return;
       }

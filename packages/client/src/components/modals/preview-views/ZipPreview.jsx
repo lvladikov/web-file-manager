@@ -156,7 +156,12 @@ const ZipPreview = forwardRef(({ filePath, onClose, isVisible }, ref) => {
       confirmButtonText={null} // Remove the redundant 'Close Preview' button
       filterItem={() => true} // All items are selectable for preview
       fetchItems={fetchZipDirectory}
-    />
+    >
+      <p className="text-sm text-gray-400 -mt-2">
+        Use navigation keys (Arrows, Home, End, Page Up, Page Down, Backspace)
+        to browse the archive contents.
+      </p>
+    </BrowserModal>
   );
 });
 

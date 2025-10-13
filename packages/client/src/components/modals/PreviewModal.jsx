@@ -7,6 +7,7 @@ import {
   ChevronUp,
   ChevronDown,
   ListOrdered,
+  Info,
 } from "lucide-react";
 
 import {
@@ -27,6 +28,26 @@ import UnsupportedPreview from "./preview-views/UnsupportedPreview";
 import ImagePreview from "./preview-views/ImagePreview";
 import VideoPreview from "./preview-views/VideoPreview";
 import ZipPreview from "./preview-views/ZipPreview";
+
+const PreviewInfo = ({ previewType }) => {
+  if (
+    previewType === "zip" ||
+    previewType === "none" ||
+    previewType === "unsupported"
+  ) {
+    return null;
+  }
+
+  const text =
+    "Use navigation keys (Arrows, Home, End, Page Up, Page Down) to change the item being previewed in the background panel. This is perfect for browsing through images, videos, or text files.";
+
+  return (
+    <div className="flex items-start p-3 bg-gray-800 text-sm text-gray-400 border-b border-gray-700 flex-shrink-0">
+      <Info className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-sky-400" />
+      <p className="min-w-0">{text}</p>
+    </div>
+  );
+};
 
 const PreviewModal = ({
   isVisible,
@@ -118,10 +139,7 @@ const PreviewModal = ({
   useEffect(() => {
     if (searchTerm && textContent) {
       try {
-        // Build flags dynamically
         const flags = caseSensitive ? (useRegex ? "g" : "g") : "gi";
-
-        // Create regex safely
         const regex = useRegex
           ? new RegExp(searchTerm, flags)
           : new RegExp(
@@ -178,17 +196,7 @@ const PreviewModal = ({
           return;
         }
       }
-      if (e.key === "Escape" && !document.fullscreenElement) {
-        e.preventDefault();
-        onClose();
-      }
-      if (previewType === "zip") {
-        // Delegate all key presses to the ZipPreview component
-        if (zipPreviewRef.current && zipPreviewRef.current.handleKeyDown) {
-          zipPreviewRef.current.handleKeyDown(e);
-        }
-        return; // Crucially, stop further processing in PreviewModal's handler
-      }
+
       if (e.key === " ") {
         if (
           e.target.tagName !== "VIDEO" &&
@@ -376,7 +384,6 @@ const PreviewModal = ({
                 />
                 <span>Regex</span>
               </label>
-
               <label className="flex items-center space-x-1 cursor-pointer">
                 <input
                   type="checkbox"
@@ -386,7 +393,6 @@ const PreviewModal = ({
                 />
                 <span>Case</span>
               </label>
-
               {regexError ? (
                 <span className="text-red-400 text-xs">{regexError}</span>
               ) : matches.length > 0 ? (
@@ -398,7 +404,6 @@ const PreviewModal = ({
                   {searchTerm ? "Not found" : ""}
                 </span>
               )}
-
               <button
                 onClick={goToPrevMatch}
                 disabled={matches.length === 0}
@@ -423,81 +428,83 @@ const PreviewModal = ({
           </div>
         )}
 
-        <div className="flex-1 min-h-0 rounded-b-lg flex flex-col">
-          {previewType === "image" && (
-            <ImagePreview
-              item={item}
-              fullPath={fullPath}
-              isFullscreen={isFullscreen}
-            />
-          )}
+        <PreviewInfo previewType={previewType} />
 
-          {previewType === "pdf" && (
-            <PdfPreview
-              fileUrl={`/api/media-stream?path=${encodeURIComponent(fullPath)}`}
-              isFullscreen={isFullscreen}
-            />
-          )}
-
-          {previewType === "video" && (
-            <VideoPreview
-              item={item}
-              fullPath={fullPath}
-              isFullscreen={isFullscreen}
-              videoRef={videoRef}
-              videoHasError={videoHasError}
-              handleVideoError={handleVideoError}
-            />
-          )}
-
-          {previewType === "audio" && (
-            <AudioPreview
-              coverArtUrl={coverArtUrl}
-              audioRef={audioRef}
-              item={item}
-              fullPath={fullPath}
-              activePath={activePath}
-              autoLoadLyrics={autoLoadLyrics}
-              onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
-            />
-          )}
-
-          {previewType === "text" && (
-            <TextPreview
-              codeLines={codeLines}
-              showLineNumbers={showLineNumbers}
-              wordWrap={wordWrap}
-              language={language}
-              item={item}
-              previewType={previewType}
-              textContent={textContent}
-              textError={textError}
-              searchTerm={searchTerm}
-              matches={matches}
-              currentMatchIndex={currentMatchIndex}
-              setCodeLines={setCodeLines}
-              getPrismLanguage={getPrismLanguage}
-            />
-          )}
-
-          {previewType === "unsupported" && (
-            <UnsupportedPreview
-              item={item}
-              activePath={activePath}
-              onStartSizeCalculation={onStartSizeCalculation}
-              onOpenFile={onOpenFile}
-              onClose={onClose}
-            />
-          )}
-
-          {previewType === "zip" && (
-            <ZipPreview
-              ref={zipPreviewRef}
-              filePath={fullPath}
-              onClose={onClose}
-              isVisible={isVisible}
-            />
-          )}
+        <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-auto">
+          <div className="flex-1 min-h-0 relative">
+            {previewType === "image" && (
+              <ImagePreview
+                item={item}
+                fullPath={fullPath}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {previewType === "pdf" && (
+              <PdfPreview
+                fileUrl={`/api/media-stream?path=${encodeURIComponent(
+                  fullPath
+                )}`}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {previewType === "video" && (
+              <VideoPreview
+                item={item}
+                fullPath={fullPath}
+                isFullscreen={isFullscreen}
+                videoRef={videoRef}
+                videoHasError={videoHasError}
+                handleVideoError={handleVideoError}
+              />
+            )}
+            {previewType === "audio" && (
+              <AudioPreview
+                coverArtUrl={coverArtUrl}
+                audioRef={audioRef}
+                item={item}
+                fullPath={fullPath}
+                activePath={activePath}
+                autoLoadLyrics={autoLoadLyrics}
+                onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
+              />
+            )}
+            {previewType === "text" && (
+              <TextPreview
+                codeLines={codeLines}
+                showLineNumbers={showLineNumbers}
+                wordWrap={wordWrap}
+                language={language}
+                item={item}
+                previewType={previewType}
+                textContent={textContent}
+                textError={textError}
+                searchTerm={searchTerm}
+                matches={matches}
+                currentMatchIndex={currentMatchIndex}
+                setCodeLines={setCodeLines}
+                getPrismLanguage={getPrismLanguage}
+              />
+            )}
+            {previewType === "unsupported" && (
+              <UnsupportedPreview
+                item={item}
+                activePath={activePath}
+                onStartSizeCalculation={onStartSizeCalculation}
+                onOpenFile={onOpenFile}
+                onClose={onClose}
+              />
+            )}
+            {previewType === "zip" && (
+              <div className="absolute inset-0">
+                <ZipPreview
+                  ref={zipPreviewRef}
+                  filePath={fullPath}
+                  onClose={onClose}
+                  isVisible={isVisible}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
