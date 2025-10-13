@@ -124,9 +124,8 @@ const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {
         // Step 3: Establish the WebSocket connection for real-time updates.
         const wsProtocol =
           window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.host.replace(/:\d+$/, ":3001"); // Assumes WebSocket server is on port 3001
         jobWs = new WebSocket(
-          `${wsProtocol}//${wsHost}?jobId=${jobId}&type=size`
+          `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=size`
         );
 
         // Store the WebSocket instance in the ref so it can be accessed from outside (e.g., for cancellation).

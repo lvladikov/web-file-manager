@@ -16,9 +16,15 @@ export default function useSizeCalculation({
     totalBytes: 0,
     folderName: null,
   });
+  const [calculating, setCalculating] = useState(new Set());
 
   const handleStartSizeCalculation = useCallback(
     async (item) => {
+      if (calculating.has(item.fullPath)) {
+        return;
+      }
+      setCalculating((prev) => new Set(prev).add(item.fullPath));
+
       // Find which panel this item belongs to
       let panelId = null;
       let path = null;
@@ -66,9 +72,15 @@ export default function useSizeCalculation({
         setError(
           `Folder Size Calculation for "${item.name}" failed: ${err.message}`
         );
+      } finally {
+        setCalculating((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(item.fullPath);
+          return newSet;
+        });
       }
     },
-    [panels, setError, updateItemInPanel, wsRef, setSizeCalcModal]
+    [panels, setError, updateItemInPanel, wsRef, setSizeCalcModal, calculating]
   );
 
   const calculateSizeForMultipleFolders = useCallback(
@@ -92,10 +104,7 @@ export default function useSizeCalculation({
               const wsProtocol =
                 window.location.protocol === "https:" ? "wss:" : "ws:";
               const jobWs = new WebSocket(
-                `${wsProtocol}//${window.location.host.replace(
-                  /:\d+$/,
-                  ":3001"
-                )}?jobId=${jobId}&type=size`
+                `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=size`
               );
 
               wsRef.current = jobWs;

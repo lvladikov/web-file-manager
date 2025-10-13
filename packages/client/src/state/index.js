@@ -92,6 +92,21 @@ export default function appState() {
   // 1. Independent hooks that provide state and setters
   const settings = useSettings({ setError });
   const modals = useModals();
+
+  const wsFileWatcher = useRef(null);
+
+  const watchPath = useCallback((path) => {
+    if (wsFileWatcher.current && wsFileWatcher.current.readyState === WebSocket.OPEN) {
+      wsFileWatcher.current.send(JSON.stringify({ type: "watch_path", path }));
+    }
+  }, []);
+
+  const unwatchPath = useCallback((path) => {
+    if (wsFileWatcher.current && wsFileWatcher.current.readyState === WebSocket.OPEN) {
+      wsFileWatcher.current.send(JSON.stringify({ type: "unwatch_path", path }));
+    }
+  }, []);
+
   const panelOps = usePanelOps({
     panels,
     setPanels,
@@ -100,6 +115,8 @@ export default function appState() {
     setAppBrowserModal: modals.setAppBrowserModal,
     activePanel,
     focusedItem,
+    watchPath,
+    unwatchPath,
   });
   const sizeCalculation = useSizeCalculation({
     panels,
@@ -361,6 +378,18 @@ export default function appState() {
     }
   }, [panels.left.path, panels.right.path]);
 
+  useEffect(() => {
+    const leftPath = panels.left.path;
+    const rightPath = panels.right.path;
+
+    if (leftPath) {
+      watchPath(leftPath);
+    }
+    if (rightPath) {
+      watchPath(rightPath);
+    }
+  }, [panels.left.path, panels.right.path, watchPath]);
+
   // --- "Connector" Handlers & UI Composition ---
   const openFolderBrowserForPanel = (panelId) => {
     const startPath = panels[panelId].path;
@@ -533,6 +562,55 @@ export default function appState() {
     handleSelectAll,
     handleSwapPanels,
   });
+
+  const panelsRef = useRef(panels);
+  panelsRef.current = panels;
+
+  const panelOpsRef = useRef(panelOps);
+  panelOpsRef.current = panelOps;
+
+  useEffect(() => {
+    let isMounted = true;
+    const WEBSOCKET_URL = `ws://${window.location.host}/ws`;
+    wsFileWatcher.current = new WebSocket(WEBSOCKET_URL);
+
+    wsFileWatcher.current.onopen = () => {
+      if (!isMounted) return;
+    };
+
+    wsFileWatcher.current.onmessage = (event) => {
+      if (!isMounted) return;
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === "path_changed") {
+          const { path } = message;
+          Object.entries(panelsRef.current).forEach(([panelId, panel]) => {
+            if (panel.path === path) {
+              panelOpsRef.current.handleRefreshPanel(panelId);
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Error parsing message from file watcher ws:", e);
+      }
+    };
+
+    wsFileWatcher.current.onclose = () => {
+      if (!isMounted) return;
+    };
+
+    wsFileWatcher.current.onerror = (error) => {
+      if (!isMounted) return;
+      console.error("File watcher WebSocket error:", error);
+    };
+
+    return () => {
+      isMounted = false;
+      if (wsFileWatcher.current) {
+        wsFileWatcher.current.close();
+      }
+    };
+  }, []);
 
   const { handleContextOpen, handleContextOpenWith, ...panelOpsHandlers } =
     panelOps;

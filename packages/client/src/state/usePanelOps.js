@@ -10,15 +10,32 @@ export default function usePanelOps({
   setAppBrowserModal,
   activePanel,
   focusedItem,
+  watchPath,
+  unwatchPath,
 }) {
   const updateItemInPanel = useCallback(
     (panelId, itemName, newProps) => {
       setPanels((prev) => {
-        const panel = prev[panelId];
-        const newItems = panel.items.map((item) =>
+        const newPanels = { ...prev };
+
+        // Update the target panel
+        const targetPanel = newPanels[panelId];
+        const newTargetItems = targetPanel.items.map((item) =>
           item.name === itemName ? { ...item, ...newProps } : item
         );
-        return { ...prev, [panelId]: { ...panel, items: newItems } };
+        newPanels[panelId] = { ...targetPanel, items: newTargetItems };
+
+        // Check if the other panel has the same path
+        const otherPanelId = panelId === "left" ? "right" : "left";
+        const otherPanel = newPanels[otherPanelId];
+        if (otherPanel.path === targetPanel.path) {
+          const newOtherItems = otherPanel.items.map((item) =>
+            item.name === itemName ? { ...item, ...newProps } : item
+          );
+          newPanels[otherPanelId] = { ...otherPanel, items: newOtherItems };
+        }
+
+        return newPanels;
       });
     },
     [setPanels]
@@ -37,17 +54,26 @@ export default function usePanelOps({
 
   const handleNavigate = useCallback(
     async (panelId, currentPath, target) => {
+      const oldPath = panels[panelId].path;
       setLoading((prev) => ({ ...prev, [panelId]: true }));
       try {
         const data = await fetchDirectory(currentPath, target);
         setPanels((prev) => ({ ...prev, [panelId]: data }));
+
+        // Watcher logic
+        if (unwatchPath && oldPath && oldPath !== data.path) {
+          unwatchPath(oldPath);
+        }
+        if (watchPath && data.path && oldPath !== data.path) {
+          watchPath(data.path);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading((prev) => ({ ...prev, [panelId]: false }));
       }
     },
-    [setLoading, setPanels, setError]
+    [panels, setLoading, setPanels, setError, watchPath, unwatchPath]
   );
 
   const handleRefreshPanel = (panelId) => {
