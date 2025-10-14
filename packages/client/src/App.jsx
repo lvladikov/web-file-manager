@@ -1,5 +1,10 @@
 import { cancelSizeCalculation } from "./lib/api";
-import { isItemPreviewable, buildFullPath } from "./lib/utils";
+import {
+  isItemPreviewable,
+  buildFullPath,
+  isPreviewableText,
+  isEditable,
+} from "./lib/utils";
 import { useRef } from "react";
 
 import appState from "./state";
@@ -139,9 +144,22 @@ export default function App() {
     singleItemSelected && isItemPreviewable(firstSelectedItemDetails);
   const canOpen = singleItemSelected;
   const canOpenWith =
-    singleItemSelected &&
-    firstSelectedItemDetails?.type !== "folder" &&
-    firstSelectedItemDetails?.type !== "parent";
+    singleItemSelected && isEditable(firstSelectedItemDetails);
+  const canEdit = singleItemSelected && isEditable(firstSelectedItemDetails);
+
+  const handleEdit = () => {
+    const name = focusedItem[activePanel];
+    if (name) {
+      const item = panels[activePanel].items.find((i) => i.name === name);
+      if (item) {
+        if (isPreviewableText(item.name)) {
+          setPreviewModal({ isVisible: true, item: item, isEditing: true });
+        } else if (!["folder", "parent"].includes(item.type)) {
+          handleOpenFile(activePath, item.name);
+        }
+      }
+    }
+  };
 
   return (
     <div
@@ -187,6 +205,7 @@ export default function App() {
               }
             }
           }}
+          onEdit={handleEdit}
           onDelete={() => {
             const items = filter[activePanel].pattern
               ? filteredItems[activePanel]
@@ -255,6 +274,7 @@ export default function App() {
           canPreview={canPreview}
           canOpen={canOpen}
           canOpenWith={canOpenWith}
+          canEdit={canEdit}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -489,6 +509,7 @@ export default function App() {
             }}
             onOpen={() => handleContextOpen()}
             onOpenWith={() => handleContextOpenWith()}
+            onEdit={handleEdit}
             onCopyToOtherPanel={() => {
               const sourcePanelId = panelId;
               const destPanelId = sourcePanelId === "left" ? "right" : "left";

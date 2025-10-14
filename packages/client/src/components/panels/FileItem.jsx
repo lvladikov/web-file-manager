@@ -21,6 +21,7 @@ const FileItem = ({
   onPreview,
   onOpen,
   onOpenWith,
+  onEdit,
   onCopyToOtherPanel,
   onMoveToOtherPanel,
   onRename,
@@ -160,6 +161,7 @@ const FileItem = ({
       onCopyToOtherPanel={onCopyToOtherPanel}
       onMoveToOtherPanel={onMoveToOtherPanel}
       onRename={onRename}
+      onEdit={onEdit}
       onDelete={onDelete}
       onSetOtherPanelPath={onSetOtherPanelPath}
       onCalculateSize={onCalculateSize}

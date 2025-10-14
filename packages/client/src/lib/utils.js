@@ -48,6 +48,11 @@ const isPreviewableText = (itemName = "") => {
   );
 };
 
+const isEditable = (item) => {
+  if (!item) return false;
+  return !["folder", "parent"].includes(item.type);
+};
+
 const isItemPreviewable = (item) => {
   if (!item || item.type === "folder") return false;
   if (item.type === "archive") return true; // Zip files are previewable
@@ -277,6 +282,7 @@ export {
   isPreviewableVideo,
   isPreviewableAudio,
   isPreviewableText,
+  isEditable,
   getFileTypeInfo,
   calculateFolderSize,
   basename,

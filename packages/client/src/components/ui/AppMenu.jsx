@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as NavigationMenu from "@radix-ui/react-navigation-menu";
-import { isMac } from "../../lib/utils";
+import { isMac, isEditable } from "../../lib/utils";
 
 const itemClassName =
   "px-4 py-2 flex justify-between hover:bg-sky-600 cursor-pointer";
@@ -23,6 +23,7 @@ const FileMenu = ({ ...props }) => {
     onCopyToOtherPanel,
     onMoveToOtherPanel,
     onRename,
+    onEdit,
     onDelete,
     onCalculateSize,
     onSetOtherPanelPath,
@@ -37,6 +38,7 @@ const FileMenu = ({ ...props }) => {
     canCopyToOtherPanel,
     canMoveToOtherPanel,
     canRename,
+    canEdit,
     canDelete,
     canCalculateSize,
     canSetOtherPanelPath,
@@ -126,6 +128,12 @@ const FileMenu = ({ ...props }) => {
           shortcut="F2"
           onClick={() => handleItemClick(onRename)}
           disabled={!canRename}
+        />
+        <MenuItem
+          label="Edit"
+          shortcut="F4"
+          onClick={() => handleItemClick(onEdit)}
+          disabled={!canEdit}
         />
         <MenuItem
           label="Delete"
@@ -291,6 +299,7 @@ const AppMenu = (props) => {
     singleItemSelected &&
     firstSelectedItemDetails &&
     firstSelectedItemDetails.name !== "..";
+  const canEdit = singleItemSelected && isEditable(firstSelectedItemDetails);
   const canDelete = activePanelSelections.size > 0;
   const canCalculateSize = folderCount > 0;
   const canSetOtherPanelPath =
@@ -308,6 +317,7 @@ const AppMenu = (props) => {
     canCopyToOtherPanel,
     canMoveToOtherPanel,
     canRename,
+    canEdit,
     canDelete,
     canCalculateSize,
     canSetOtherPanelPath,

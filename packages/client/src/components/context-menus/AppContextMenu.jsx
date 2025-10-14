@@ -12,6 +12,7 @@ const AppContextMenu = ({
   onCopyToOtherPanel,
   onMoveToOtherPanel,
   onRename,
+  onEdit,
   onDelete,
   onCalculateSize,
   onSetOtherPanelPath,
@@ -172,6 +173,14 @@ const AppContextMenu = ({
                   <span className="text-gray-400">F2</span>
                 </ContextMenu.Item>
               )}
+              {!isMultiSelect &&
+                firstItem.type !== "folder" &&
+                firstItem.type !== "parent" && (
+                  <ContextMenu.Item onSelect={onEdit} className={itemClassName}>
+                    <span>Edit</span>
+                    <span className="text-gray-400">F4</span>
+                  </ContextMenu.Item>
+                )}
               <ContextMenu.Item
                 onSelect={onDelete}
                 className={`${itemClassName} text-red-400 hover:text-red-300`}
