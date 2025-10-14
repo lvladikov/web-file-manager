@@ -214,12 +214,8 @@ const EditableTextPreview = ({
           <pre
             ref={lineNumbersRef}
             aria-hidden="true"
-            className="text-right text-gray-500 select-none bg-gray-900 font-mono text-sm overflow-y-hidden"
-            style={{
-              padding: "1rem",
-              paddingRight: "1rem",
-              lineHeight: commonEditorStyles.lineHeight,
-            }}
+            className="text-right text-gray-500 mt-4 pr-4 select-none bg-gray-900 font-mono text-sm overflow-y-hidden"
+            style={commonEditorStyles}
           >
             {lines.map((_, i) => (
               <div key={i}>{i + 1}</div>

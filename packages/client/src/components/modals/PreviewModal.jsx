@@ -444,7 +444,11 @@ const PreviewModal = ({
                 onClick={handleSave}
                 disabled={editedContent === textContent}
                 className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                title={editedContent === textContent ? "No changes to save" : `Save (${isMac ? "Cmd+S" : "Ctrl+S"})`}
+                title={
+                  editedContent === textContent
+                    ? "No changes to save"
+                    : `Save (${isMac ? "Cmd+S" : "Ctrl+S"})`
+                }
               >
                 <Save className="w-6 h-6" />
               </button>
@@ -623,7 +627,7 @@ const PreviewModal = ({
 
         {!isEditing && <PreviewInfo previewType={previewType} />}
 
-        <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-auto">
           {previewType === "image" && (
             <ImagePreview
               item={item}
