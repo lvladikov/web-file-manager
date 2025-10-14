@@ -435,7 +435,7 @@ const PreviewModal = ({
       >
         <div
           className={`w-full h-12 bg-black bg-opacity-60 flex-shrink-0 flex justify-between items-center px-3 rounded-t-lg z-20 ${
-            isFullscreen || previewType === "unsupported" ? "hidden" : ""
+            previewType === "unsupported" ? "hidden" : ""
           }`}
         >
           {isEditing && previewType === "text" ? (
