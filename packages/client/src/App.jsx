@@ -166,6 +166,19 @@ export default function App() {
               .map((item) => buildFullPath(sourcePath, item.name));
             performCopy(sources, destinationPath);
           }}
+          onMoveToOtherPanel={() => {
+            const sourcePanelId = activePanel;
+            const destPanelId = sourcePanelId === "left" ? "right" : "left";
+            const sourcePath = panels[sourcePanelId].path;
+            const destinationPath = panels[destPanelId].path;
+            const items = filter[activePanel].pattern
+              ? filteredItems[activePanel]
+              : panels[activePanel].items;
+            const sources = items
+              .filter((item) => selections[activePanel].has(item.name))
+              .map((item) => buildFullPath(sourcePath, item.name));
+            performCopy(sources, destinationPath, true);
+          }}
           onRename={() => {
             if (selections[activePanel].size === 1) {
               const name = [...selections[activePanel]][0];
@@ -314,9 +327,10 @@ export default function App() {
       <OverwriteConfirmModal
         isVisible={overwritePrompt.isVisible}
         item={overwritePrompt.item}
+        jobType={overwritePrompt.jobType}
         onDecision={handleOverwriteDecision}
         onCancel={
-          overwritePrompt.jobType === "copy"
+          overwritePrompt.jobType === "copy" || overwritePrompt.jobType === "move"
             ? handleCancelCopy
             : handleCancelDecompress
         }
@@ -482,6 +496,19 @@ export default function App() {
                 .filter((item) => selections[sourcePanelId].has(item.name))
                 .map((item) => buildFullPath(sourcePath, item.name));
               performCopy(sources, destinationPath);
+            }}
+            onMoveToOtherPanel={() => {
+              const sourcePanelId = panelId;
+              const destPanelId = sourcePanelId === "left" ? "right" : "left";
+              const sourcePath = panels[sourcePanelId].path;
+              const destinationPath = panels[destPanelId].path;
+              const items = filter[sourcePanelId].pattern
+                ? filteredItems[sourcePanelId]
+                : panels[sourcePanelId].items;
+              const sources = items
+                .filter((item) => selections[sourcePanelId].has(item.name))
+                .map((item) => buildFullPath(sourcePath, item.name));
+              performCopy(sources, destinationPath, true);
             }}
             onRename={() => {
               if (selections[panelId].size === 1) {

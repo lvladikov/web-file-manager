@@ -475,6 +475,14 @@ export default function useKeyboardShortcuts(props) {
         }
         return;
       }
+      if (e.key === "F6") {
+        e.preventDefault();
+        const focusedName = focusedItem[activePanel];
+        if (focusedName && focusedName !== "..") {
+          handleCopyAction(true);
+        }
+        return;
+      }
       if (e.key === "F7") {
         e.preventDefault();
         handleStartNewFolder(activePanel);

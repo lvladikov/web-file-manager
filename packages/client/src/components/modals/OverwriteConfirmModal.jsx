@@ -6,12 +6,14 @@ const OverwriteConfirmModal = ({
   onDecision,
   onCancel,
   sourceCount = 1,
+  jobType = "copy",
 }) => {
   if (!isVisible) return null;
 
   const isFolder = item.type === "folder";
   const isMultiSource = sourceCount > 1;
   const showSubsequentOptions = isMultiSource || isFolder;
+  const operation = jobType === "move" ? "Move" : "Copy";
 
   // Add text-sm to prevent text wrapping and ensure uniform height.
   const baseButtonClasses =
@@ -26,10 +28,9 @@ const OverwriteConfirmModal = ({
       colorClass: "bg-green-700 hover:bg-green-600",
     },
     {
-      label: "Copy if New",
+      label: `${operation} if New`,
       decision: "if_newer",
-      title:
-        "Copy only new items (files and folders), including any empty folders. This mode never overwrites an existing item in the Target, regardless of its size or date. Use this for safely adding missing content.",
+      title: `${operation} only new items (files and folders), including any empty folders. This mode never overwrites an existing item in the Target, regardless of its size or date. Use this for safely adding missing content.`,
       colorClass: "bg-green-700 hover:bg-green-600",
     },
     {
@@ -42,8 +43,9 @@ const OverwriteConfirmModal = ({
     {
       label: "Skip if Source is Empty",
       decision: "no_zero_length",
-      title:
-        "Skip copying any zero-byte file or any empty folder from the Source.",
+      title: `Skip ${
+        operation === "Move" ? "moving" : "copying"
+      } any zero-byte file or any empty folder from the Source.`,
       colorClass: "bg-amber-700 hover:bg-amber-600",
     },
     {
@@ -126,7 +128,7 @@ const OverwriteConfirmModal = ({
               title={
                 isFolder
                   ? "Skip this folder and ALL of its contents."
-                  : "Skip this file and do not copy it."
+                  : `Skip this file and do not ${operation.toLowerCase()} it.`
               }
             >
               {isFolder ? "Skip Entire Folder" : "No"}

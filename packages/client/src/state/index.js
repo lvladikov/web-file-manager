@@ -484,7 +484,12 @@ export default function appState() {
         action: () => copy.handleCopyAction(),
         disabled: activeSelection.size === 0,
       },
-      { label: "Move", f_key: "F6", action: () => {}, disabled: true },
+      {
+        label: "Move",
+        f_key: "F6",
+        action: () => copy.handleCopyAction(true),
+        disabled: activeSelection.size === 0,
+      },
       {
         label: "New Folder",
         f_key: "F7",

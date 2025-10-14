@@ -10,6 +10,7 @@ const AppContextMenu = ({
   onOpen,
   onOpenWith,
   onCopyToOtherPanel,
+  onMoveToOtherPanel,
   onRename,
   onDelete,
   onCalculateSize,
@@ -150,8 +151,8 @@ const AppContextMenu = ({
                 <span className="text-gray-400">{metaKey}+X</span>
               </ContextMenu.Item>
               <ContextMenu.Item
-                onSelect={onPlaceholder}
-                className={`${itemClassName} text-gray-400`}
+                onSelect={onMoveToOtherPanel}
+                className={itemClassName}
               >
                 <span>Move to other panel</span>
                 <span className="text-gray-400">F6</span>

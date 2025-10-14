@@ -21,6 +21,7 @@ const MenuItem = ({ label, shortcut, onClick, disabled = false }) => (
 const FileMenu = ({ ...props }) => {
   const {
     onCopyToOtherPanel,
+    onMoveToOtherPanel,
     onRename,
     onDelete,
     onCalculateSize,
@@ -34,6 +35,7 @@ const FileMenu = ({ ...props }) => {
     onTestArchive,
     onSwapPanels,
     canCopyToOtherPanel,
+    canMoveToOtherPanel,
     canRename,
     canDelete,
     canCalculateSize,
@@ -104,8 +106,8 @@ const FileMenu = ({ ...props }) => {
         <MenuItem
           label="Move to other panel"
           shortcut="F6"
-          onClick={() => handleItemClick(onPlaceholder)}
-          disabled
+          onClick={() => handleItemClick(onMoveToOtherPanel)}
+          disabled={!canMoveToOtherPanel}
         />
         <MenuItem
           label="Move (Cut) to clipboard"
@@ -284,6 +286,7 @@ const AppMenu = (props) => {
       : "Calculate folder size";
 
   const canCopyToOtherPanel = activePanelSelections.size > 0;
+  const canMoveToOtherPanel = activePanelSelections.size > 0;
   const canRename =
     singleItemSelected &&
     firstSelectedItemDetails &&
@@ -303,6 +306,7 @@ const AppMenu = (props) => {
   const fileMenuProps = {
     ...props,
     canCopyToOtherPanel,
+    canMoveToOtherPanel,
     canRename,
     canDelete,
     canCalculateSize,
