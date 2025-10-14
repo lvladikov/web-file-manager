@@ -254,82 +254,89 @@ const EditableTextPreview = ({
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {isFindReplaceVisible && (
-        <div className="flex items-center p-2 bg-gray-700 border-b border-gray-600 flex-shrink-0">
-          <input
-            type="text"
-            placeholder="Find..."
-            value={findTerm}
-            onChange={(e) => setFindTerm(e.target.value)}
-            className="p-1 rounded bg-gray-800 text-white border border-gray-600 mr-2"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (e.shiftKey) {
-                  findPrevious();
-                } else {
-                  findNext();
+        <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 p-2 bg-gray-700 border-b border-gray-600 flex-shrink-0">
+          {/* Find Controls */}
+          <div className="flex items-center space-x-2 flex-grow lg:flex-grow-0">
+            <input
+              type="text"
+              placeholder="Find..."
+              value={findTerm}
+              onChange={(e) => setFindTerm(e.target.value)}
+              className="p-1 rounded bg-gray-800 text-white border border-gray-600 w-full lg:w-32"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (e.shiftKey) {
+                    findPrevious();
+                  } else {
+                    findNext();
+                  }
                 }
-              }
-            }}
-          />
-          <button
-            onClick={findPrevious}
-            disabled={findMatches.length === 0}
-            className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
-          >
-            &lt;
-          </button>
-          <button
-            onClick={findNext}
-            disabled={findMatches.length === 0}
-            className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white mr-2 disabled:opacity-50"
-          >
-            &gt;
-          </button>
-          <span className="text-gray-300 mr-2">
-            {findMatches.length > 0
-              ? `${currentFindMatchIndex + 1} / ${findMatches.length}`
-              : "0 / 0"}
-          </span>
-          <label className="flex items-center text-gray-300 mr-2">
-            <input
-              type="checkbox"
-              checked={caseSensitive}
-              onChange={(e) => setCaseSensitive(e.target.checked)}
-              className="mr-1"
+              }}
             />
-            Case
-          </label>
-          <label className="flex items-center text-gray-300 mr-4">
+            <button
+              onClick={findPrevious}
+              disabled={findMatches.length === 0}
+              className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
+            >
+              &lt;
+            </button>
+            <button
+              onClick={findNext}
+              disabled={findMatches.length === 0}
+              className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
+            >
+              &gt;
+            </button>
+            <span className="text-gray-300 text-nowrap">
+              {findMatches.length > 0
+                ? `${currentFindMatchIndex + 1} / ${findMatches.length}`
+                : "0 / 0"}
+            </span>
+            <label className="flex items-center text-gray-300">
+              <input
+                type="checkbox"
+                checked={caseSensitive}
+                onChange={(e) => setCaseSensitive(e.target.checked)}
+                className="mr-1"
+              />
+              Case
+            </label>
+            <label className="flex items-center text-gray-300">
+              <input
+                type="checkbox"
+                checked={useRegex}
+                onChange={(e) => setUseRegex(e.target.checked)}
+                className="mr-1"
+              />
+              Regex
+            </label>
+          </div>
+
+          {/* Replace Controls */}
+          <div className="flex items-center space-x-2 flex-grow lg:flex-grow-0">
             <input
-              type="checkbox"
-              checked={useRegex}
-              onChange={(e) => setUseRegex(e.target.checked)}
-              className="mr-1"
+              type="text"
+              placeholder="Replace with..."
+              value={replaceTerm}
+              onChange={(e) => setReplaceTerm(e.target.value)}
+              className="p-1 rounded bg-gray-800 text-white border border-gray-600 w-full lg:w-32"
             />
-            Regex
-          </label>
-          <input
-            type="text"
-            placeholder="Replace with..."
-            value={replaceTerm}
-            onChange={(e) => setReplaceTerm(e.target.value)}
-            className="p-1 rounded bg-gray-800 text-white border border-gray-600 mr-2"
-          />
-          <button
-            onClick={replaceOne}
-            disabled={findMatches.length === 0}
-            className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-white mr-2 disabled:opacity-50"
-          >
-            Replace
-          </button>
-          <button
-            onClick={replaceAll}
-            disabled={findMatches.length === 0}
-            className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white disabled:opacity-50"
-          >
-            Replace All
-          </button>
+            <button
+              onClick={replaceOne}
+              disabled={findMatches.length === 0}
+              className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-white disabled:opacity-50"
+            >
+              Replace
+            </button>
+            <button
+              onClick={replaceAll}
+              disabled={findMatches.length === 0}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white disabled:opacity-50"
+            >
+              Replace All
+            </button>
+          </div>
         </div>
       )}
       <div className="flex-1 min-h-0" style={editorContainerStyle}>
