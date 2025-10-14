@@ -442,8 +442,9 @@ const PreviewModal = ({
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleSave}
-                className="p-1 text-gray-300 hover:text-white"
-                title={`Save (${isMac ? "Cmd+S" : "Ctrl+S"})`}
+                disabled={editedContent === textContent}
+                className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                title={editedContent === textContent ? "No changes to save" : `Save (${isMac ? "Cmd+S" : "Ctrl+S"})`}
               >
                 <Save className="w-6 h-6" />
               </button>
