@@ -329,6 +329,11 @@ const HelpModal = ({ isVisible, onClose }) => {
                     operation on the selected item.
                   </li>
                   <li>
+                    <kbd>Move to other panel</kbd>: Performs the F6 Move
+                    operation. It is a combination of a complete Copy and Delete
+                    operations, in that order.
+                  </li>
+                  <li>
                     <kbd>Compress</kbd>: Compresses the selected items into a
                     zip archive in the active panel or transfers it to the other
                     panel.
@@ -347,10 +352,6 @@ const HelpModal = ({ isVisible, onClose }) => {
                   <li>
                     <kbd>Copy / Cut (to clipboard)</kbd>: (Coming soon) Standard
                     clipboard operations.
-                  </li>
-                  <li>
-                    <kbd>Move to other panel</kbd>: (Coming soon) Performs an F6
-                    Move operation.
                   </li>
                 </ul>
               </li>
@@ -456,10 +457,16 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <kbd>F2</kbd>: Rename the currently focused item.
               </li>
               <li>
-                <kbd>F3</kbd>: Preview the focused item if possible (images, text, PDFs, audio, video, zip archives), otherwise open it with its default application.
+                <kbd>F3</kbd>: Preview the focused item if possible (images,
+                text, PDFs, audio, video, zip archives), otherwise open it with
+                its default application.
               </li>
               <li>
                 <kbd>F5</kbd>: Copy selected items from the active panel to the
+                other panel.
+              </li>
+              <li>
+                <kbd>F6</kbd>: Move selected items from the active panel to the
                 other panel.
               </li>
               <li>

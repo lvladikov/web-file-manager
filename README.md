@@ -119,12 +119,14 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - **Viewing:** Preview, Open, and Open with...
   - **File Operations:** Contains all major file transfer actions.
-    - <kbd>Copy to other panel</kbd>: Performs the Copy (<kbd>F5</kbd>) operation on the selected item.
+
+    - <kbd>Copy to other panel</kbd>: Performs the Copy (<kbd>F5</kbd>) operation on the selected item(s).
+    - <kbd>Move to other panel</kbd>: Performs the Move (<kbd>F6</kbd>) operation on the selected item(s). It is a combination of a complete Copy and Delete operations, in that order.
     - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
     - <kbd>Decompress Archive</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
     - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, reporting any corrupt files or general issues.
     - <kbd>Copy / Cut (to clipboard)</kbd>: (Coming soon) Standard clipboard operations.
-    - <kbd>Move to other panel</kbd>: (Coming soon) Performs an Move (<kbd>F6</kbd>) operation.
+
   - **Organization:** Rename and Delete the item.
   - **Folder Tools:** For folders, you can also Calculate Size or set the folder's path in the opposite panel.
 
@@ -148,6 +150,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
   - <kbd>F3</kbd>: Preview the focused item if possible (images, text, PDFs, audio, video, zip archives), otherwise open it with its default application.
 
   - <kbd>F5</kbd>: Copy selected items from the active panel to the other panel.
+
+  - <kbd>F6</kbd>: Move selected items from the active panel to the other panel.
 
   - <kbd>F7</kbd>: Create a new folder in the active panel.
 
