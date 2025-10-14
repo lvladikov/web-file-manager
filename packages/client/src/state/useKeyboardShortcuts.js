@@ -82,12 +82,6 @@ export default function useKeyboardShortcuts(props) {
           "PageDown",
         ].includes(e.key);
 
-        if (e.key === "Escape") {
-          e.preventDefault();
-          setPreviewModal({ isVisible: false, item: null });
-          return;
-        }
-
         // For non-nav keys, stop processing.
         if (!isNavKey) {
           return;

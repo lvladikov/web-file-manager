@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   XCircle,
   Expand,
@@ -8,6 +8,9 @@ import {
   ChevronDown,
   ListOrdered,
   Info,
+  Save,
+  Undo2 as Undo,
+  Redo2 as Redo,
 } from "lucide-react";
 
 import {
@@ -29,6 +32,7 @@ import VideoPreview from "./preview-views/VideoPreview";
 import ZipPreview from "./preview-views/ZipPreview";
 import { FilePenLine } from "lucide-react";
 import EditableTextPreview from "./preview-views/EditableTextPreview";
+import UnsavedChangesModal from "./UnsavedChangesModal";
 import { saveFileContent } from "../../lib/api";
 
 const PreviewInfo = ({ previewType }) => {
@@ -74,6 +78,7 @@ const PreviewModal = ({
   const [textError, setTextError] = useState("");
   const [wordWrap, setWordWrap] = useState(true);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [isFindReplaceVisible, setIsFindReplaceVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [matches, setMatches] = useState([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
@@ -82,11 +87,18 @@ const PreviewModal = ({
   const [regexError, setRegexError] = useState("");
   const [videoHasError, setVideoHasError] = useState(false);
   const [coverArtUrl, setCoverArtUrl] = useState(null);
+  const [unsavedChangesModalVisible, setUnsavedChangesModalVisible] =
+    useState(false);
 
   const zipPreviewRef = useRef(null);
 
   const [codeLines, setCodeLines] = useState([]);
-  const [showLineNumbers, setShowLineNumbers] = useState(false);
+  const [showLineNumbers, setShowLineNumbers] = useState(true);
+  const [isEditing, setIsEditing] = useState(startInEditMode);
+
+  const [editedContent, setEditedContent] = useState(textContent);
+  const [undoStack, setUndoStack] = useState([textContent]);
+  const [redoStack, setRedoStack] = useState([]);
 
   const getPreviewType = (item) => {
     if (!item) return "none";
@@ -102,11 +114,25 @@ const PreviewModal = ({
   const previewType = getPreviewType(item);
 
   useEffect(() => {
+    setIsEditing(startInEditMode);
+  }, [startInEditMode]);
+
+  useEffect(() => {
     setIsSearchVisible(false);
+    setIsFindReplaceVisible(false);
     setSearchTerm("");
     setVideoHasError(false);
     setCoverArtUrl(null);
   }, [item]);
+
+  const handleCloseRequest = useCallback(() => {
+    const isDirty = isEditing && editedContent !== textContent;
+    if (isDirty) {
+      setUnsavedChangesModalVisible(true);
+    } else {
+      onClose();
+    }
+  }, [isEditing, editedContent, textContent, onClose]);
 
   useEffect(() => {
     if (isVisible && previewType === "audio" && item) {
@@ -195,11 +221,36 @@ const PreviewModal = ({
   useEffect(() => {
     if (!isVisible) return;
     const handleKeyDown = (e) => {
+      if (unsavedChangesModalVisible) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setUnsavedChangesModalVisible(false);
+        }
+        return;
+      }
+
       const isModKey = isMac ? e.metaKey : e.ctrlKey;
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleCloseRequest();
+        return;
+      }
+
+      if (isModKey && e.key === "s" && isEditing) {
+        e.preventDefault();
+        handleSave();
+      }
+
       if (isModKey && e.key === "f") {
         if (previewType === "text") {
           e.preventDefault();
-          setIsSearchVisible((prev) => !prev);
+          if (isEditing) {
+            setIsFindReplaceVisible((prev) => !prev);
+          } else {
+            setIsSearchVisible((prev) => !prev);
+          }
           return;
         }
       }
@@ -208,16 +259,24 @@ const PreviewModal = ({
         if (
           e.target.tagName !== "VIDEO" &&
           e.target.tagName !== "AUDIO" &&
-          e.target.tagName !== "INPUT"
+          e.target.tagName !== "INPUT" &&
+          e.target.tagName !== "TEXTAREA"
         ) {
           e.preventDefault();
-          onClose();
+          handleCloseRequest();
         }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isVisible, onClose, previewType]);
+  }, [
+    isVisible,
+    previewType,
+    isEditing,
+    editedContent,
+    handleCloseRequest,
+    unsavedChangesModalVisible,
+  ]);
 
   useEffect(() => {
     const onFullscreenChange = () =>
@@ -241,6 +300,9 @@ const PreviewModal = ({
             throw new Error(`Failed to load file content (${res.status})`);
           const text = await res.text();
           setTextContent(text);
+          setEditedContent(text);
+          setUndoStack([text]);
+          setRedoStack([]);
         } catch (err) {
           setTextError(err.message);
         }
@@ -282,33 +344,59 @@ const PreviewModal = ({
     }
   };
 
-  const [isEditing, setIsEditing] = useState(startInEditMode);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [saveError, setSaveError] = useState("");
 
-  const handleSave = async (path, content) => {
+  const handleContentChange = useCallback((newContent) => {
+    setEditedContent(newContent);
+    setUndoStack((prev) => [...prev, newContent]);
+    setRedoStack([]);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length > 1) {
+      const prevContent = undoStack[undoStack.length - 2];
+      const lastContent = undoStack[undoStack.length - 1];
+      setRedoStack((prev) => [lastContent, ...prev]);
+      setUndoStack((prev) => prev.slice(0, prev.length - 1));
+      setEditedContent(prevContent);
+    }
+  }, [undoStack]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStack.length > 0) {
+      const nextContent = redoStack[0];
+      setUndoStack((prev) => [...prev, nextContent]);
+      setRedoStack((prev) => prev.slice(1));
+      setEditedContent(nextContent);
+    }
+  }, [redoStack]);
+
+  const handleSave = async () => {
     try {
-      await saveFileContent(path, content);
+      await saveFileContent(item.fullPath, editedContent);
       setShowSuccessMessage(true);
       setSaveError("");
-      setTextContent(content); // Update textContent with the saved content
+      setTextContent(editedContent);
+      setUndoStack([editedContent]);
+      setRedoStack([]);
     } catch (error) {
       setSaveError(error.message);
     }
   };
 
-  useEffect(() => {
-    setIsEditing(startInEditMode);
-  }, [startInEditMode]);
+  const handleSaveAndClose = async () => {
+    await handleSave();
+    onClose();
+  };
 
-  useEffect(() => {
-    if (showSuccessMessage) {
-      const timer = setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuccessMessage]);
+  const handleDiscardAndClose = () => {
+    setEditedContent(textContent);
+    setUndoStack([textContent]);
+    setRedoStack([]);
+    setUnsavedChangesModalVisible(false);
+    onClose();
+  };
 
   useEffect(() => {
     if (showSuccessMessage) {
@@ -326,8 +414,14 @@ const PreviewModal = ({
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      onClick={handleCloseRequest}
     >
+      <UnsavedChangesModal
+        isVisible={unsavedChangesModalVisible}
+        onSave={handleSaveAndClose}
+        onDiscard={handleDiscardAndClose}
+        onCancel={() => setUnsavedChangesModalVisible(false)}
+      />
       <div
         ref={previewContainerRef}
         className={`bg-gray-900 border border-gray-600 rounded-lg shadow-lg flex flex-col ${
@@ -340,77 +434,119 @@ const PreviewModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className={`w-full h-12 bg-black bg-opacity-60 flex-shrink-0 flex justify-end items-center px-3 space-x-3 rounded-t-lg z-20 ${
+          className={`w-full h-12 bg-black bg-opacity-60 flex-shrink-0 flex justify-between items-center px-3 rounded-t-lg z-20 ${
             isFullscreen || previewType === "unsupported" ? "hidden" : ""
           }`}
         >
-          {previewType === "text" && (
-            <>
+          {isEditing && previewType === "text" ? (
+            <div className="flex items-center space-x-3">
               <button
-                className={`p-1 rounded-full ${
-                  isEditing
-                    ? "bg-sky-600 text-white"
-                    : "text-gray-300 hover:text-white"
-                }`}
-                onClick={() => setIsEditing((prev) => !prev)}
-                title={isEditing ? "Cancel Edit" : "Edit File"}
+                onClick={handleSave}
+                className="p-1 text-gray-300 hover:text-white"
+                title={`Save (${isMac ? "Cmd+S" : "Ctrl+S"})`}
               >
-                <FilePenLine className="w-6 h-6" />
+                <Save className="w-6 h-6" />
               </button>
               <button
-                className={`p-1 rounded-full ${
-                  isSearchVisible
-                    ? "bg-sky-600 text-white"
-                    : "text-gray-300 hover:text-white"
-                }`}
-                onClick={() => setIsSearchVisible((prev) => !prev)}
-                title="Search (Cmd/Ctrl+F)"
+                onClick={handleUndo}
+                disabled={undoStack.length <= 1}
+                className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                title={`Undo (${isMac ? "Cmd+Z" : "Ctrl+Z"})`}
               >
-                <Search className="w-6 h-6" />
+                <Undo className="w-6 h-6" />
               </button>
               <button
-                className={`p-1 rounded-full ${
-                  showLineNumbers
-                    ? "bg-sky-600 text-white"
-                    : "text-gray-300 hover:text-white"
-                }`}
-                onClick={() => setShowLineNumbers((prev) => !prev)}
-                title="Toggle Line Numbers"
+                onClick={handleRedo}
+                disabled={redoStack.length === 0}
+                className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                title={`Redo (${isMac ? "Cmd+Shift+Z" : "Ctrl+Y"})`}
               >
-                <ListOrdered className="w-6 h-6" />
+                <Redo className="w-6 h-6" />
               </button>
-              <button
-                className={`p-1 rounded-full ${
-                  wordWrap
-                    ? "bg-sky-600 text-white"
-                    : "text-gray-300 hover:text-white"
-                }`}
-                onClick={() => setWordWrap((prev) => !prev)}
-                title="Toggle Word Wrap"
-              >
-                <WrapText className="w-6 h-6" />
-              </button>
-            </>
+            </div>
+          ) : (
+            <div></div>
           )}
-          {(previewType === "image" || previewType === "video") && (
+
+          <div className="flex items-center space-x-3">
+            {previewType === "text" && (
+              <>
+                <button
+                  className={`p-1 rounded-full ${
+                    isEditing
+                      ? "bg-sky-600 text-white"
+                      : "text-gray-300 hover:text-white"
+                  }`}
+                  onClick={() => setIsEditing((prev) => !prev)}
+                  title={isEditing ? "View Mode" : "Edit File"}
+                >
+                  <FilePenLine className="w-6 h-6" />
+                </button>
+                <button
+                  className={`p-1 rounded-full ${
+                    isSearchVisible || isFindReplaceVisible
+                      ? "bg-sky-600 text-white"
+                      : "text-gray-300 hover:text-white"
+                  }`}
+                  onClick={() =>
+                    isEditing
+                      ? setIsFindReplaceVisible((prev) => !prev)
+                      : setIsSearchVisible((prev) => !prev)
+                  }
+                  title={
+                    isEditing
+                      ? "Find & Replace (Cmd/Ctrl+F)"
+                      : "Search (Cmd/Ctrl+F)"
+                  }
+                >
+                  <Search className="w-6 h-6" />
+                </button>
+                <button
+                  className={`p-1 rounded-full ${
+                    showLineNumbers
+                      ? "bg-sky-600 text-white"
+                      : "text-gray-300 hover:text-white"
+                  }`}
+                  onClick={() => setShowLineNumbers((prev) => !prev)}
+                  title="Toggle Line Numbers"
+                >
+                  <ListOrdered className="w-6 h-6" />
+                </button>
+                <button
+                  className={`p-1 rounded-full ${
+                    wordWrap
+                      ? "bg-sky-600 text-white"
+                      : "text-gray-300 hover:text-white"
+                  }`}
+                  onClick={() => setWordWrap((prev) => !prev)}
+                  title="Toggle Word Wrap"
+                >
+                  <WrapText className="w-6 h-6" />
+                </button>
+              </>
+            )}
+            {(previewType === "image" ||
+              previewType === "video" ||
+              previewType === "text") && (
+              <button
+                className="p-1 text-gray-300 hover:text-white"
+                onClick={handleFullscreen}
+                title="Toggle Fullscreen"
+              >
+                <Expand className="w-6 h-6" />
+              </button>
+            )}
             <button
               className="p-1 text-gray-300 hover:text-white"
-              onClick={handleFullscreen}
-              title="Toggle Fullscreen"
+              onClick={handleCloseRequest}
+              title="Close (Esc)"
             >
-              <Expand className="w-6 h-6" />
+              <XCircle className="w-6 h-6" />
             </button>
-          )}
-          <button
-            className="p-1 text-gray-300 hover:text-white"
-            onClick={onClose}
-            title="Close (Esc)"
-          >
-            <XCircle className="w-6 h-6" />
-          </button>
+          </div>
         </div>
 
-        {isSearchVisible && previewType === "text" && (
+        {!isEditing && isSearchVisible && previewType === "text" && (
           <div className="w-full h-12 bg-gray-800 flex-shrink-0 flex justify-between items-center px-3 z-10 border-y border-gray-700">
             <input
               type="text"
@@ -484,7 +620,7 @@ const PreviewModal = ({
           </div>
         )}
 
-        <PreviewInfo previewType={previewType} />
+        {!isEditing && <PreviewInfo previewType={previewType} />}
 
         <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-hidden">
           {previewType === "image" && (
@@ -524,10 +660,12 @@ const PreviewModal = ({
             (isEditing ? (
               <EditableTextPreview
                 item={item}
-                textContent={textContent}
-                onSave={handleSave}
+                editedContent={editedContent}
+                onContentChange={handleContentChange}
                 wordWrap={wordWrap}
                 getPrismLanguage={getPrismLanguage}
+                isFindReplaceVisible={isFindReplaceVisible}
+                showLineNumbers={showLineNumbers}
               />
             ) : (
               <TextPreview
