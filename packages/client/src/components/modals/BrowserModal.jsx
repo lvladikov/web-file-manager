@@ -341,6 +341,7 @@ const BrowserModal = forwardRef(
                 onDecompressInActivePanel();
                 onClose();
               }}
+              title="Decompress to active panel the entire archive (not individual items, the list you see is just for preview purposes)"
               className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg w-full sm:w-auto text-center"
             >
               Decompress to active panel
@@ -354,6 +355,7 @@ const BrowserModal = forwardRef(
                 onClose();
               }}
               className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg w-full sm:w-auto text-center"
+              title="Decompress to other panel the entire archive (not individual items, the list you see is just for preview purposes)"
             >
               Decompress to other panel
             </button>
