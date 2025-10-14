@@ -20,7 +20,7 @@ import {
   isPreviewableVideo,
   isPreviewableAudio,
   isPreviewableText,
-  getPrismLanguage,
+  getFileTypeInfo,
   isMac,
 } from "../../lib/utils";
 
@@ -412,17 +412,7 @@ const PreviewModal = ({
 
   if (!isVisible || !item) return null;
   const { fullPath } = item;
-  let fileTypeInfo;
-  if (previewType === "text") {
-    fileTypeInfo = getPrismLanguage(item?.name);
-  } else if (previewType !== "none" && previewType !== "unsupported") {
-    // Create a display name for non-text file types by capitalizing them
-    fileTypeInfo = {
-      id: previewType,
-      displayName: previewType.charAt(0).toUpperCase() + previewType.slice(1),
-    };
-  }
-  // The 'language' variable is now used as a generic type ID for icons and highlighters
+  const fileTypeInfo = getFileTypeInfo(item?.name);
   const language = fileTypeInfo?.id;
 
   return (
@@ -775,7 +765,7 @@ const PreviewModal = ({
                 editedContent={editedContent}
                 onContentChange={handleContentChange}
                 wordWrap={wordWrap}
-                getPrismLanguage={getPrismLanguage}
+                getFileTypeInfo={getFileTypeInfo}
                 isFindReplaceVisible={isFindReplaceVisible}
                 showLineNumbers={showLineNumbers}
               />
@@ -792,7 +782,6 @@ const PreviewModal = ({
                 matches={matches}
                 currentMatchIndex={currentMatchIndex}
                 setCodeLines={setCodeLines}
-                getPrismLanguage={getPrismLanguage}
               />
             ))}
           {previewType === "unsupported" && (

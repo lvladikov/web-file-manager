@@ -60,10 +60,69 @@ const isItemPreviewable = (item) => {
   );
 };
 
-const getPrismLanguage = (filename = "") => {
-  const lowerFilename = filename.toLowerCase();
+const getFileTypeInfo = (filename = "") => {
+  if (!filename) return { id: "file", displayName: "File" };
 
-  // First, check for specific filenames
+  const lowerFilename = filename.toLowerCase();
+  const extension = lowerFilename.split(".").pop();
+
+  // Office Document Formats
+  const officeMap = {
+    doc: { id: "doc", displayName: "Word Document" },
+    docx: { id: "doc", displayName: "Word Document" },
+    ppt: { id: "powerpoint", displayName: "PowerPoint Presentation" },
+    pptx: { id: "powerpoint", displayName: "PowerPoint Presentation" },
+    xls: { id: "excel", displayName: "Excel Spreadsheet" },
+    xlsx: { id: "excel", displayName: "Excel Spreadsheet" },
+  };
+  if (officeMap[extension]) return officeMap[extension];
+
+  // Media Formats
+  const mediaMap = {
+    mp3: { id: "audio", displayName: "Audio: MP3" },
+    flac: { id: "audio", displayName: "Audio: FLAC" },
+    wav: { id: "audio", displayName: "Audio: WAV" },
+    m4a: { id: "audio", displayName: "Audio: M4A" },
+    aac: { id: "audio", displayName: "Audio: AAC" },
+    ogg: { id: "audio", displayName: "Audio: OGG" },
+    wma: { id: "audio", displayName: "Audio: WMA" },
+    mp4: { id: "video", displayName: "Video: MP4" },
+    mkv: { id: "video", displayName: "Video: MKV" },
+    webm: { id: "video", displayName: "Video: WebM" },
+    mov: { id: "video", displayName: "Video: MOV" },
+    avi: { id: "video", displayName: "Video: AVI" },
+    wmv: { id: "video", displayName: "Video: WMV" },
+    flv: { id: "video", displayName: "Video: FLV" },
+    qt: { id: "video", displayName: "Video: QuickTime" },
+  };
+  if (mediaMap[extension]) return mediaMap[extension];
+
+  // Other specific document/file types with special casing
+  if (extension === "pdf") return { id: "pdf", displayName: "PDF" };
+
+  // RAW Image Formats
+  const rawImageMap = {
+    cr2: { id: "image", displayName: "Image: CR2 (Canon)" },
+    nef: { id: "image", displayName: "Image: NEF (Nikon)" },
+    arw: { id: "image", displayName: "Image: ARW (Sony)" },
+  };
+  if (rawImageMap[extension]) return rawImageMap[extension];
+
+  // Image Formats
+  const imageMap = {
+    jpg: { id: "image", displayName: "Image: JPG" },
+    jpeg: { id: "image", displayName: "Image: JPEG" },
+    png: { id: "image", displayName: "Image: PNG" },
+    gif: { id: "image", displayName: "Image: GIF" },
+    bmp: { id: "image", displayName: "Image: BMP" },
+    tiff: { id: "image", displayName: "Image: TIFF" },
+    webp: { id: "image", displayName: "Image: WebP" },
+  };
+  if (imageMap[extension]) return imageMap[extension];
+
+  if (extension === "zip") return { id: "archive", displayName: "Archive" };
+
+  // Text-based and code formats
   const nameMap = {
     ".editorconfig": { id: "ini", displayName: "INI" },
     ".gitignore": { id: "ignore", displayName: "Ignore" },
@@ -72,13 +131,10 @@ const getPrismLanguage = (filename = "") => {
     ".prettierrc": { id: "json", displayName: "JSON" },
     license: { id: "markdown", displayName: "Markdown" },
   };
-  if (nameMap[lowerFilename]) {
-    return nameMap[lowerFilename];
-  }
+  if (nameMap[lowerFilename]) return nameMap[lowerFilename];
 
-  // If no match, fall back to checking the extension
-  const extension = lowerFilename.split(".").pop();
   const langMap = {
+    txt: { id: "plaintext", displayName: "Plain Text" },
     js: { id: "javascript", displayName: "JavaScript" },
     jsx: { id: "jsx", displayName: "JSX" },
     ts: { id: "typescript", displayName: "TypeScript" },
@@ -98,7 +154,10 @@ const getPrismLanguage = (filename = "") => {
     properties: { id: "properties", displayName: "Properties" },
     cue: { id: "ini", displayName: "INI" },
   };
-  return langMap[extension] || { id: "plaintext", displayName: "Plain Text" };
+  if (langMap[extension]) return langMap[extension];
+
+  // Fallback for any other file type
+  return { id: "file", displayName: "File" };
 };
 
 const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {
@@ -218,7 +277,7 @@ export {
   isPreviewableVideo,
   isPreviewableAudio,
   isPreviewableText,
-  getPrismLanguage,
+  getFileTypeInfo,
   calculateFolderSize,
   basename,
   formatSpeed,

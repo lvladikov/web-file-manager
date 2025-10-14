@@ -24,14 +24,12 @@ const TextPreview = ({
   showLineNumbers,
   wordWrap,
   language,
-  item,
   textContent,
   textError,
   searchTerm,
   matches,
   currentMatchIndex,
   setCodeLines,
-  getPrismLanguage,
 }) => {
   useEffect(() => {
     const grammar = Prism.languages[language] || Prism.languages.plaintext;
@@ -73,10 +71,8 @@ const TextPreview = ({
     searchTerm,
     matches,
     currentMatchIndex,
-    item,
-    setCodeLines,
-    getPrismLanguage,
     language,
+    setCodeLines,
   ]);
 
   return (

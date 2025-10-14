@@ -10,6 +10,8 @@ import {
   FileJson,
   FileTerminal,
   GitCommit,
+  FileSpreadsheet,
+  FileVideo,
   Container,
 } from "lucide-react";
 
@@ -28,6 +30,8 @@ const Icon = ({ type, className }) => {
     audio: <FileAudio className={`${base} text-teal-500`} />,
     pdf: <FileText className={`${base} text-red-600`} />,
     doc: <FileText className={`${base} text-blue-600`} />,
+    powerpoint: <FileVideo className={`${base} text-orange-500`} />,
+    excel: <FileSpreadsheet className={`${base} text-green-600`} />,
     html: <FileCode className={`${base} text-orange-600`} />,
     css: <FileCode className={`${base} text-blue-600`} />,
     javascript: <FileCode className={`${base} text-yellow-500`} />,

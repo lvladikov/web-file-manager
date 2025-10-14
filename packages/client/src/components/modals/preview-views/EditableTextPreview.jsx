@@ -27,7 +27,7 @@ const EditableTextPreview = ({
   editedContent,
   onContentChange,
   wordWrap,
-  getPrismLanguage,
+  getFileTypeInfo,
   isFindReplaceVisible,
   showLineNumbers,
 }) => {
@@ -37,7 +37,7 @@ const EditableTextPreview = ({
   const lineNumbersRef = useRef(null);
   const [lineNumbersForRender, setLineNumbersForRender] = useState([]);
 
-  const language = getPrismLanguage(item?.name).id;
+  const language = getFileTypeInfo(item?.name).id;
 
   // State for find and replace functionality
   const [findTerm, setFindTerm] = useState("");

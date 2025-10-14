@@ -8,12 +8,14 @@ const getFileType = (filename, isDirectory) => {
   if (isDirectory) return "folder";
 
   if (/\.zip$/i.test(filename)) return "archive";
-  if (/\.(jpg|jpeg|png|gif|bmp|tiff|svg|webp|psd)$/i.test(filename))
+  if (/\.(jpg|jpeg|png|gif|bmp|tiff|svg|webp|psd|cr2|nef|arw)$/i.test(filename))
     return "image";
   if (/\.(mp4|mkv|avi|mov|wmv|flv)$/i.test(filename)) return "video";
   if (/\.(mp3|m4a|aac|flac|wav|ogg|wma)$/i.test(filename)) return "audio";
   if (/\.pdf$/i.test(filename)) return "pdf";
   if (/\.(doc|docx)$/i.test(filename)) return "doc";
+  if (/\.(ppt|pptx)$/i.test(filename)) return "powerpoint";
+  if (/\.(xls|xlsx)$/i.test(filename)) return "excel";
   if (/\.html$/i.test(filename)) return "html";
   if (/\.css$/i.test(filename)) return "css";
   if (/\.(js|jsx)$/i.test(filename)) return "javascript";
