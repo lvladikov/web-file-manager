@@ -486,93 +486,84 @@ const PreviewModal = ({
 
         <PreviewInfo previewType={previewType} />
 
-        <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-auto">
-          <div className="flex-1 min-h-0 relative h-full">
-            {previewType === "image" && (
-              <ImagePreview
+        <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-hidden">
+          {previewType === "image" && (
+            <ImagePreview
+              item={item}
+              fullPath={fullPath}
+              isFullscreen={isFullscreen}
+            />
+          )}
+          {previewType === "pdf" && (
+            <PdfPreview
+              fileUrl={`/api/media-stream?path=${encodeURIComponent(fullPath)}`}
+              isFullscreen={isFullscreen}
+            />
+          )}
+          {previewType === "video" && (
+            <VideoPreview
+              item={item}
+              fullPath={fullPath}
+              isFullscreen={isFullscreen}
+              videoRef={videoRef}
+              videoHasError={videoHasError}
+              handleVideoError={handleVideoError}
+            />
+          )}
+          {previewType === "audio" && (
+            <AudioPreview
+              coverArtUrl={coverArtUrl}
+              audioRef={audioRef}
+              item={item}
+              fullPath={fullPath}
+              autoLoadLyrics={autoLoadLyrics}
+              onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
+            />
+          )}
+          {previewType === "text" &&
+            (isEditing ? (
+              <EditableTextPreview
                 item={item}
-                fullPath={fullPath}
-                isFullscreen={isFullscreen}
+                textContent={textContent}
+                onSave={handleSave}
+                wordWrap={wordWrap}
+                getPrismLanguage={getPrismLanguage}
               />
-            )}
-            {previewType === "pdf" && (
-              <PdfPreview
-                fileUrl={`/api/media-stream?path=${encodeURIComponent(
-                  fullPath
-                )}`}
-                isFullscreen={isFullscreen}
-              />
-            )}
-            {previewType === "video" && (
-              <VideoPreview
+            ) : (
+              <TextPreview
+                codeLines={codeLines}
+                showLineNumbers={showLineNumbers}
+                wordWrap={wordWrap}
+                language={language}
                 item={item}
-                fullPath={fullPath}
-                isFullscreen={isFullscreen}
-                videoRef={videoRef}
-                videoHasError={videoHasError}
-                handleVideoError={handleVideoError}
+                textContent={textContent}
+                textError={textError}
+                searchTerm={searchTerm}
+                matches={matches}
+                currentMatchIndex={currentMatchIndex}
+                setCodeLines={setCodeLines}
+                getPrismLanguage={getPrismLanguage}
               />
-            )}
-            {previewType === "audio" && (
-              <AudioPreview
-                coverArtUrl={coverArtUrl}
-                audioRef={audioRef}
-                item={item}
-                fullPath={fullPath}
-                autoLoadLyrics={autoLoadLyrics}
-                onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
-              />
-            )}
-            {previewType === "text" &&
-              (isEditing ? (
-                <EditableTextPreview
-                  item={item}
-                  textContent={textContent}
-                  onSave={handleSave}
-                  onCancelEdit={() => setIsEditing(false)}
-                  isEditing={isEditing}
-                  wordWrap={wordWrap}
-                  language={language}
-                  textError={textError}
-                  getPrismLanguage={getPrismLanguage}
-                />
-              ) : (
-                <TextPreview
-                  codeLines={codeLines}
-                  showLineNumbers={showLineNumbers}
-                  wordWrap={wordWrap}
-                  language={language}
-                  item={item}
-                  previewType={previewType}
-                  textContent={textContent}
-                  textError={textError}
-                  searchTerm={searchTerm}
-                  matches={matches}
-                  currentMatchIndex={currentMatchIndex}
-                  setCodeLines={setCodeLines}
-                  getPrismLanguage={getPrismLanguage}
-                />
-              ))}
-            {previewType === "unsupported" && (
-              <UnsupportedPreview
-                item={item}
-                activePath={activePath}
-                onStartSizeCalculation={onStartSizeCalculation}
-                onOpenFile={onOpenFile}
-                onClose={onClose}
-              />
-            )}
-            {previewType === "zip" && (
-              <ZipPreview
-                ref={zipPreviewRef}
-                filePath={fullPath}
-                onClose={onClose}
-                isVisible={isVisible}
-                onDecompressInActivePanel={onDecompressInActivePanel}
-                onDecompressToOtherPanel={onDecompressToOtherPanel}
-              />
-            )}
-          </div>
+            ))}
+          {previewType === "unsupported" && (
+            <UnsupportedPreview
+              item={item}
+              activePath={activePath}
+              onStartSizeCalculation={onStartSizeCalculation}
+              onOpenFile={onOpenFile}
+              onClose={onClose}
+            />
+          )}
+          {previewType === "zip" && (
+            <ZipPreview
+              ref={zipPreviewRef}
+              filePath={fullPath}
+              onClose={onClose}
+              isVisible={isVisible}
+              onDecompressInActivePanel={onDecompressInActivePanel}
+              onDecompressToOtherPanel={onDecompressToOtherPanel}
+            />
+          )}
         </div>
         {showSuccessMessage && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md">

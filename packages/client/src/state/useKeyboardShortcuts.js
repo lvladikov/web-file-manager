@@ -478,6 +478,8 @@ export default function useKeyboardShortcuts(props) {
 
           if (isPreviewableText(item.name)) {
             setPreviewModal({ isVisible: true, item: item, isEditing: true });
+          } else if (!["folder", "parent"].includes(item.type)) {
+            handleOpenFile(activePath, item.name);
           }
         }
         return;

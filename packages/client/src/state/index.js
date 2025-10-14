@@ -484,12 +484,16 @@ export default function appState() {
           const name = focusedItem[activePanel];
           if (name) {
             const item = panels[activePanel].items.find((i) => i.name === name);
-            if (item && isPreviewableText(item.name)) {
-              modals.setPreviewModal({
-                isVisible: true,
-                item: item,
-                isEditing: true,
-              });
+            if (item) {
+              if (isPreviewableText(item.name)) {
+                modals.setPreviewModal({
+                  isVisible: true,
+                  item: item,
+                  isEditing: true,
+                });
+              } else if (!["folder", "parent"].includes(item.type)) {
+                panelOps.handleOpenFile(activePath, item.name);
+              }
             }
           }
         },
@@ -497,7 +501,7 @@ export default function appState() {
           const name = focusedItem[activePanel];
           if (!name) return true;
           const item = panels[activePanel]?.items.find((i) => i.name === name);
-          return !item || !isPreviewableText(item.name);
+          return !item || ["folder", "parent"].includes(item.type);
         })(),
       },
       {

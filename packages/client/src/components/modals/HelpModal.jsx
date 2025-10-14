@@ -467,8 +467,9 @@ const HelpModal = ({ isVisible, onClose }) => {
                 its default application.
               </li>
               <li>
-                <kbd>F4</kbd>: Edit the focused text file. This opens an editor
-                with undo/redo, find/replace, and save functionality.
+                <kbd>F4</kbd>: Edit the focused text/code file is possible -
+                this opens an editor with undo/redo, find/replace, and save
+                functionality - otherwise open it with its default application.
               </li>
               <li>
                 <kbd>F5</kbd>: Copy selected items from the active panel to the
