@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import Prism from "prismjs";
 import "prismjs/themes/prism-okaidia.css";
+// ... (all other Prismjs imports remain the same)
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-jsx";
@@ -34,7 +35,6 @@ const EditableTextPreview = ({
   const editorRef = useRef(null);
   const preRef = useRef(null);
   const lineNumbersRef = useRef(null);
-  const lineMeasurerRef = useRef(null);
   const [lineNumbersForRender, setLineNumbersForRender] = useState([]);
 
   const language = getPrismLanguage(item?.name);
@@ -126,44 +126,40 @@ const EditableTextPreview = ({
     onContentChange(newContent);
   };
 
-  const commonEditorStyles = {
+  const FONT_STYLE = {
     fontFamily:
       'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
     fontSize: "0.875rem",
     lineHeight: 1.5,
     tabSize: 4,
     MozTabSize: 4,
-    whiteSpace: wordWrap ? "pre-wrap" : "pre",
-    wordBreak: "break-all",
-    overflowWrap: "break-word",
-    margin: 0,
-    padding: "1rem",
-    boxSizing: "border-box",
-    border: 0,
-    outline: "none",
-    verticalAlign: "top",
   };
 
   const recalculateLineNumbers = useCallback(() => {
-    if (showLineNumbers && lineMeasurerRef.current && editorRef.current) {
-      const editorStyles = window.getComputedStyle(editorRef.current);
-      const lineHeight = parseFloat(editorStyles.lineHeight);
-
-      if (!lineHeight) return; // Exit if lineHeight is not available
-
-      const paddingLeft = parseFloat(editorStyles.paddingLeft);
-      const paddingRight = parseFloat(editorStyles.paddingRight);
-
-      const contentWidth =
-        editorRef.current.clientWidth - paddingLeft - paddingRight;
-      lineMeasurerRef.current.style.width = `${contentWidth}px`;
+    if (showLineNumbers && preRef.current) {
+      const preStyles = window.getComputedStyle(preRef.current);
+      const lineHeight = parseFloat(preStyles.lineHeight);
+      if (!lineHeight) return;
 
       const lines = editedContent.split("\n");
       const newLineNumbers = [];
 
+      const tempDiv = document.createElement("div");
+
+      // Apply all relevant styles to the temporary div for accurate measurement
+      Object.assign(tempDiv.style, FONT_STYLE, {
+        whiteSpace: wordWrap ? "pre-wrap" : "pre",
+        overflowWrap: "break-word",
+        width: `${preRef.current.clientWidth}px`,
+        visibility: "hidden",
+        position: "absolute",
+      });
+
+      document.body.appendChild(tempDiv);
+
       lines.forEach((lineContent, index) => {
-        lineMeasurerRef.current.textContent = lineContent || "\u00a0";
-        const height = lineMeasurerRef.current.offsetHeight;
+        tempDiv.textContent = lineContent || "\u00a0";
+        const height = tempDiv.offsetHeight;
         const visualLines = Math.max(1, Math.round(height / lineHeight));
 
         newLineNumbers.push(index + 1);
@@ -172,6 +168,7 @@ const EditableTextPreview = ({
         }
       });
 
+      document.body.removeChild(tempDiv);
       setLineNumbersForRender(newLineNumbers);
     } else if (showLineNumbers) {
       const simpleLines = editedContent.split("\n");
@@ -179,41 +176,40 @@ const EditableTextPreview = ({
     }
   }, [editedContent, wordWrap, showLineNumbers]);
 
-  // Recalculate on content/setting changes
   useLayoutEffect(() => {
     recalculateLineNumbers();
   }, [recalculateLineNumbers]);
 
-  // Recalculate on editor resize
   useEffect(() => {
-    const editorEl = editorRef.current;
+    const editorEl = preRef.current;
     if (!editorEl) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      recalculateLineNumbers();
-    });
-
+    const resizeObserver = new ResizeObserver(recalculateLineNumbers);
     resizeObserver.observe(editorEl);
-
-    return () => {
-      resizeObserver.unobserve(editorEl);
-    };
+    return () => resizeObserver.unobserve(editorEl);
   }, [recalculateLineNumbers]);
 
-  const measurerStyles = {
-    ...commonEditorStyles,
-    paddingTop: 0,
-    paddingBottom: 0,
-    position: "absolute",
-    visibility: "hidden",
-    height: "auto",
-    top: "-9999px",
-    left: "-9999px",
+  const editorContainerStyle = {
+    display: "grid",
+    gridTemplateColumns: showLineNumbers ? "auto 1fr" : "1fr",
+    gridTemplateRows: "1fr",
+    overflow: "hidden",
+  };
+
+  const sharedEditorStyles = {
+    ...FONT_STYLE,
+    gridArea: "1 / " + (showLineNumbers ? "2 / 3" : "1 / 2"),
+    whiteSpace: wordWrap ? "pre-wrap" : "pre",
+    overflowWrap: "break-word",
+    margin: 0,
+    padding: "1rem",
+    boxSizing: "border-box",
+    border: 0,
+    outline: "none",
+    overflow: "auto",
   };
 
   return (
     <div className="flex flex-col h-full bg-gray-900">
-      <div ref={lineMeasurerRef} style={measurerStyles} aria-hidden="true" />
       {isFindReplaceVisible && (
         <div className="flex items-center p-2 bg-gray-700 border-b border-gray-600 flex-shrink-0">
           <input
@@ -283,42 +279,49 @@ const EditableTextPreview = ({
           </button>
         </div>
       )}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex-1 min-h-0" style={editorContainerStyle}>
         {showLineNumbers && (
           <pre
             ref={lineNumbersRef}
             aria-hidden="true"
             className="text-right text-gray-500 select-none bg-gray-900 font-mono text-sm overflow-y-hidden"
-            style={commonEditorStyles}
+            style={{
+              ...FONT_STYLE,
+              gridArea: "1 / 1 / 2 / 2",
+              padding: "1rem",
+              paddingRight: "1.25rem",
+              margin: 0,
+            }}
           >
             {lineNumbersForRender.map((num, i) => (
-              <div key={i}>{num !== null ? num : "\u00a0"}</div>
+              <div key={i} style={{ height: `${FONT_STYLE.lineHeight}em` }}>
+                {num !== null ? num : "\u00a0"}
+              </div>
             ))}
           </pre>
         )}
-        <div className="grid flex-1 min-h-0">
-          <textarea
-            ref={editorRef}
-            className="col-start-1 row-start-1 w-full h-full bg-transparent text-transparent caret-white resize-none overflow-auto z-10"
-            value={editedContent}
-            onChange={(e) => onContentChange(e.target.value)}
-            onScroll={syncScroll}
-            spellCheck="false"
-            wrap={wordWrap ? "soft" : "off"}
-            style={commonEditorStyles}
+        <textarea
+          ref={editorRef}
+          className="bg-transparent text-transparent caret-white resize-none"
+          value={editedContent}
+          onChange={(e) => onContentChange(e.target.value)}
+          onScroll={syncScroll}
+          spellCheck="false"
+          wrap={wordWrap ? "soft" : "off"}
+          style={{ ...sharedEditorStyles, zIndex: 1 }}
+        />
+        <pre
+          ref={preRef}
+          className="text-gray-200 bg-gray-900 pointer-events-none"
+          aria-hidden="true"
+          style={sharedEditorStyles}
+        >
+          <code
+            className={`language-${language}`}
+            style={{ display: "block" }}
+            dangerouslySetInnerHTML={{ __html: highlightedCode + "\n" }}
           />
-          <pre
-            ref={preRef}
-            className="col-start-1 row-start-1 w-full h-full text-gray-200 bg-gray-900 overflow-auto pointer-events-none"
-            aria-hidden="true"
-            style={commonEditorStyles}
-          >
-            <code
-              className={`language-${language}`}
-              dangerouslySetInnerHTML={{ __html: highlightedCode + "\n" }}
-            />
-          </pre>
-        </div>
+        </pre>
       </div>
     </div>
   );
