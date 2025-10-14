@@ -19,6 +19,8 @@ import "prismjs/components/prism-python";
 import "prismjs/components/prism-ignore";
 import "prismjs/components/prism-properties";
 
+import EditableTextPreview from "./EditableTextPreview";
+
 const TextPreview = ({
   codeLines,
   showLineNumbers,
@@ -33,42 +35,47 @@ const TextPreview = ({
   currentMatchIndex,
   setCodeLines,
   getPrismLanguage,
+  isEditing,
+  onSave,
+  onCancelEdit,
 }) => {
   useEffect(() => {
-    const language = getPrismLanguage(item?.name);
-    const grammar = Prism.languages[language] || Prism.languages.plaintext;
-    let fullHighlightedHtml;
+    if (!isEditing) {
+      const language = getPrismLanguage(item?.name);
+      const grammar = Prism.languages[language] || Prism.languages.plaintext;
+      let fullHighlightedHtml;
 
-    if (!searchTerm || matches.length === 0) {
-      fullHighlightedHtml = Prism.highlight(textContent, grammar, language);
-    } else {
-      let lastIndex = 0;
-      const parts = [];
-      matches.forEach((match, index) => {
-        const before = textContent.substring(lastIndex, match.index);
-        parts.push(Prism.highlight(before, grammar, language));
+      if (!searchTerm || matches.length === 0) {
+        fullHighlightedHtml = Prism.highlight(textContent, grammar, language);
+      } else {
+        let lastIndex = 0;
+        const parts = [];
+        matches.forEach((match, index) => {
+          const before = textContent.substring(lastIndex, match.index);
+          parts.push(Prism.highlight(before, grammar, language));
 
-        const matchedText = match[0];
-        const highlightedMatch = Prism.highlight(
-          matchedText,
-          grammar,
-          language
-        );
-        const markClass =
-          index === currentMatchIndex
-            ? "bg-yellow-400 text-black rounded-sm"
-            : "bg-sky-600 bg-opacity-50 rounded-sm";
-        parts.push(
-          `<mark id="match-${index}" class="${markClass}">${highlightedMatch}</mark>`
-        );
-        lastIndex = match.index + matchedText.length;
-      });
-      const after = textContent.substring(lastIndex);
-      parts.push(Prism.highlight(after, grammar, language));
-      fullHighlightedHtml = parts.join("");
+          const matchedText = match[0];
+          const highlightedMatch = Prism.highlight(
+            matchedText,
+            grammar,
+            language
+          );
+          const markClass =
+            index === currentMatchIndex
+              ? "bg-yellow-400 text-black rounded-sm"
+              : "bg-sky-600 bg-opacity-50 rounded-sm";
+          parts.push(
+            `<mark id="match-${index}" class="${markClass}">${highlightedMatch}</mark>`
+          );
+          lastIndex = match.index + matchedText.length;
+        });
+        const after = textContent.substring(lastIndex);
+        parts.push(Prism.highlight(after, grammar, language));
+        fullHighlightedHtml = parts.join("");
+      }
+
+      setCodeLines(fullHighlightedHtml.split("\n"));
     }
-
-    setCodeLines(fullHighlightedHtml.split("\n"));
   }, [
     textContent,
     textError,
@@ -77,7 +84,33 @@ const TextPreview = ({
     currentMatchIndex,
     item,
     previewType,
+    isEditing,
+    setCodeLines,
+    getPrismLanguage,
   ]);
+
+  if (isEditing) {
+    return (
+      <EditableTextPreview
+        codeLines={codeLines}
+        showLineNumbers={showLineNumbers}
+        wordWrap={wordWrap}
+        language={language}
+        item={item}
+        previewType={previewType}
+        textContent={textContent}
+        textError={textError}
+        searchTerm={searchTerm}
+        matches={matches}
+        currentMatchIndex={currentMatchIndex}
+        setCodeLines={setCodeLines}
+        getPrismLanguage={getPrismLanguage}
+        onSave={onSave}
+        isEditing={isEditing}
+        onCancelEdit={onCancelEdit}
+      />
+    );
+  }
 
   return (
     <div className="bg-gray-800 text-gray-300 font-mono text-sm p-4 h-full overflow-auto">

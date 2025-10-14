@@ -246,7 +246,7 @@ export default function App() {
               if (!item) return;
 
               if (item.type === "archive" || isItemPreviewable(item)) {
-                setPreviewModal({ isVisible: true, item });
+                setPreviewModal({ isVisible: true, item, isEditing: false });
               }
             }
           }}
@@ -309,11 +309,12 @@ export default function App() {
         activePath={activePath}
         onOpenFile={handleOpenFile}
         onStartSizeCalculation={handleStartSizeCalculation}
-        onClose={() => setPreviewModal({ isVisible: false, item: null })}
+        onClose={() => setPreviewModal({ isVisible: false, item: null, isEditing: false })}
         autoLoadLyrics={autoLoadLyrics}
         onToggleAutoLoadLyrics={handleToggleAutoLoadLyrics}
         onDecompressInActivePanel={handleDecompressInActivePanel}
         onDecompressToOtherPanel={handleDecompressToOtherPanel}
+        startInEditMode={previewModal.isEditing}
       />
       <ProgressModal
         {...copyProgress}
@@ -478,7 +479,7 @@ export default function App() {
                 if (!item) return;
 
                 if (item.type === "archive" || isItemPreviewable(item)) {
-                  setPreviewModal({ isVisible: true, item });
+                  setPreviewModal({ isVisible: true, item, isEditing: false });
                 }
               }
             }}

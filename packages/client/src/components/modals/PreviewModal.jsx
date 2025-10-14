@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   XCircle,
   Expand,
@@ -27,6 +27,9 @@ import UnsupportedPreview from "./preview-views/UnsupportedPreview";
 import ImagePreview from "./preview-views/ImagePreview";
 import VideoPreview from "./preview-views/VideoPreview";
 import ZipPreview from "./preview-views/ZipPreview";
+import { FilePenLine } from "lucide-react";
+import EditableTextPreview from "./preview-views/EditableTextPreview";
+import { saveFileContent } from "../../lib/api";
 
 const PreviewInfo = ({ previewType }) => {
   if (
@@ -61,6 +64,7 @@ const PreviewModal = ({
   onToggleAutoLoadLyrics,
   onDecompressInActivePanel,
   onDecompressToOtherPanel,
+  startInEditMode,
 }) => {
   const previewContainerRef = useRef(null);
   const videoRef = useRef(null);
@@ -278,6 +282,43 @@ const PreviewModal = ({
     }
   };
 
+  const [isEditing, setIsEditing] = useState(startInEditMode);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const handleSave = async (path, content) => {
+    try {
+      await saveFileContent(path, content);
+      setShowSuccessMessage(true);
+      setSaveError("");
+      setTextContent(content); // Update textContent with the saved content
+    } catch (error) {
+      setSaveError(error.message);
+    }
+  };
+
+  useEffect(() => {
+    setIsEditing(startInEditMode);
+  }, [startInEditMode]);
+
+  useEffect(() => {
+    if (showSuccessMessage) {
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessMessage]);
+
+  useEffect(() => {
+    if (showSuccessMessage) {
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessMessage]);
+
   if (!isVisible || !item) return null;
   const { fullPath } = item;
   const language = getPrismLanguage(item?.name);
@@ -289,14 +330,13 @@ const PreviewModal = ({
     >
       <div
         ref={previewContainerRef}
-        className={`bg-gray-900 border border-gray-600 rounded-lg shadow-lg flex flex-col
-                    ${
-                      isFullscreen
-                        ? "w-full h-full p-0 border-none rounded-none"
-                        : previewType === "zip"
-                        ? "w-full max-w-4xl h-[80vh]"
-                        : "max-w-[90vw] max-h-[90vh]"
-                    }`}
+        className={`bg-gray-900 border border-gray-600 rounded-lg shadow-lg flex flex-col ${
+          isFullscreen
+            ? "w-full h-full p-0 border-none rounded-none"
+            : previewType === "zip"
+            ? "w-full max-w-4xl h-[80vh]"
+            : "max-w-[90vw] max-h-[90vh]"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -306,6 +346,17 @@ const PreviewModal = ({
         >
           {previewType === "text" && (
             <>
+              <button
+                className={`p-1 rounded-full ${
+                  isEditing
+                    ? "bg-sky-600 text-white"
+                    : "text-gray-300 hover:text-white"
+                }`}
+                onClick={() => setIsEditing((prev) => !prev)}
+                title={isEditing ? "Cancel Edit" : "Edit File"}
+              >
+                <FilePenLine className="w-6 h-6" />
+              </button>
               <button
                 className={`p-1 rounded-full ${
                   isSearchVisible
@@ -436,7 +487,7 @@ const PreviewModal = ({
         <PreviewInfo previewType={previewType} />
 
         <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-auto">
-          <div className="flex-1 min-h-0 relative">
+          <div className="flex-1 min-h-0 relative h-full">
             {previewType === "image" && (
               <ImagePreview
                 item={item}
@@ -472,23 +523,36 @@ const PreviewModal = ({
                 onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
               />
             )}
-            {previewType === "text" && (
-              <TextPreview
-                codeLines={codeLines}
-                showLineNumbers={showLineNumbers}
-                wordWrap={wordWrap}
-                language={language}
-                item={item}
-                previewType={previewType}
-                textContent={textContent}
-                textError={textError}
-                searchTerm={searchTerm}
-                matches={matches}
-                currentMatchIndex={currentMatchIndex}
-                setCodeLines={setCodeLines}
-                getPrismLanguage={getPrismLanguage}
-              />
-            )}
+            {previewType === "text" &&
+              (isEditing ? (
+                <EditableTextPreview
+                  item={item}
+                  textContent={textContent}
+                  onSave={handleSave}
+                  onCancelEdit={() => setIsEditing(false)}
+                  isEditing={isEditing}
+                  wordWrap={wordWrap}
+                  language={language}
+                  textError={textError}
+                  getPrismLanguage={getPrismLanguage}
+                />
+              ) : (
+                <TextPreview
+                  codeLines={codeLines}
+                  showLineNumbers={showLineNumbers}
+                  wordWrap={wordWrap}
+                  language={language}
+                  item={item}
+                  previewType={previewType}
+                  textContent={textContent}
+                  textError={textError}
+                  searchTerm={searchTerm}
+                  matches={matches}
+                  currentMatchIndex={currentMatchIndex}
+                  setCodeLines={setCodeLines}
+                  getPrismLanguage={getPrismLanguage}
+                />
+              ))}
             {previewType === "unsupported" && (
               <UnsupportedPreview
                 item={item}
@@ -510,6 +574,16 @@ const PreviewModal = ({
             )}
           </div>
         </div>
+        {showSuccessMessage && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-md">
+            File saved successfully!
+          </div>
+        )}
+        {saveError && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-md">
+            {saveError}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,47 +4,56 @@ import crypto from "crypto";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
 
+const getFileType = (filename, isDirectory) => {
+  if (isDirectory) return "folder";
+
+  if (/\.zip$/i.test(filename)) return "archive";
+  if (/\.(jpg|jpeg|png|gif|bmp|tiff|svg|webp|psd)$/i.test(filename))
+    return "image";
+  if (/\.(mp4|mkv|avi|mov|wmv|flv)$/i.test(filename)) return "video";
+  if (/\.(mp3|m4a|aac|flac|wav|ogg|wma)$/i.test(filename)) return "audio";
+  if (/\.pdf$/i.test(filename)) return "pdf";
+  if (/\.(doc|docx)$/i.test(filename)) return "doc";
+  if (/\.html$/i.test(filename)) return "html";
+  if (/\.css$/i.test(filename)) return "css";
+  if (/\.(js|jsx)$/i.test(filename)) return "javascript";
+  if (/\.(ts|tsx)$/i.test(filename)) return "typescript";
+  if (/\.json$/i.test(filename)) return "json";
+  if (/\.py$/i.test(filename)) return "python";
+  if (/\.sh$/i.test(filename)) return "shell";
+  if (/\.sql$/i.test(filename)) return "sql";
+  if (/\.md$/i.test(filename)) return "markdown";
+  if (/\.(yml|yaml)$/i.test(filename)) return "yaml";
+  if (/\.xml$/i.test(filename)) return "xml";
+  if (/\.log$/i.test(filename)) return "log";
+  if (/\.(cfg|ini)$/i.test(filename)) return "config";
+  if (/dockerfile/i.test(filename) || /docker-compose\.yml/i.test(filename))
+    return "docker";
+  if (/\.gitignore/i.test(filename)) return "git";
+  if (
+    /\.(c|h|cpp|hpp|cs|go|php|rb|rs|swift|kt|dart|pl|lua|scala|hs|erl|exs|clj|r|java|rb)$/i.test(
+      filename
+    )
+  )
+    return "code";
+  if (
+    /\.(txt|nfo|cue|properties|gitignore|editorconfig|nvmrc|prettierignore|prettierrc|license)$/i.test(
+      filename
+    )
+  )
+    return "text";
+
+  return "file";
+};
+
 const getZipContents = async (zipFilePath) => {
   const entries = [];
   let zipfile;
   try {
     zipfile = await yauzl.open(zipFilePath);
     for await (const entry of zipfile) {
-      const isDirectory = entry.filename.endsWith('/');
-      let type = "file"; // Default to generic file type
-
-      if (isDirectory) {
-        type = "folder";
-      } else {
-        // Apply detailed type detection based on file extension
-        if (/\.zip$/i.test(entry.filename)) type = "archive";
-        else if (
-          /\.(jpg|jpeg|png|gif|bmp|tiff|svg|webp|psd)$/i.test(entry.filename)
-        )
-          type = "image";
-        else if (/\.(mp4|mkv|avi|mov|wmv|flv)$/i.test(entry.filename))
-          type = "video";
-        else if (/\.(mp3|m4a|aac|flac|wav|ogg|wma)$/i.test(entry.filename))
-          type = "audio";
-        else if (/\.pdf$/i.test(entry.filename)) type = "pdf";
-        else if (/\.(doc|docx)$/i.test(entry.filename)) type = "doc";
-        else if (/\.html$/i.test(entry.filename)) type = "html";
-        else if (/\.css$/i.test(entry.filename)) type = "css";
-        else if (/\.(js|jsx)$/i.test(entry.filename)) type = "javascript";
-        else if (/\.(ts|tsx)$/i.test(entry.filename)) type = "typescript";
-        else if (/\.json$/i.test(entry.filename)) type = "json";
-        else if (/\.py$/i.test(entry.filename)) type = "python";
-        else if (/\.sh$/i.test(entry.filename)) type = "shell";
-        else if (/\.sql$/i.test(entry.filename)) type = "sql";
-        else if (/\.md$/i.test(entry.filename)) type = "markdown";
-        else if (/\.(yml|yaml)$/i.test(entry.filename)) type = "yaml";
-        else if (/\.xml$/i.test(entry.filename)) type = "xml";
-        else if (/\.log$/i.test(entry.filename)) type = "log";
-        else if (/\.(cfg|ini)$/i.test(entry.filename)) type = "config";
-        else if (/dockerfile/i.test(entry.filename) || /docker-compose\.yml/i.test(entry.filename)) type = "docker";
-        else if (/\.gitignore/i.test(entry.filename)) type = "git";
-        else if (/\.(c|h|cpp|hpp|cs|go|php|rb|rs|swift|kt|dart|pl|lua|scala|hs|erl|exs|clj|r|java|rb)$/i.test(entry.filename)) type = "code";
-      }
+      const isDirectory = entry.filename.endsWith("/");
+      const type = getFileType(entry.filename, isDirectory);
 
       entries.push({
         name: entry.filename,
@@ -63,7 +72,6 @@ const getZipContents = async (zipFilePath) => {
   return entries;
 };
 
-// Recursive function to calculate directory size with progress and cancellation
 const getDirSizeWithProgress = async (dirPath, job) => {
   if (job.controller.signal.aborted) throw new Error("Calculation cancelled");
 
@@ -401,13 +409,14 @@ const getAllFiles = async (dirPath, basePath = dirPath) => {
 };
 
 export {
+  getFileType,
+  getZipContents,
   getDirSizeWithProgress,
   performCopyCancellation,
   getMimeType,
+  getDirTotalSize,
   getDirSize,
   getDirSizeWithScanProgress,
   copyWithProgress,
-  getDirTotalSize,
   getAllFiles,
-  getZipContents,
 };

@@ -44,12 +44,16 @@ const HelpModal = ({ isVisible, onClose }) => {
     "Favourites",
     "Top Menus",
     "Function Key Actions",
-    "Copy Operation & Conflict Modes",
+    "Copy/Move Operation & Conflict Modes",
   ];
 
   const handleLinkClick = (e, section) => {
     e.preventDefault();
-    const id = section.toLowerCase().replace(/ /g, "-").replace(/&/g, "and");
+    const id = section
+      .toLowerCase()
+      .replace(/\//g, "-")
+      .replace(/ /g, "-")
+      .replace(/&/g, "and");
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -85,6 +89,7 @@ const HelpModal = ({ isVisible, onClose }) => {
                   <a
                     href={`#${section
                       .toLowerCase()
+                      .replace(/\//g, "-")
                       .replace(/ /g, "-")
                       .replace(/&/g, "and")}`}
                     onClick={(e) => handleLinkClick(e, section)}
@@ -462,6 +467,10 @@ const HelpModal = ({ isVisible, onClose }) => {
                 its default application.
               </li>
               <li>
+                <kbd>F4</kbd>: Edit the focused text file. This opens an editor
+                with undo/redo, find/replace, and save functionality.
+              </li>
+              <li>
                 <kbd>F5</kbd>: Copy selected items from the active panel to the
                 other panel.
               </li>
@@ -480,14 +489,14 @@ const HelpModal = ({ isVisible, onClose }) => {
           </HelpSection>
 
           <HelpSection
-            id="copy-operation-and-conflict-modes"
-            title="Copy Operation & Conflict Modes"
+            id="copy-move-operation-and-conflict-modes"
+            title="Copy/Move Operation & Conflict Modes"
           >
             <p>
-              When you press <kbd>F5</kbd> to copy, items are copied from the
-              active panel to the directory shown in the inactive panel. If an
-              item being copied already exists in the target, a confirmation
-              dialog appears.
+              When you press <kbd>F5</kbd> to copy (or <kbd>F6</kbd> to move),
+              items are copied/moved from the active panel to the directory
+              shown in the inactive panel. If an item being copied/moved already
+              exists in the target, a confirmation dialog appears.
             </p>
             <p>
               This dialog gives you several choices for how to handle this and
@@ -506,7 +515,7 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <strong>For All Subsequent Items:</strong> You can set a rule
                 for the rest of the copy operation, such as "Yes to All" (always
-                overwrite) or "Copy if New" (a safe merge mode that never
+                overwrite) or "Copy/Move if New" (a safe merge mode that never
                 overwrites).
               </li>
             </ul>

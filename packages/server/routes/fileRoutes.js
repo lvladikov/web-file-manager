@@ -6,7 +6,12 @@ import os from "os";
 import crypto from "crypto";
 import checkDiskSpace from "check-disk-space";
 import archiver from "archiver";
-import { performCopyCancellation, getDirTotalSize, getZipContents } from "../lib/utils.js";
+import {
+  performCopyCancellation,
+  getDirTotalSize,
+  getZipContents,
+  getFileType,
+} from "../lib/utils.js";
 
 export default function createFileRoutes(
   activeCopyJobs,
@@ -99,35 +104,7 @@ export default function createFileRoutes(
             let actualFullPath = fullFilePath;
 
             const fileStats = await fse.stat(actualFullPath);
-            let type = "file";
-            if (fileStats.isDirectory()) type = "folder";
-            else if (/\.zip$/i.test(file.name)) type = "archive";
-            else if (
-              /\.(jpg|jpeg|png|gif|bmp|tiff|svg|webp|psd)$/i.test(file.name)
-            )
-              type = "image";
-            else if (/\.(mp4|mkv|avi|mov|wmv|flv)$/i.test(file.name))
-              type = "video";
-            else if (/\.(mp3|m4a|aac|flac|wav|ogg|wma)$/i.test(file.name))
-              type = "audio";
-            else if (/\.pdf$/i.test(file.name)) type = "pdf";
-            else if (/\.(doc|docx)$/i.test(file.name)) type = "doc";
-            else if (/\.html$/i.test(file.name)) type = "html";
-            else if (/\.css$/i.test(file.name)) type = "css";
-            else if (/\.(js|jsx)$/i.test(file.name)) type = "javascript";
-            else if (/\.(ts|tsx)$/i.test(file.name)) type = "typescript";
-            else if (/\.json$/i.test(file.name)) type = "json";
-            else if (/\.py$/i.test(file.name)) type = "python";
-            else if (/\.sh$/i.test(file.name)) type = "shell";
-            else if (/\.sql$/i.test(file.name)) type = "sql";
-            else if (/\.md$/i.test(file.name)) type = "markdown";
-            else if (/\.(yml|yaml)$/i.test(file.name)) type = "yaml";
-            else if (/\.xml$/i.test(file.name)) type = "xml";
-            else if (/\.log$/i.test(file.name)) type = "log";
-            else if (/\.(cfg|ini)$/i.test(file.name)) type = "config";
-            else if (/dockerfile/i.test(file.name) || /docker-compose\.yml/i.test(file.name)) type = "docker";
-            else if (/\.gitignore/i.test(file.name)) type = "git";
-            else if (/\.(c|h|cpp|hpp|cs|go|php|rb|rs|swift|kt|dart|pl|lua|scala|hs|erl|exs|clj|r|java|rb)$/i.test(file.name)) type = "code";
+            const type = getFileType(file.name, fileStats.isDirectory());
             return {
               name: file.name,
               type,
@@ -152,13 +129,13 @@ export default function createFileRoutes(
       // Sort items: folders first, then files starting with '_', then others, all alphabetically.
       validItems.sort((a, b) => {
         // Group by type: folders first
-        if (a.type === 'folder' && b.type !== 'folder') return -1;
-        if (a.type !== 'folder' && b.type === 'folder') return 1;
+        if (a.type === "folder" && b.type !== "folder") return -1;
+        if (a.type !== "folder" && b.type === "folder") return 1;
 
         // Within files, group by underscore prefix
-        if (a.type !== 'folder' && b.type !== 'folder') {
-          const a_ = a.name.startsWith('_');
-          const b_ = b.name.startsWith('_');
+        if (a.type !== "folder" && b.type !== "folder") {
+          const a_ = a.name.startsWith("_");
+          const b_ = b.name.startsWith("_");
           if (a_ && !b_) return -1;
           if (!a_ && b_) return 1;
         }
@@ -448,12 +425,14 @@ export default function createFileRoutes(
     }
 
     let sourcePath;
-    if (typeof source === 'string') {
+    if (typeof source === "string") {
       sourcePath = source;
-    } else if (typeof source === 'object' && source.path && source.name) {
+    } else if (typeof source === "object" && source.path && source.name) {
       sourcePath = path.join(source.path, source.name);
     } else {
-      return res.status(400).json({ message: "Invalid source archive path provided." });
+      return res
+        .status(400)
+        .json({ message: "Invalid source archive path provided." });
     }
 
     const jobId = crypto.randomUUID();
@@ -494,12 +473,14 @@ export default function createFileRoutes(
     }
 
     let sourcePath;
-    if (typeof source === 'string') {
+    if (typeof source === "string") {
       sourcePath = source;
-    } else if (typeof source === 'object' && source.path && source.name) {
+    } else if (typeof source === "object" && source.path && source.name) {
       sourcePath = path.join(source.path, source.name);
     } else {
-      return res.status(400).json({ message: "Invalid source archive path provided." });
+      return res
+        .status(400)
+        .json({ message: "Invalid source archive path provided." });
     }
 
     const jobId = crypto.randomUUID();
@@ -562,6 +543,26 @@ export default function createFileRoutes(
         return res.status(404).json({ message: "Original item not found." });
       }
       res.status(500).json({ message: `Failed to rename: ${error.message}` });
+    }
+  });
+
+  // Endpoint to save file content
+  router.post("/save-file", async (req, res) => {
+    const { path: filePath, content } = req.body;
+    if (!filePath || content === undefined) {
+      return res
+        .status(400)
+        .json({ message: "File path and content are required." });
+    }
+
+    try {
+      await fse.writeFile(filePath, content);
+      res.status(200).json({ message: "File saved successfully." });
+    } catch (error) {
+      console.error("Error saving file:", error);
+      res
+        .status(500)
+        .json({ message: `Failed to save file: ${error.message}` });
     }
   });
 

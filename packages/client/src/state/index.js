@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { savePaths, fetchDirectory } from "../lib/api";
-import { isMac } from "../lib/utils";
+import { isMac, isPreviewableText } from "../lib/utils";
 
 import useDelete from "./useDelete";
 import useRename from "./useRename";
@@ -477,7 +477,29 @@ export default function appState() {
           return !item || ["folder", "parent"].includes(item.type);
         })(),
       },
-      { label: "Edit", f_key: "F4", action: () => {}, disabled: true },
+      {
+        label: "Edit",
+        f_key: "F4",
+        action: () => {
+          const name = focusedItem[activePanel];
+          if (name) {
+            const item = panels[activePanel].items.find((i) => i.name === name);
+            if (item && isPreviewableText(item.name)) {
+              modals.setPreviewModal({
+                isVisible: true,
+                item: item,
+                isEditing: true,
+              });
+            }
+          }
+        },
+        disabled: (() => {
+          const name = focusedItem[activePanel];
+          if (!name) return true;
+          const item = panels[activePanel]?.items.find((i) => i.name === name);
+          return !item || !isPreviewableText(item.name);
+        })(),
+      },
       {
         label: "Copy",
         f_key: "F5",
@@ -517,6 +539,8 @@ export default function appState() {
       del.handleDeleteItem,
       modals.setHelpModal,
       rename.handleStartRename,
+      modals.previewModal.isVisible,
+      modals.previewModal.item?.type,
     ]
   );
 

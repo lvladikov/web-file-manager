@@ -151,10 +151,12 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - <kbd>F5</kbd>: Copy selected items from the active panel to the other panel.
 
+  - <kbd>F4</kbd>: Edit the focused text file. This opens an editor with undo/redo, find/replace, and save functionality.
+
   - <kbd>F6</kbd>: Move selected items from the active panel to the other panel.
 
   - <kbd>F7</kbd>: Create a new folder in the active panel.
 
   - <kbd>F8</kbd>: Delete the selected items.
 
-- **Copy Operation & Conflict Modes**: When copying, if an item exists in the target, a confirmation dialog appears with choices for handling conflicts (e.g., "Yes to All", "Copy if New", "No to All", "Skip if Source is Empty", "Overwrite if Size Differs", "Replace if Smaller").
+- **Copy/Move Operation & Conflict Modes**: When copying/moving, if an item exists in the target, a confirmation dialog appears with choices for handling conflicts (e.g., "Yes to All", "Copy/Move if New", "No to All", "Skip if Source is Empty", "Overwrite if Size Differs", "Replace if Smaller").

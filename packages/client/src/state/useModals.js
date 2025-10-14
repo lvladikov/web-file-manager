@@ -16,6 +16,7 @@ export default function useModals() {
   const [previewModal, setPreviewModal] = useState({
     isVisible: false,
     item: null,
+    isEditing: false,
   });
 
   const [helpModal, setHelpModal] = useState({ isVisible: false });

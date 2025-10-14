@@ -305,6 +305,19 @@ const fetchZipContents = async (filePath) => {
   return response.json();
 };
 
+const saveFileContent = async (path, content) => {
+  const response = await fetch("/api/save-file", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, content }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to save file content.");
+  }
+  return response.json();
+};
+
 export {
   createNewFolder,
   deleteItem,
@@ -334,4 +347,5 @@ export {
   testArchive,
   cancelArchiveTest,
   fetchZipContents,
+  saveFileContent,
 };

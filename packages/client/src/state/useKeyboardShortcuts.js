@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isMac, isItemPreviewable } from "../lib/utils";
+import { isMac, isItemPreviewable, isPreviewableText } from "../lib/utils";
 
 export default function useKeyboardShortcuts(props) {
   const latestProps = useRef(props);
@@ -467,6 +467,22 @@ export default function useKeyboardShortcuts(props) {
         }
         return;
       }
+      if (e.key === "F4") {
+        e.preventDefault();
+        const focusedName = focusedItem[activePanel];
+        if (focusedName) {
+          const item = panels[activePanel].items.find(
+            (i) => i.name === focusedName
+          );
+          if (!item) return;
+
+          if (isPreviewableText(item.name)) {
+            setPreviewModal({ isVisible: true, item: item, isEditing: true });
+          }
+        }
+        return;
+      }
+
       if (e.key === "F5") {
         e.preventDefault();
         const focusedName = focusedItem[activePanel];
