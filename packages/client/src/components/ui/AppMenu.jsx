@@ -47,9 +47,11 @@ const FileMenu = ({ ...props }) => {
     calculateSizeLabel,
     handleItemClick,
     onPreview,
+    onView,
     onOpen,
     onOpenWith,
     canPreview,
+    canView,
     canOpen,
     canOpenWith,
   } = props;
@@ -69,6 +71,13 @@ const FileMenu = ({ ...props }) => {
             label="Preview"
             shortcut="Space"
             onClick={() => handleItemClick(onPreview)}
+          />
+        )}
+        {canView && (
+          <MenuItem
+            label="View"
+            shortcut="F3"
+            onClick={() => handleItemClick(onView)}
           />
         )}
         {canOpen && (

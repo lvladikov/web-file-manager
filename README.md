@@ -147,7 +147,9 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - <kbd>F2</kbd>: Rename the currently focused item.
 
-  - <kbd>F3</kbd>: Preview the focused item if possible (images, text, PDFs, audio, video, zip archives), otherwise open it with its default application.
+  - <kbd>F3 (View)</kbd>: Previews a file if it's a supported format (image, video, PDF, text, archive); otherwise, it opens the file with the default system application. This key does nothing for folders.
+
+  - <kbd>Spacebar (Preview)</kbd>: Previews a file if it's a supported format. For folders, this key calculates the folder's total size.
 
   - <kbd>F4</kbd>: Edit the focused text/code file is possible - this opens an editor with undo/redo, find/replace, and save functionality - otherwise open it with its default application.
 

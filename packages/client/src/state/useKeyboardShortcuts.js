@@ -52,6 +52,7 @@ export default function useKeyboardShortcuts(props) {
         handleSelectAll,
         handleSwapPanels,
         calculateSizeForMultipleFolders,
+        handleViewItem,
       } = latestProps.current;
 
       if (!panels || !panels.left || !panels.right) {
@@ -444,21 +445,7 @@ export default function useKeyboardShortcuts(props) {
       }
       if (e.key === "F3") {
         e.preventDefault();
-        const focusedName = focusedItem[activePanel];
-        if (focusedName) {
-          const item = panels[activePanel].items.find(
-            (i) => i.name === focusedName
-          );
-          if (!item) return;
-
-          // For archives and previewable items, now we just set the preview modal with the item
-          // PreviewModal will handle rendering ZipPreview internally
-          if (item.type === "archive" || isItemPreviewable(item)) {
-            setPreviewModal({ isVisible: true, item: item });
-          } else if (item.type !== "folder" && item.type !== "parent") {
-            handleOpenFile(panels[activePanel].path, item.name);
-          }
-        }
+        handleViewItem();
         return;
       }
       if (e.key === "F4") {

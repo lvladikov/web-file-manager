@@ -108,6 +108,7 @@ export default function App() {
     handleCloseFilter,
     handleFilterChange,
     filteredItems,
+    handleViewItem,
 
     // Derived State
     activePath,
@@ -142,6 +143,10 @@ export default function App() {
 
   const canPreview =
     singleItemSelected && isItemPreviewable(firstSelectedItemDetails);
+  const canView =
+    singleItemSelected &&
+    firstSelectedItemDetails &&
+    !["folder", "parent"].includes(firstSelectedItemDetails.type);
   const canOpen = singleItemSelected;
   const canOpenWith =
     singleItemSelected && isEditable(firstSelectedItemDetails);
@@ -271,7 +276,9 @@ export default function App() {
           }}
           onOpen={handleContextOpen}
           onOpenWith={handleContextOpenWith}
+          onView={handleViewItem}
           canPreview={canPreview}
+          canView={canView}
           canOpen={canOpen}
           canOpenWith={canOpenWith}
           canEdit={canEdit}
@@ -509,6 +516,7 @@ export default function App() {
             }}
             onOpen={() => handleContextOpen()}
             onOpenWith={() => handleContextOpenWith()}
+            onView={handleViewItem}
             onEdit={handleEdit}
             onCopyToOtherPanel={() => {
               const sourcePanelId = panelId;

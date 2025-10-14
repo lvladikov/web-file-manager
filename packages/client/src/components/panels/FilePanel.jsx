@@ -70,6 +70,7 @@ const FilePanel = React.forwardRef(
       onPreview,
       onOpen,
       onOpenWith,
+      onView,
       onEdit,
       onCopyToOtherPanel,
       onMoveToOtherPanel,
@@ -519,6 +520,7 @@ const FilePanel = React.forwardRef(
                   onPreview={onPreview}
                   onOpen={onOpen}
                   onOpenWith={onOpenWith}
+                  onView={onView}
                   onEdit={onEdit}
                   onCopyToOtherPanel={onCopyToOtherPanel}
                   onMoveToOtherPanel={onMoveToOtherPanel}

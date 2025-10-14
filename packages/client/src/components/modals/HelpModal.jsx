@@ -462,9 +462,15 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <kbd>F2</kbd>: Rename the currently focused item.
               </li>
               <li>
-                <kbd>F3</kbd>: Preview the focused item if possible (images,
-                text, PDFs, audio, video, zip archives), otherwise open it with
-                its default application.
+                <kbd>F3 (View)</kbd>: Previews a file if it's a supported format
+                (image, video, PDF, text, archive); otherwise, it opens the file
+                with the default system application. This key does nothing for
+                folders.
+              </li>
+              <li>
+                <kbd>Spacebar (Preview)</kbd>: Previews a file if it's a
+                supported format. For folders, this key calculates the folder's
+                total size.
               </li>
               <li>
                 <kbd>F4</kbd>: Edit the focused text/code file is possible -

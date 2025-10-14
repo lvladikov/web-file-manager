@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { savePaths, fetchDirectory } from "../lib/api";
-import { isMac, isPreviewableText } from "../lib/utils";
+import { isMac, isPreviewableText, isItemPreviewable } from "../lib/utils";
 
 import useDelete from "./useDelete";
 import useRename from "./useRename";
@@ -439,6 +439,20 @@ export default function appState() {
 
   const activePath = panels[activePanel].path;
 
+  const handleViewItem = useCallback(() => {
+    const name = focusedItem[activePanel];
+    if (name) {
+      const item = panels[activePanel].items.find((i) => i.name === name);
+      if (!item) return;
+
+      if (item.type === "archive" || isItemPreviewable(item)) {
+        modals.setPreviewModal({ isVisible: true, item: item });
+      } else if (!["folder", "parent"].includes(item.type)) {
+        panelOps.handleOpenFile(panels[activePanel].path, item.name);
+      }
+    }
+  }, [activePanel, focusedItem, panels, modals, panelOps]);
+
   const actionBarButtons = useMemo(
     () => [
       {
@@ -461,15 +475,7 @@ export default function appState() {
       {
         label: "View",
         f_key: "F3",
-        action: () => {
-          const name = focusedItem[activePanel];
-          if (name) {
-            const item = panels[activePanel].items.find((i) => i.name === name);
-            if (item && !["folder", "parent"].includes(item.type)) {
-              panelOps.handleOpenFile(activePath, item.name);
-            }
-          }
-        },
+        action: () => handleViewItem(),
         disabled: (() => {
           const name = focusedItem[activePanel];
           if (!name) return true;
@@ -541,10 +547,9 @@ export default function appState() {
       newFolder.handleStartNewFolder,
       loading,
       del.handleDeleteItem,
-      modals.setHelpModal,
+      modals,
       rename.handleStartRename,
-      modals.previewModal.isVisible,
-      modals.previewModal.item?.type,
+      handleViewItem,
     ]
   );
 
@@ -606,6 +611,7 @@ export default function appState() {
     handleSelectAll,
     handleSwapPanels,
     openZipPreviewModal: modals.openZipPreviewModal,
+    handleViewItem,
   });
 
   const panelsRef = useRef(panels);
@@ -718,6 +724,7 @@ export default function appState() {
     handleContextOpen,
     handleContextOpenWith,
     handleOverwriteDecision,
+    handleViewItem,
     // UI Composition
     actionBarButtons,
   };

@@ -9,6 +9,7 @@ const AppContextMenu = ({
   onPreview,
   onOpen,
   onOpenWith,
+  onView,
   onCopyToOtherPanel,
   onMoveToOtherPanel,
   onRename,
@@ -113,6 +114,14 @@ const AppContextMenu = ({
                   <span className="text-gray-400">Space</span>
                 </ContextMenu.Item>
               )}
+              {!isMultiSelect &&
+                firstItem.type !== "folder" &&
+                firstItem.type !== "parent" && (
+                  <ContextMenu.Item onSelect={onView} className={itemClassName}>
+                    <span>View</span>
+                    <span className="text-gray-400">F3</span>
+                  </ContextMenu.Item>
+                )}
               {!isMultiSelect && (
                 <ContextMenu.Item onSelect={onOpen} className={itemClassName}>
                   <span>Open</span>

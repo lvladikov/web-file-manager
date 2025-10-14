@@ -21,6 +21,7 @@ const FileItem = ({
   onPreview,
   onOpen,
   onOpenWith,
+  onView,
   onEdit,
   onCopyToOtherPanel,
   onMoveToOtherPanel,
@@ -158,6 +159,7 @@ const FileItem = ({
       onPreview={onPreview}
       onOpen={onOpen}
       onOpenWith={onOpenWith}
+      onView={onView}
       onCopyToOtherPanel={onCopyToOtherPanel}
       onMoveToOtherPanel={onMoveToOtherPanel}
       onRename={onRename}
