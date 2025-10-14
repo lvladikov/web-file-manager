@@ -39,15 +39,65 @@ const EditableTextPreview = ({
 
   const language = getPrismLanguage(item?.name);
 
+  // State for find and replace functionality
+  const [findTerm, setFindTerm] = useState("");
+  const [replaceTerm, setReplaceTerm] = useState("");
+  const [findMatches, setFindMatches] = useState([]);
+  const [currentFindMatchIndex, setCurrentFindMatchIndex] = useState(-1);
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [useRegex, setUseRegex] = useState(false);
+
   useEffect(() => {
     editorRef.current?.focus();
   }, []);
 
   useEffect(() => {
     const grammar = Prism.languages[language] || Prism.languages.plaintext;
-    const html = Prism.highlight(editedContent, grammar, language);
-    setHighlightedCode(html);
-  }, [editedContent, language]);
+
+    if (!findTerm || findMatches.length === 0) {
+      // No search, just highlight the code
+      const html = Prism.highlight(editedContent, grammar, language);
+      setHighlightedCode(html);
+      return;
+    }
+
+    // Search is active, highlight with <mark> tags
+    let lastIndex = 0;
+    const parts = [];
+    findMatches.forEach((match, index) => {
+      const before = editedContent.substring(lastIndex, match.index);
+      parts.push(Prism.highlight(before, grammar, language));
+
+      const matchedText = match[0];
+      const highlightedMatch = Prism.highlight(matchedText, grammar, language);
+      const markClass =
+        index === currentFindMatchIndex
+          ? "bg-yellow-400 text-black rounded-sm"
+          : "bg-sky-600 bg-opacity-50 rounded-sm";
+      parts.push(
+        `<mark id="match-${index}" class="${markClass}">${highlightedMatch}</mark>`
+      );
+      lastIndex = match.index + matchedText.length;
+    });
+    const after = editedContent.substring(lastIndex);
+    parts.push(Prism.highlight(after, grammar, language));
+
+    setHighlightedCode(parts.join(""));
+  }, [editedContent, language, findTerm, findMatches, currentFindMatchIndex]);
+
+  useEffect(() => {
+    if (currentFindMatchIndex > -1 && preRef.current) {
+      const element = preRef.current.querySelector(
+        `#match-${currentFindMatchIndex}`
+      );
+      if (element) {
+        element.scrollIntoView({
+          block: "center",
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [currentFindMatchIndex]);
 
   const syncScroll = () => {
     if (editorRef.current && preRef.current) {
@@ -60,13 +110,6 @@ const EditableTextPreview = ({
       }
     }
   };
-
-  const [findTerm, setFindTerm] = useState("");
-  const [replaceTerm, setReplaceTerm] = useState("");
-  const [findMatches, setFindMatches] = useState([]);
-  const [currentFindMatchIndex, setCurrentFindMatchIndex] = useState(-1);
-  const [caseSensitive, setCaseSensitive] = useState(false);
-  const [useRegex, setUseRegex] = useState(false);
 
   const performSearch = useCallback(() => {
     if (!findTerm) {
@@ -218,6 +261,16 @@ const EditableTextPreview = ({
             value={findTerm}
             onChange={(e) => setFindTerm(e.target.value)}
             className="p-1 rounded bg-gray-800 text-white border border-gray-600 mr-2"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (e.shiftKey) {
+                  findPrevious();
+                } else {
+                  findNext();
+                }
+              }
+            }}
           />
           <button
             onClick={findPrevious}
