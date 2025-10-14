@@ -149,9 +149,9 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - <kbd>F3</kbd>: Preview the focused item if possible (images, text, PDFs, audio, video, zip archives), otherwise open it with its default application.
 
-  - <kbd>F5</kbd>: Copy selected items from the active panel to the other panel.
-
   - <kbd>F4</kbd>: Edit the focused text file. This opens an editor with undo/redo, find/replace, and save functionality.
+
+  - <kbd>F5</kbd>: Copy selected items from the active panel to the other panel.
 
   - <kbd>F6</kbd>: Move selected items from the active panel to the other panel.
 
