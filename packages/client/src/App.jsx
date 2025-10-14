@@ -304,12 +304,15 @@ export default function App() {
         }}
       />
       <PreviewModal
+        key={previewModal.item?.fullPath}
         isVisible={previewModal.isVisible}
         item={previewModal.item}
         activePath={activePath}
         onOpenFile={handleOpenFile}
         onStartSizeCalculation={handleStartSizeCalculation}
-        onClose={() => setPreviewModal({ isVisible: false, item: null, isEditing: false })}
+        onClose={() =>
+          setPreviewModal({ isVisible: false, item: null, isEditing: false })
+        }
         autoLoadLyrics={autoLoadLyrics}
         onToggleAutoLoadLyrics={handleToggleAutoLoadLyrics}
         onDecompressInActivePanel={handleDecompressInActivePanel}
@@ -331,7 +334,8 @@ export default function App() {
         jobType={overwritePrompt.jobType}
         onDecision={handleOverwriteDecision}
         onCancel={
-          overwritePrompt.jobType === "copy" || overwritePrompt.jobType === "move"
+          overwritePrompt.jobType === "copy" ||
+          overwritePrompt.jobType === "move"
             ? handleCancelCopy
             : handleCancelDecompress
         }

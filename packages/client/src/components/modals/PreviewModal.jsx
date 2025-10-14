@@ -387,6 +387,7 @@ const PreviewModal = ({
 
   const handleSaveAndClose = async () => {
     await handleSave();
+    setUnsavedChangesModalVisible(false);
     onClose();
   };
 
