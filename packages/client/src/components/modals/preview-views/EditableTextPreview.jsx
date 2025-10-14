@@ -37,7 +37,7 @@ const EditableTextPreview = ({
   const lineNumbersRef = useRef(null);
   const [lineNumbersForRender, setLineNumbersForRender] = useState([]);
 
-  const language = getPrismLanguage(item?.name);
+  const language = getPrismLanguage(item?.name).id;
 
   // State for find and replace functionality
   const [findTerm, setFindTerm] = useState("");

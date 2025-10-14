@@ -34,7 +34,6 @@ const TextPreview = ({
   getPrismLanguage,
 }) => {
   useEffect(() => {
-    const language = getPrismLanguage(item?.name);
     const grammar = Prism.languages[language] || Prism.languages.plaintext;
     let fullHighlightedHtml;
 
@@ -77,6 +76,7 @@ const TextPreview = ({
     item,
     setCodeLines,
     getPrismLanguage,
+    language,
   ]);
 
   return (

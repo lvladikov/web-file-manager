@@ -65,12 +65,12 @@ const getPrismLanguage = (filename = "") => {
 
   // First, check for specific filenames
   const nameMap = {
-    ".editorconfig": "ini",
-    ".gitignore": "ignore",
-    ".nvmrc": "plaintext",
-    ".prettierignore": "ignore",
-    ".prettierrc": "json",
-    license: "markdown",
+    ".editorconfig": { id: "ini", displayName: "INI" },
+    ".gitignore": { id: "ignore", displayName: "Ignore" },
+    ".nvmrc": { id: "plaintext", displayName: "Plain Text" },
+    ".prettierignore": { id: "ignore", displayName: "Ignore" },
+    ".prettierrc": { id: "json", displayName: "JSON" },
+    license: { id: "markdown", displayName: "Markdown" },
   };
   if (nameMap[lowerFilename]) {
     return nameMap[lowerFilename];
@@ -79,26 +79,26 @@ const getPrismLanguage = (filename = "") => {
   // If no match, fall back to checking the extension
   const extension = lowerFilename.split(".").pop();
   const langMap = {
-    js: "javascript",
-    jsx: "jsx",
-    ts: "typescript",
-    tsx: "tsx",
-    py: "python",
-    sh: "bash",
-    css: "css",
-    html: "html",
-    xml: "xml",
-    json: "json",
-    md: "markdown",
-    yaml: "yaml",
-    yml: "yaml",
-    ini: "ini",
-    cfg: "ini",
-    nfo: "ini",
-    properties: "properties",
-    cue: "ini",
+    js: { id: "javascript", displayName: "JavaScript" },
+    jsx: { id: "jsx", displayName: "JSX" },
+    ts: { id: "typescript", displayName: "TypeScript" },
+    tsx: { id: "tsx", displayName: "TSX" },
+    py: { id: "python", displayName: "Python" },
+    sh: { id: "bash", displayName: "Bash" },
+    css: { id: "css", displayName: "CSS" },
+    html: { id: "html", displayName: "HTML" },
+    xml: { id: "xml", displayName: "XML" },
+    json: { id: "json", displayName: "JSON" },
+    md: { id: "markdown", displayName: "Markdown" },
+    yaml: { id: "yaml", displayName: "YAML" },
+    yml: { id: "yaml", displayName: "YAML" },
+    ini: { id: "ini", displayName: "INI" },
+    cfg: { id: "ini", displayName: "INI" },
+    nfo: { id: "ini", displayName: "INI" },
+    properties: { id: "properties", displayName: "Properties" },
+    cue: { id: "ini", displayName: "INI" },
   };
-  return langMap[extension] || "plaintext";
+  return langMap[extension] || { id: "plaintext", displayName: "Plain Text" };
 };
 
 const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {

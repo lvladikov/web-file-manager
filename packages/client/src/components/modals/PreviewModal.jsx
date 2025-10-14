@@ -11,6 +11,7 @@ import {
   Save,
   Undo2 as Undo,
   Redo2 as Redo,
+  FilePenLine,
 } from "lucide-react";
 
 import {
@@ -30,10 +31,10 @@ import UnsupportedPreview from "./preview-views/UnsupportedPreview";
 import ImagePreview from "./preview-views/ImagePreview";
 import VideoPreview from "./preview-views/VideoPreview";
 import ZipPreview from "./preview-views/ZipPreview";
-import { FilePenLine } from "lucide-react";
 import EditableTextPreview from "./preview-views/EditableTextPreview";
 import UnsavedChangesModal from "./UnsavedChangesModal";
 import { saveFileContent } from "../../lib/api";
+import Icon from "../ui/Icon";
 
 const PreviewInfo = ({ previewType }) => {
   if (
@@ -118,6 +119,7 @@ const PreviewModal = ({
   }, [startInEditMode]);
 
   useEffect(() => {
+    // Reset transient state when item changes or modal becomes visible
     setIsSearchVisible(false);
     setIsFindReplaceVisible(false);
     setSearchTerm("");
@@ -410,7 +412,18 @@ const PreviewModal = ({
 
   if (!isVisible || !item) return null;
   const { fullPath } = item;
-  const language = getPrismLanguage(item?.name);
+  let fileTypeInfo;
+  if (previewType === "text") {
+    fileTypeInfo = getPrismLanguage(item?.name);
+  } else if (previewType !== "none" && previewType !== "unsupported") {
+    // Create a display name for non-text file types by capitalizing them
+    fileTypeInfo = {
+      id: previewType,
+      displayName: previewType.charAt(0).toUpperCase() + previewType.slice(1),
+    };
+  }
+  // The 'language' variable is now used as a generic type ID for icons and highlighters
+  const language = fileTypeInfo?.id;
 
   return (
     <div
@@ -439,40 +452,46 @@ const PreviewModal = ({
             previewType === "unsupported" ? "hidden" : ""
           }`}
         >
-          {isEditing && previewType === "text" ? (
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleSave}
-                disabled={editedContent === textContent}
-                className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                title={
-                  editedContent === textContent
-                    ? "No changes to save"
-                    : `Save (${isMac ? "Cmd+S" : "Ctrl+S"})`
-                }
-              >
-                <Save className="w-6 h-6" />
-              </button>
-              <button
-                onClick={handleUndo}
-                disabled={undoStack.length <= 1}
-                className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                title={`Undo (${isMac ? "Cmd+Z" : "Ctrl+Z"})`}
-              >
-                <Undo className="w-6 h-6" />
-              </button>
-              <button
-                onClick={handleRedo}
-                disabled={redoStack.length === 0}
-                className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                title={`Redo (${isMac ? "Cmd+Shift+Z" : "Ctrl+Y"})`}
-              >
-                <Redo className="w-6 h-6" />
-              </button>
-            </div>
-          ) : (
-            <div></div>
-          )}
+          <div className="flex items-center space-x-4">
+            {isEditing && previewType === "text" && (
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleSave}
+                  disabled={editedContent === textContent}
+                  className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                  title={
+                    editedContent === textContent
+                      ? "No changes to save"
+                      : `Save (${isMac ? "Cmd+S" : "Ctrl+S"})`
+                  }
+                >
+                  <Save className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={handleUndo}
+                  disabled={undoStack.length <= 1}
+                  className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                  title={`Undo (${isMac ? "Cmd+Z" : "Ctrl+Z"})`}
+                >
+                  <Undo className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={handleRedo}
+                  disabled={redoStack.length === 0}
+                  className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                  title={`Redo (${isMac ? "Cmd+Shift+Z" : "Ctrl+Y"})`}
+                >
+                  <Redo className="w-6 h-6" />
+                </button>
+              </div>
+            )}
+            {fileTypeInfo && (
+              <div className="flex items-center text-gray-400 text-sm">
+                <Icon type={fileTypeInfo.id} className="w-4 h-4 mr-1.5" />
+                <span>{fileTypeInfo.displayName}</span>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center space-x-3">
             {previewType === "text" && (
@@ -551,6 +570,93 @@ const PreviewModal = ({
             </button>
           </div>
         </div>
+
+        {isEditing && isFindReplaceVisible && previewType === "text" && (
+          <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 p-2 bg-gray-700 border-b border-gray-600 flex-shrink-0">
+            {/* Find Controls */}
+            <div className="flex items-center space-x-2 flex-grow lg:flex-grow-0">
+              <input
+                type="text"
+                placeholder="Find..."
+                value={findTerm}
+                onChange={(e) => setFindTerm(e.target.value)}
+                className="p-1 rounded bg-gray-800 text-white border border-gray-600 w-full lg:w-32"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                      findPrevious();
+                    } else {
+                      findNext();
+                    }
+                  }
+                }}
+              />
+              <button
+                onClick={findPrevious}
+                disabled={findMatches.length === 0}
+                className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
+              >
+                &lt;
+              </button>
+              <button
+                onClick={findNext}
+                disabled={findMatches.length === 0}
+                className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
+              >
+                &gt;
+              </button>
+              <span className="text-gray-300 text-nowrap">
+                {findMatches.length > 0
+                  ? `${currentMatchIndex + 1} / ${findMatches.length}`
+                  : "0 / 0"}
+              </span>
+              <label className="flex items-center text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={caseSensitive}
+                  onChange={(e) => setCaseSensitive(e.target.checked)}
+                  className="mr-1"
+                />
+                Case
+              </label>
+              <label className="flex items-center text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={useRegex}
+                  onChange={(e) => setUseRegex(e.target.checked)}
+                  className="mr-1"
+                />
+                Regex
+              </label>
+            </div>
+
+            {/* Replace Controls */}
+            <div className="flex items-center space-x-2 flex-grow lg:flex-grow-0">
+              <input
+                type="text"
+                placeholder="Replace with..."
+                value={replaceTerm}
+                onChange={(e) => setReplaceTerm(e.target.value)}
+                className="p-1 rounded bg-gray-800 text-white border border-gray-600 w-full lg:w-32"
+              />
+              <button
+                onClick={replaceOne}
+                disabled={findMatches.length === 0}
+                className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-white disabled:opacity-50"
+              >
+                Replace
+              </button>
+              <button
+                onClick={replaceAll}
+                disabled={findMatches.length === 0}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white disabled:opacity-50"
+              >
+                Replace All
+              </button>
+            </div>
+          </div>
+        )}
 
         {!isEditing && isSearchVisible && previewType === "text" && (
           <div className="w-full h-12 bg-gray-800 flex-shrink-0 flex justify-between items-center px-3 z-10 border-y border-gray-700">
