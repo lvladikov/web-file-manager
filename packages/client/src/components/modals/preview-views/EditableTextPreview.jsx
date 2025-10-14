@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+} from "react";
 import Prism from "prismjs";
 import "prismjs/themes/prism-okaidia.css";
 import "prismjs/components/prism-javascript";
@@ -28,6 +34,8 @@ const EditableTextPreview = ({
   const editorRef = useRef(null);
   const preRef = useRef(null);
   const lineNumbersRef = useRef(null);
+  const lineMeasurerRef = useRef(null);
+  const [lineNumbersForRender, setLineNumbersForRender] = useState([]);
 
   const language = getPrismLanguage(item?.name);
 
@@ -136,10 +144,76 @@ const EditableTextPreview = ({
     verticalAlign: "top",
   };
 
-  const lines = editedContent.split("\n");
+  const recalculateLineNumbers = useCallback(() => {
+    if (showLineNumbers && lineMeasurerRef.current && editorRef.current) {
+      const editorStyles = window.getComputedStyle(editorRef.current);
+      const lineHeight = parseFloat(editorStyles.lineHeight);
+
+      if (!lineHeight) return; // Exit if lineHeight is not available
+
+      const paddingLeft = parseFloat(editorStyles.paddingLeft);
+      const paddingRight = parseFloat(editorStyles.paddingRight);
+
+      const contentWidth =
+        editorRef.current.clientWidth - paddingLeft - paddingRight;
+      lineMeasurerRef.current.style.width = `${contentWidth}px`;
+
+      const lines = editedContent.split("\n");
+      const newLineNumbers = [];
+
+      lines.forEach((lineContent, index) => {
+        lineMeasurerRef.current.textContent = lineContent || "\u00a0";
+        const height = lineMeasurerRef.current.offsetHeight;
+        const visualLines = Math.max(1, Math.round(height / lineHeight));
+
+        newLineNumbers.push(index + 1);
+        for (let i = 1; i < visualLines; i++) {
+          newLineNumbers.push(null);
+        }
+      });
+
+      setLineNumbersForRender(newLineNumbers);
+    } else if (showLineNumbers) {
+      const simpleLines = editedContent.split("\n");
+      setLineNumbersForRender(simpleLines.map((_, i) => i + 1));
+    }
+  }, [editedContent, wordWrap, showLineNumbers]);
+
+  // Recalculate on content/setting changes
+  useLayoutEffect(() => {
+    recalculateLineNumbers();
+  }, [recalculateLineNumbers]);
+
+  // Recalculate on editor resize
+  useEffect(() => {
+    const editorEl = editorRef.current;
+    if (!editorEl) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      recalculateLineNumbers();
+    });
+
+    resizeObserver.observe(editorEl);
+
+    return () => {
+      resizeObserver.unobserve(editorEl);
+    };
+  }, [recalculateLineNumbers]);
+
+  const measurerStyles = {
+    ...commonEditorStyles,
+    paddingTop: 0,
+    paddingBottom: 0,
+    position: "absolute",
+    visibility: "hidden",
+    height: "auto",
+    top: "-9999px",
+    left: "-9999px",
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-900">
+      <div ref={lineMeasurerRef} style={measurerStyles} aria-hidden="true" />
       {isFindReplaceVisible && (
         <div className="flex items-center p-2 bg-gray-700 border-b border-gray-600 flex-shrink-0">
           <input
@@ -214,11 +288,11 @@ const EditableTextPreview = ({
           <pre
             ref={lineNumbersRef}
             aria-hidden="true"
-            className="text-right text-gray-500 mt-4 pr-4 select-none bg-gray-900 font-mono text-sm overflow-y-hidden"
+            className="text-right text-gray-500 select-none bg-gray-900 font-mono text-sm overflow-y-hidden"
             style={commonEditorStyles}
           >
-            {lines.map((_, i) => (
-              <div key={i}>{i + 1}</div>
+            {lineNumbersForRender.map((num, i) => (
+              <div key={i}>{num !== null ? num : "\u00a0"}</div>
             ))}
           </pre>
         )}
