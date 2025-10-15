@@ -442,7 +442,7 @@ const EditableTextPreview = ({
           onScroll={syncScroll}
           spellCheck="false"
           wrap={wordWrap ? "soft" : "off"}
-          style={{ ...sharedEditorStyles, zIndex: 1 }}
+          style={{ ...sharedEditorStyles, zIndex: 1, overflow: "hidden" }}
         />
         <pre
           ref={preRef}

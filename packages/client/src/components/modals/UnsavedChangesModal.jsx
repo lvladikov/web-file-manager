@@ -14,7 +14,10 @@ const UnsavedChangesModal = ({ isVisible, onSave, onDiscard, onCancel }) => {
         </p>
         <div className="flex justify-end space-x-3 mt-4">
           <button
-            onClick={onCancel}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancel();
+            }}
             className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
           >
             Cancel
