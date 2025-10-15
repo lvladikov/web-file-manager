@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
 
+import TruncatedText from "./TruncatedText";
+
 const FavouritesDropdown = ({
   favourites,
   isFavourite,
@@ -31,9 +33,10 @@ const FavouritesDropdown = ({
             <li
               key={fav}
               onClick={() => onSelect(fav)}
-              className="px-4 py-2 hover:bg-sky-600 cursor-pointer truncate"
+              className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+              title={fav}
             >
-              {fav}
+              <TruncatedText text={fav} />
             </li>
           ))
         ) : (

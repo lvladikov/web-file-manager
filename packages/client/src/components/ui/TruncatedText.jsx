@@ -51,7 +51,7 @@ const TruncatedText = ({ text, className, onClick }) => {
   const hiddenMeasurer = (
     <span
       ref={textRef}
-      className={`absolute invisible whitespace-nowrap ${className}`}
+      className={`absolute invisible whitespace-nowrap ${className || ""}`}
     >
       {text}
     </span>
