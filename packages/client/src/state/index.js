@@ -50,6 +50,7 @@ export default function appState() {
     left: { key: "name", direction: "asc" },
     right: { key: "name", direction: "asc" },
   });
+  const [recentPaths, setRecentPaths] = useState([]);
 
   // --- Core Refs ---
   const wsRef = useRef(null);
@@ -195,6 +196,7 @@ export default function appState() {
     focusedItem,
     watchPath,
     unwatchPath,
+    setRecentPaths,
   });
   const sizeCalculation = useSizeCalculation({
     panels,
@@ -414,6 +416,15 @@ export default function appState() {
           fetchDirectory(settings.initialPaths.right || ""),
         ]);
         setPanels({ left: leftData, right: rightData });
+
+        const initialRecents = [];
+        if (leftData.path) {
+          initialRecents.push(leftData.path);
+        }
+        if (rightData.path && rightData.path !== leftData.path) {
+          initialRecents.push(rightData.path);
+        }
+        setRecentPaths(initialRecents);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -775,6 +786,7 @@ export default function appState() {
     activePath,
     overwritePrompt,
     sortConfig,
+    recentPaths,
     // Core Setters
     setActivePanel,
     setPanels,

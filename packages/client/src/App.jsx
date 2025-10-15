@@ -44,6 +44,7 @@ export default function App() {
     copyProgress,
     editingPath,
     favourites,
+    recentPaths,
     previewModal,
     sizeCalcModal,
     deleteModalVisible,
@@ -512,6 +513,7 @@ export default function App() {
             isFavourite={favourites.includes(panels[panelId].path)}
             onToggleFavourite={handleToggleFavourite}
             favourites={favourites}
+            recentPaths={recentPaths}
             columnWidths={columnWidths[panelId]}
             setColumnWidths={setColumnWidths}
             filter={filter[panelId]}

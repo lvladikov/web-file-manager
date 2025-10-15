@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from "react";
-
+import React, { useEffect, useRef, useState } from "react";
 import TruncatedText from "./TruncatedText";
 
 const FavouritesDropdown = ({
   favourites,
+  recentPaths,
   isFavourite,
   currentPath,
   onSelect,
@@ -11,6 +11,8 @@ const FavouritesDropdown = ({
   onClose,
 }) => {
   const dropdownRef = useRef(null);
+  const [isRecentSubmenuOpen, setIsRecentSubmenuOpen] = useState(false);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -43,6 +45,40 @@ const FavouritesDropdown = ({
           <li className="px-4 py-2 text-gray-400">No favourites saved.</li>
         )}
       </ul>
+      <div className="border-t border-gray-600" />
+      <div
+        className="relative"
+        onMouseEnter={() => setIsRecentSubmenuOpen(true)}
+        onMouseLeave={() => setIsRecentSubmenuOpen(false)}
+      >
+        <div className="px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between">
+          <span>Recent</span>
+          <span className="text-gray-400">&gt;</span>
+        </div>
+        {isRecentSubmenuOpen && (
+          <div className="absolute top-0 right-full mr-1 w-96 bg-gray-700 border border-gray-500 rounded-md shadow-lg">
+            <div className="p-2 border-b border-gray-600 font-bold">
+              Recent Paths
+            </div>
+            <ul className="py-1 max-h-64 overflow-y-auto">
+              {recentPaths && recentPaths.length > 0 ? (
+                recentPaths.map((path) => (
+                  <li
+                    key={path}
+                    onClick={() => onSelect(path)}
+                    className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
+                    title={path}
+                  >
+                    <TruncatedText text={path} />
+                  </li>
+                ))
+              ) : (
+                <li className="px-4 py-2 text-gray-400">No recent paths.</li>
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
       <div className="border-t border-gray-600" />
       <ul className="py-1">
         <li

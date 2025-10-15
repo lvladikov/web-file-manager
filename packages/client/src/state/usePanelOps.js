@@ -12,6 +12,7 @@ export default function usePanelOps({
   focusedItem,
   watchPath,
   unwatchPath,
+  setRecentPaths,
 }) {
   const updateItemInPanel = useCallback(
     (panelId, itemName, newProps) => {
@@ -60,6 +61,12 @@ export default function usePanelOps({
         const data = await fetchDirectory(currentPath, target);
         setPanels((prev) => ({ ...prev, [panelId]: data }));
 
+        if (data.path) {
+          setRecentPaths((prev) =>
+            [data.path, ...prev.filter((p) => p !== data.path)].slice(0, 10)
+          );
+        }
+
         // Watcher logic
         if (unwatchPath && oldPath && oldPath !== data.path) {
           unwatchPath(oldPath);
@@ -73,7 +80,15 @@ export default function usePanelOps({
         setLoading((prev) => ({ ...prev, [panelId]: false }));
       }
     },
-    [panels, setLoading, setPanels, setError, watchPath, unwatchPath]
+    [
+      panels,
+      setLoading,
+      setPanels,
+      setError,
+      watchPath,
+      unwatchPath,
+      setRecentPaths,
+    ]
   );
 
   const handleRefreshPanel = (panelId) => {

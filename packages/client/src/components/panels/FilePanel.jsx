@@ -55,6 +55,7 @@ const FilePanel = React.forwardRef(
       isFavourite,
       onToggleFavourite,
       favourites,
+      recentPaths,
       columnWidths,
       setColumnWidths,
       filter,
@@ -507,6 +508,7 @@ const FilePanel = React.forwardRef(
             {isFavouritesDropdownOpen && (
               <FavouritesDropdown
                 favourites={favourites}
+                recentPaths={recentPaths}
                 isFavourite={isFavourite}
                 currentPath={panelData.path}
                 onSelect={(path) => {
