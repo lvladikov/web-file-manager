@@ -6,10 +6,10 @@ import Icon from "../ui/Icon";
 
 import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
 import SvgBreadcrumbsExample from "../help-diagrams/SvgBreadcrumbsExample";
-import SvgContextMenuExample from "../help-diagrams/SvgContextMenuExample";
 import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
 import dualPanelsScreenshot from "../../../screenshots/dual-panels.png";
 import panelInfoScreenshot from "../../../screenshots/panel-info.png";
+import contextMenuScreenshot from "../../../screenshots/context-menu.png";
 import fileTruncationScreenshot from "../../../screenshots/file-truncation.png";
 import folderTruncationScreenshot from "../../../screenshots/folder-truncation.png";
 import folderUpScreenshot from "../../../screenshots/folder-up.png";
@@ -281,7 +281,7 @@ const HelpModal = ({ isVisible, onClose }) => {
                   Quick Select (<kbd>+</kbd>):
                 </strong>{" "}
                 Opens a dialog to select files and folders that match a specific
-                pattern. You can use wildcards (*) or regular expressions.
+                pattern (wildcards or regex).
               </li>
               <li>
                 <strong>
@@ -330,13 +330,30 @@ const HelpModal = ({ isVisible, onClose }) => {
                 transfer actions.
                 <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
                   <li>
-                    <kbd>Copy to other panel</kbd>: Performs the F5 Copy
-                    operation on the selected item.
+                    <kbd>Copy to other panel</kbd>: Performs the <kbd>F5</kbd>{" "}
+                    Copy operation on the selected item(s) to the **inactive**
+                    panel.
                   </li>
                   <li>
-                    <kbd>Move to other panel</kbd>: Performs the F6 Move
-                    operation. It is a combination of a complete Copy and Delete
-                    operations, in that order.
+                    <kbd>Copy to clipboard</kbd>: (Coming soon) Standard
+                    clipboard copy operation.
+                  </li>
+                  <li>
+                    <kbd>Copy to...</kbd>: Opens a folder selector to choose a
+                    specific destination for the copy operation.
+                  </li>
+                  <li>
+                    <kbd>Move to other panel</kbd>: Performs the <kbd>F6</kbd>{" "}
+                    Move operation on the selected item(s) to the **inactive**
+                    panel.
+                  </li>
+                  <li>
+                    <kbd>Move (Cut) to clipboard</kbd>: (Coming soon) Standard
+                    clipboard cut operation.
+                  </li>
+                  <li>
+                    <kbd>Move to...</kbd>: Opens a folder selector to choose a
+                    specific destination for the move operation.
                   </li>
                   <li>
                     <kbd>Compress</kbd>: Compresses the selected items into a
@@ -354,10 +371,6 @@ const HelpModal = ({ isVisible, onClose }) => {
                     <kbd>Test Archive</kbd>: Verifies the integrity of a
                     selected ZIP archive.
                   </li>
-                  <li>
-                    <kbd>Copy / Cut (to clipboard)</kbd>: (Coming soon) Standard
-                    clipboard operations.
-                  </li>
                 </ul>
               </li>
               <li>
@@ -368,7 +381,11 @@ const HelpModal = ({ isVisible, onClose }) => {
                 Calculate Size or set the folder's path in the opposite panel.
               </li>
             </ul>
-            <SvgContextMenuExample />
+            <img
+              src={contextMenuScreenshot}
+              alt="Context Menu Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection
@@ -409,7 +426,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <p>
               The path is broken into clickable "breadcrumbs". You can click on
               any part of the path to navigate directly to that directory.
-              Right-clicking the path bar gives you an option to "Choose
+              Right-clicking the path bar gives you an option to "Choose a
               folder..." which opens a folder selection dialog.
             </p>
             <SvgBreadcrumbsExample />
@@ -435,9 +452,9 @@ const HelpModal = ({ isVisible, onClose }) => {
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
                 <strong>File Menu:</strong> Contains actions related to file
-                operations such as Copy, Move, Rename, Delete, Compress,
-                Calculate Size, and Refresh. Many of these actions have
-                corresponding function key shortcuts.
+                operations such as Copy (to other panel or a specific folder),
+                Move, Rename, Delete, Compress, Calculate Size, and Refresh.
+                Many of these actions have corresponding function key shortcuts.
               </li>
               <li>
                 <strong>Select Menu:</strong> Offers various ways to manage
