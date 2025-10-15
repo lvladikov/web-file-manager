@@ -55,6 +55,9 @@ export default function useKeyboardShortcuts(props) {
         handleSwapPanels,
         calculateSizeForMultipleFolders,
         handleViewItem,
+        handleCopyToClipboard,
+        handleCutToClipboard,
+        handlePasteFromClipboard,
       } = latestProps.current;
 
       if (!panels || !panels.left || !panels.right) {
@@ -342,6 +345,21 @@ export default function useKeyboardShortcuts(props) {
       if (isModKey(e) && e.key === "u") {
         e.preventDefault();
         handleSwapPanels();
+        return;
+      }
+      if (isModKey(e) && e.key === "c") {
+        e.preventDefault();
+        handleCopyToClipboard();
+        return;
+      }
+      if (isModKey(e) && e.key === "x") {
+        e.preventDefault();
+        handleCutToClipboard();
+        return;
+      }
+      if (isModKey(e) && e.key === "v") {
+        e.preventDefault();
+        handlePasteFromClipboard();
         return;
       }
       if (e.key === "*") {

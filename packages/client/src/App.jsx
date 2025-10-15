@@ -59,6 +59,7 @@ export default function App() {
     panelRefs,
     sortConfig,
     handleSort,
+    clipboard,
 
     // Setters & Handlers
     setActivePanel,
@@ -115,6 +116,9 @@ export default function App() {
     handleFilterChange,
     filteredItems,
     handleViewItem,
+    handleCopyToClipboard,
+    handleCutToClipboard,
+    handlePasteFromClipboard,
 
     // Derived State
     activePath,
@@ -218,6 +222,9 @@ export default function App() {
           }}
           onCopyTo={handleCopyTo}
           onMoveTo={handleMoveTo}
+          onCopyToClipboard={handleCopyToClipboard}
+          onCutToClipboard={handleCutToClipboard}
+          onPasteFromClipboard={handlePasteFromClipboard}
           onRename={() => {
             if (selections[activePanel].size === 1) {
               const name = [...selections[activePanel]][0];
@@ -297,6 +304,7 @@ export default function App() {
           canOpen={canOpen}
           canOpenWith={canOpenWith}
           canEdit={canEdit}
+          clipboard={clipboard}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -577,6 +585,9 @@ export default function App() {
             }}
             onCopyTo={() => handleCopyTo(panelId)}
             onMoveTo={() => handleMoveTo(panelId)}
+            onCopyToClipboard={handleCopyToClipboard}
+            onCutToClipboard={handleCutToClipboard}
+            onPasteFromClipboard={handlePasteFromClipboard}
             onRename={() => {
               if (selections[panelId].size === 1) {
                 const name = [...selections[panelId]][0];
@@ -612,6 +623,7 @@ export default function App() {
             onChooseFolder={openFolderBrowserForPanel}
             sortConfig={sortConfig[panelId]}
             onSort={handleSort}
+            clipboard={clipboard}
           />
         ))}
       </main>

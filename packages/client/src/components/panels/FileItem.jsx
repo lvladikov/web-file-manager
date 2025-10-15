@@ -50,6 +50,10 @@ const FileItem = ({
   boundaryRef,
   allItems,
   selectedItems,
+  clipboard,
+  onCopyToClipboard,
+  onCutToClipboard,
+  onPasteFromClipboard,
 }) => {
   const inputRef = useRef(null);
 
@@ -194,6 +198,10 @@ const FileItem = ({
       boundaryRef={boundaryRef}
       isRenaming={isRenaming}
       onRenameCancel={onRenameCancel}
+      clipboard={clipboard}
+      onCopyToClipboard={onCopyToClipboard}
+      onCutToClipboard={onCutToClipboard}
+      onPasteFromClipboard={onPasteFromClipboard}
     >
       {renderFileItemContent()}
     </AppContextMenu>

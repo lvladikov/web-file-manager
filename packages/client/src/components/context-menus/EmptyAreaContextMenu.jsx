@@ -19,6 +19,8 @@ const EmptyAreaContextMenu = ({
   onQuickUnselect,
   onQuickFilter,
   onSwapPanels,
+  onPasteFromClipboard,
+  clipboard,
   boundaryRef,
   children,
 }) => {
@@ -29,7 +31,8 @@ const EmptyAreaContextMenu = ({
         <ContextMenu.Content
           collisionBoundary={boundaryRef.current}
           collisionPadding={80}
-          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden"
+          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
+          onClick={(e) => e.stopPropagation()}
         >
           <ScrollArea.Root className="w-full h-full" type="auto">
             <ScrollArea.Viewport
@@ -42,6 +45,19 @@ const EmptyAreaContextMenu = ({
               >
                 New Folder
               </ContextMenu.Item>
+
+              {clipboard && clipboard.sources.length > 0 && (
+                <>
+                  <div className={separatorClassName}></div>
+                  <ContextMenu.Item
+                    onSelect={onPasteFromClipboard}
+                    className={itemClassName}
+                  >
+                    <span>Paste from clipboard</span>
+                    <span className="text-gray-400">{metaKey}+V</span>
+                  </ContextMenu.Item>
+                </>
+              )}
 
               <div className={separatorClassName}></div>
 

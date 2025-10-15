@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { savePaths, fetchDirectory } from "../lib/api";
-import { isMac, isPreviewableText, isItemPreviewable } from "../lib/utils";
+import {
+  isMac,
+  isPreviewableText,
+  isItemPreviewable,
+  buildFullPath,
+} from "../lib/utils";
 
 import useDelete from "./useDelete";
 import useRename from "./useRename";
@@ -51,6 +56,7 @@ export default function appState() {
     right: { key: "name", direction: "asc" },
   });
   const [recentPaths, setRecentPaths] = useState([]);
+  const [clipboard, setClipboard] = useState({ sources: [], isMove: false });
 
   // --- Core Refs ---
   const wsRef = useRef(null);
@@ -226,6 +232,18 @@ export default function appState() {
     setError,
   });
   const activeSelection = selections[activePanel];
+
+  const getSelectedSources = useCallback(() => {
+    const sourcePanelId = activePanel;
+    const sourcePanel = panels[sourcePanelId];
+    if (!sourcePanel) return [];
+
+    const sourcePath = sourcePanel.path;
+    return sortedAndFilteredItems[sourcePanelId]
+      .filter((item) => selections[sourcePanelId].has(item.name))
+      .map((item) => buildFullPath(sourcePath, item.name));
+  }, [activePanel, panels, sortedAndFilteredItems, selections]);
+
   const copy = useCopy({
     activePanel,
     panels,
@@ -309,6 +327,28 @@ export default function appState() {
       action: "Move to...",
     });
   }, [activePanel, panels, modals.setDestinationBrowserModal]);
+
+  const handleCopyToClipboard = useCallback(() => {
+    const sources = getSelectedSources();
+    if (sources.length > 0) {
+      setClipboard({ sources, isMove: false });
+    }
+  }, [getSelectedSources]);
+
+  const handleCutToClipboard = useCallback(() => {
+    const sources = getSelectedSources();
+    if (sources.length > 0) {
+      setClipboard({ sources, isMove: true });
+    }
+  }, [getSelectedSources]);
+
+  const handlePasteFromClipboard = useCallback(() => {
+    if (clipboard.sources.length > 0) {
+      const destinationPath = panels[activePanel].path;
+      copy.performCopy(clipboard.sources, destinationPath, clipboard.isMove);
+      setClipboard({ sources: [], isMove: false });
+    }
+  }, [clipboard, panels, activePanel, copy.performCopy]);
 
   const handleSelectAll = useCallback(
     (panelId) => {
@@ -713,6 +753,9 @@ export default function appState() {
     handleSwapPanels,
     openZipPreviewModal: modals.openZipPreviewModal,
     handleViewItem,
+    handleCopyToClipboard,
+    handleCutToClipboard,
+    handlePasteFromClipboard,
   });
 
   const panelsRef = useRef(panels);
@@ -787,6 +830,7 @@ export default function appState() {
     overwritePrompt,
     sortConfig,
     recentPaths,
+    clipboard,
     // Core Setters
     setActivePanel,
     setPanels,
@@ -834,6 +878,9 @@ export default function appState() {
     handleCopyTo,
     handleMoveTo,
     handleSort,
+    handleCopyToClipboard,
+    handleCutToClipboard,
+    handlePasteFromClipboard,
     // UI Composition
     actionBarButtons,
   };

@@ -97,6 +97,10 @@ const FilePanel = React.forwardRef(
       boundaryRef,
       sortConfig,
       onSort,
+      clipboard,
+      onCopyToClipboard,
+      onCutToClipboard,
+      onPasteFromClipboard,
     },
     ref
   ) => {
@@ -572,6 +576,8 @@ const FilePanel = React.forwardRef(
           onQuickUnselect={() => onQuickUnselect(panelId)}
           onQuickFilter={() => onQuickFilter(panelId)}
           onSwapPanels={() => onSwapPanels(panelId)}
+          onPasteFromClipboard={onPasteFromClipboard}
+          clipboard={clipboard}
         >
           <div
             ref={scrollContainerRef}
@@ -641,6 +647,10 @@ const FilePanel = React.forwardRef(
                   onRefreshPanel={() => onRefreshPanel(panelId)}
                   onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
                   onSwapPanels={() => onSwapPanels(panelId)}
+                  clipboard={clipboard}
+                  onCopyToClipboard={onCopyToClipboard}
+                  onCutToClipboard={onCutToClipboard}
+                  onPasteFromClipboard={onPasteFromClipboard}
                 />
               ))}
           </div>

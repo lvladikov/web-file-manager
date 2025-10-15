@@ -32,6 +32,9 @@ const FileMenu = ({ ...props }) => {
     onMoveToOtherPanel,
     onCopyTo,
     onMoveTo,
+    onCopyToClipboard,
+    onCutToClipboard,
+    onPasteFromClipboard,
     onRename,
     onEdit,
     onDelete,
@@ -64,10 +67,8 @@ const FileMenu = ({ ...props }) => {
     canView,
     canOpen,
     canOpenWith,
+    clipboard,
   } = props;
-
-  const onPlaceholder = () =>
-    console.log("This feature will be implemented soon!");
 
   const [isCopyMoveSubmenuOpen, setIsCopyMoveSubmenuOpen] = useState(false);
   const [isArchiveSubmenuOpen, setIsArchiveSubmenuOpen] = useState(false);
@@ -149,8 +150,8 @@ const FileMenu = ({ ...props }) => {
           <MenuItem
             label="Copy to clipboard"
             shortcut={`${metaKey}+C`}
-            onClick={() => handleItemClick(onPlaceholder)}
-            disabled
+            onClick={() => handleItemClick(onCopyToClipboard)}
+            disabled={!canCopyToOtherPanel}
           />
           <MenuItem
             label="Copy to ..."
@@ -167,14 +168,24 @@ const FileMenu = ({ ...props }) => {
           <MenuItem
             label="Move (Cut) to clipboard"
             shortcut={`${metaKey}+X`}
-            onClick={() => handleItemClick(onPlaceholder)}
-            disabled
+            onClick={() => handleItemClick(onCutToClipboard)}
+            disabled={!canMoveToOtherPanel}
           />
           <MenuItem
             label="Move to ..."
             onClick={() => handleItemClick(onMoveTo)}
             disabled={!canMoveToOtherPanel}
           />
+          {clipboard.sources.length > 0 && (
+            <>
+              <div className={separatorClassName} />
+              <MenuItem
+                label="Paste from clipboard"
+                shortcut={`${metaKey}+V`}
+                onClick={() => handleItemClick(onPasteFromClipboard)}
+              />
+            </>
+          )}
         </div>
       )}
     </div>

@@ -19,6 +19,9 @@ const AppContextMenu = ({
   onMoveToOtherPanel,
   onCopyTo,
   onMoveTo,
+  onCopyToClipboard,
+  onCutToClipboard,
+  onPasteFromClipboard,
   onRename,
   onEdit,
   onDelete,
@@ -42,6 +45,7 @@ const AppContextMenu = ({
   isRenaming,
   onRenameCancel,
   children,
+  clipboard,
 }) => {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -163,8 +167,8 @@ const AppContextMenu = ({
                       <span className="text-gray-400">F5</span>
                     </ContextMenu.Item>
                     <ContextMenu.Item
-                      onSelect={onPlaceholder}
-                      className={`${itemClassName} text-gray-400`}
+                      onSelect={onCopyToClipboard}
+                      className={itemClassName}
                     >
                       <span>Copy to clipboard</span>
                       <span className="text-gray-400">{metaKey}+C</span>
@@ -184,8 +188,8 @@ const AppContextMenu = ({
                       <span className="text-gray-400">F6</span>
                     </ContextMenu.Item>
                     <ContextMenu.Item
-                      onSelect={onPlaceholder}
-                      className={`${itemClassName} text-gray-400`}
+                      onSelect={onCutToClipboard}
+                      className={itemClassName}
                     >
                       <span>Move (Cut) to clipboard</span>
                       <span className="text-gray-400">{metaKey}+X</span>
@@ -196,6 +200,18 @@ const AppContextMenu = ({
                     >
                       Move to...
                     </ContextMenu.Item>
+                    {clipboard && clipboard.sources.length > 0 && (
+                      <>
+                        <div className={separatorClassName}></div>
+                        <ContextMenu.Item
+                          onSelect={onPasteFromClipboard}
+                          className={itemClassName}
+                        >
+                          <span>Paste from clipboard</span>
+                          <span className="text-gray-400">{metaKey}+V</span>
+                        </ContextMenu.Item>
+                      </>
+                    )}
                   </ContextMenu.SubContent>
                 </ContextMenu.Portal>
               </ContextMenu.Sub>
