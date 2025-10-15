@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isMac, isItemPreviewable, isPreviewableText } from "../lib/utils";
+import { isModKey, isPreviewableText } from "../lib/utils";
 
 export default function useKeyboardShortcuts(props) {
   const latestProps = useRef(props);
@@ -231,9 +231,8 @@ export default function useKeyboardShortcuts(props) {
           return;
         }
 
-        const isModKey = isMac ? e.metaKey : e.ctrlKey;
-        const isSelectAll = isModKey && e.key === "a";
-        const isUnselectAll = isModKey && e.key === "d";
+        const isSelectAll = isModKey(e) && e.key === "a";
+        const isUnselectAll = isModKey(e) && e.key === "d";
         const isInvertSelection = e.key === "*";
         const isQuickSelect = e.key === "+";
         const isQuickUnselect = e.key === "-";
@@ -317,18 +316,17 @@ export default function useKeyboardShortcuts(props) {
         if (e.key === "Escape") document.activeElement.blur();
         return;
       }
-      const isModKey = isMac ? e.metaKey : e.ctrlKey;
-      if (isModKey && e.key === "a") {
+      if (isModKey(e) && e.key === "a") {
         e.preventDefault();
         handleSelectAll(activePanel);
         return;
       }
-      if (isModKey && e.key === "d") {
+      if (isModKey(e) && e.key === "d") {
         e.preventDefault();
         setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
         return;
       }
-      if (isModKey && e.key === "u") {
+      if (isModKey(e) && e.key === "u") {
         e.preventDefault();
         handleSwapPanels();
         return;

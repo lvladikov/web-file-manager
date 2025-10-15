@@ -21,6 +21,10 @@ const formatBytes = (bytes, spaceBeforeUnit = true) => {
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
+const metaKey = isMac ? "CMD" : "Ctrl";
+
+const isModKey = (e) => (isMac ? e.metaKey : e.ctrlKey);
+
 const isPreviewableImage = (itemName = "") =>
   /\.(jpe?g|png|gif|bmp|tiff|webp)$/i.test(itemName);
 
@@ -279,6 +283,8 @@ export {
   buildFullPath,
   formatBytes,
   isMac,
+  isModKey,
+  metaKey,
   isItemPreviewable,
   isPreviewableImage,
   isPreviewablePdf,

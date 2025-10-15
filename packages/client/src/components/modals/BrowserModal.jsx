@@ -11,7 +11,7 @@ import { HardDrive, LoaderCircle } from "lucide-react";
 import Icon from "../../components/ui/Icon.jsx";
 import TruncatedText from "../ui/TruncatedText.jsx";
 
-import { isMac } from "../../lib/utils";
+import { isModKey } from "../../lib/utils";
 import { fetchDirectory } from "../../lib/api";
 
 const BrowserModal = forwardRef(
@@ -132,10 +132,8 @@ const BrowserModal = forwardRef(
       if (!isVisible) return;
 
       const handleKeyDown = (e) => {
-        const isModKey = isMac ? e.metaKey : e.ctrlKey;
-
-        // Prevent Cmd/Ctrl+A (select all) and Cmd/Ctrl+D (bookmark)
-        if (isModKey && (e.key === "a" || e.key === "d")) {
+        // Prevent metaKey+A (select all) and metaKey+D (bookmark)
+        if (isModKey(e) && (e.key === "a" || e.key === "d")) {
           e.preventDefault();
           return;
         }

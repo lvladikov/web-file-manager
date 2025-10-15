@@ -1,7 +1,7 @@
 import React from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
-import { isMac } from "../../lib/utils.js";
+import { metaKey } from "../../lib/utils.js";
 
 const EmptyAreaContextMenu = ({
   onNewFolder,
@@ -17,8 +17,6 @@ const EmptyAreaContextMenu = ({
   boundaryRef,
   children,
 }) => {
-  const metaKey = isMac ? "CMD" : "Ctrl";
-
   const itemClassName =
     "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
   const separatorClassName = "border-t border-gray-600 mx-2 my-1";
@@ -106,7 +104,8 @@ const EmptyAreaContextMenu = ({
                 onSelect={onSwapPanels}
                 className={itemClassName}
               >
-                Swap Panels
+                <span>Swap Panels</span>
+                <span className="text-gray-400">{metaKey}+U</span>
               </ContextMenu.Item>
             </ScrollArea.Viewport>
             <ScrollArea.Scrollbar

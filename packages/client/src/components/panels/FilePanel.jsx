@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { HardDrive, LoaderCircle, Star } from "lucide-react";
 
-import { formatBytes, isMac } from "../../lib/utils";
+import { formatBytes, isModKey } from "../../lib/utils";
 import { fetchDiskSpace } from "../../lib/api";
 
 import Breadcrumbs from "../ui/Breadcrumbs";
@@ -317,9 +317,7 @@ const FilePanel = React.forwardRef(
 
       // Check if this is a potential rename trigger (a non-modifier click on an already-focused item).
       const isRenameTrigger =
-        itemName === focusedItem &&
-        !e.shiftKey &&
-        !(isMac ? e.metaKey : e.ctrlKey);
+        itemName === focusedItem && !e.shiftKey && !isModKey(e);
 
       if (isRenameTrigger) {
         // If it's a rename trigger, we only set a timer. Selection is already correct.
@@ -337,7 +335,7 @@ const FilePanel = React.forwardRef(
 
         setFocusedItem(itemName);
         const { items } = panelData;
-        if (isMac ? e.metaKey : e.ctrlKey) {
+        if (isModKey(e)) {
           const newSelection = new Set(selectedItems);
           if (newSelection.has(itemName)) newSelection.delete(itemName);
           else newSelection.add(itemName);

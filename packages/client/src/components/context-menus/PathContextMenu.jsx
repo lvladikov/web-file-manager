@@ -1,6 +1,8 @@
 import React from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 
+import { metaKey } from "../../lib/utils.js";
+
 const PathContextMenu = ({ onChooseFolder, onSwapPanels, children }) => {
   const itemClassName =
     "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
@@ -19,7 +21,8 @@ const PathContextMenu = ({ onChooseFolder, onSwapPanels, children }) => {
           </ContextMenu.Item>
           <div className={separatorClassName}></div>
           <ContextMenu.Item onSelect={onSwapPanels} className={itemClassName}>
-            Swap Panels
+            <span>Swap Panels</span>
+            <span className="text-gray-400">{metaKey}+U</span>
           </ContextMenu.Item>
         </ContextMenu.Content>
       </ContextMenu.Portal>

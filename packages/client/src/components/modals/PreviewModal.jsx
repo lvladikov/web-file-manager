@@ -22,6 +22,8 @@ import {
   isPreviewableText,
   getFileTypeInfo,
   isMac,
+  metaKey,
+  isModKey,
 } from "../../lib/utils";
 
 import AudioPreview from "./preview-views/AudioPreview";
@@ -100,6 +102,9 @@ const PreviewModal = ({
   const [editedContent, setEditedContent] = useState(textContent);
   const [undoStack, setUndoStack] = useState([textContent]);
   const [redoStack, setRedoStack] = useState([]);
+
+  const [findTerm, setFindTerm] = useState("");
+  const [replaceTerm, setReplaceTerm] = useState("");
 
   const getPreviewType = (item) => {
     if (!item) return "none";
@@ -231,8 +236,6 @@ const PreviewModal = ({
         return;
       }
 
-      const isModKey = isMac ? e.metaKey : e.ctrlKey;
-
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
@@ -240,12 +243,12 @@ const PreviewModal = ({
         return;
       }
 
-      if (isModKey && e.key === "s" && isEditing) {
+      if (isModKey(e) && e.key === "s" && isEditing) {
         e.preventDefault();
         handleSave();
       }
 
-      if (isModKey && e.key === "f") {
+      if (isModKey(e) && e.key === "f") {
         if (previewType === "text") {
           e.preventDefault();
           if (isEditing) {
@@ -450,7 +453,7 @@ const PreviewModal = ({
                   title={
                     editedContent === textContent
                       ? "No changes to save"
-                      : `Save (${isMac ? "Cmd+S" : "Ctrl+S"})`
+                      : `Save (${metaKey}+S)`
                   }
                 >
                   <Save className="w-6 h-6" />
@@ -459,7 +462,7 @@ const PreviewModal = ({
                   onClick={handleUndo}
                   disabled={undoStack.length <= 1}
                   className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                  title={`Undo (${isMac ? "Cmd+Z" : "Ctrl+Z"})`}
+                  title={`Undo (${metaKey}+Z)`}
                 >
                   <Undo className="w-6 h-6" />
                 </button>
@@ -467,7 +470,7 @@ const PreviewModal = ({
                   onClick={handleRedo}
                   disabled={redoStack.length === 0}
                   className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                  title={`Redo (${isMac ? "Cmd+Shift+Z" : "Ctrl+Y"})`}
+                  title={`Redo (${isMac ? "CMD+Shift+Z" : "Ctrl+Y"})`}
                 >
                   <Redo className="w-6 h-6" />
                 </button>
@@ -508,8 +511,8 @@ const PreviewModal = ({
                   }
                   title={
                     isEditing
-                      ? "Find & Replace (Cmd/Ctrl+F)"
-                      : "Search (Cmd/Ctrl+F)"
+                      ? `Find & Replace (${metaKey}+F)`
+                      : `Search (${metaKey}+F)`
                   }
                 >
                   <Search className="w-6 h-6" />
@@ -573,30 +576,30 @@ const PreviewModal = ({
                   if (e.key === "Enter") {
                     e.preventDefault();
                     if (e.shiftKey) {
-                      findPrevious();
+                      goToPrevMatch();
                     } else {
-                      findNext();
+                      goToNextMatch();
                     }
                   }
                 }}
               />
               <button
-                onClick={findPrevious}
-                disabled={findMatches.length === 0}
+                onClick={goToPrevMatch}
+                disabled={matches.length === 0}
                 className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
               >
                 &lt;
               </button>
               <button
-                onClick={findNext}
-                disabled={findMatches.length === 0}
+                onClick={goToNextMatch}
+                disabled={matches.length === 0}
                 className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
               >
                 &gt;
               </button>
               <span className="text-gray-300 text-nowrap">
-                {findMatches.length > 0
-                  ? `${currentMatchIndex + 1} / ${findMatches.length}`
+                {matches.length > 0
+                  ? `${currentMatchIndex + 1} / ${matches.length}`
                   : "0 / 0"}
               </span>
               <label className="flex items-center text-gray-300">
@@ -630,14 +633,14 @@ const PreviewModal = ({
               />
               <button
                 onClick={replaceOne}
-                disabled={findMatches.length === 0}
+                disabled={matches.length === 0}
                 className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-white disabled:opacity-50"
               >
                 Replace
               </button>
               <button
                 onClick={replaceAll}
-                disabled={findMatches.length === 0}
+                disabled={matches.length === 0}
                 className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white disabled:opacity-50"
               >
                 Replace All
@@ -651,7 +654,7 @@ const PreviewModal = ({
             <input
               type="text"
               placeholder="Find in file..."
-              className="bg-gray-700 text-white rounded px-2 py-1 w-1/2 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              className="bg-gray-700 text-white rounded mr-2 px-2 py-1 w-1/2 focus:outline-none focus:ring-2 focus:ring-sky-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => {

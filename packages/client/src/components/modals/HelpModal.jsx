@@ -1,7 +1,7 @@
 import React from "react";
 import { XCircle } from "lucide-react";
 
-import { isMac } from "../../lib/utils";
+import { metaKey } from "../../lib/utils";
 import Icon from "../ui/Icon";
 
 import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
@@ -183,10 +183,10 @@ const HelpModal = ({ isVisible, onClose }) => {
               </li>
               <li>
                 <strong>Swap Panels:</strong> You can quickly swap the content
-                of the two panels using <kbd>{isMac ? "Cmd" : "Ctrl"} + U</kbd>.
-                This is useful when you want to change which panel is the source
-                and which is the destination for file operations, or simply to
-                re-arrange your view.
+                of the two panels using <kbd>{metaKey} + U</kbd>. This is useful
+                when you want to change which panel is the source and which is
+                the destination for file operations, or simply to re-arrange
+                your view.
               </li>
             </ul>
             <img
@@ -240,19 +240,17 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
                   <li>Click an item to select it.</li>
                   <li>
-                    Hold <kbd>{isMac ? "Cmd" : "Ctrl"}</kbd> and click to add or
-                    remove individual items from the selection.
+                    Hold <kbd>{metaKey}</kbd> and click to add or remove
+                    individual items from the selection.
                   </li>
                   <li>
                     Hold <kbd>Shift</kbd> and click to select a range of items.
                   </li>
                   <li>
-                    Press <kbd>{isMac ? "Cmd" : "Ctrl"} + A</kbd> to select all
-                    items.
+                    Press <kbd>{metaKey} + A</kbd> to select all items.
                   </li>
                   <li>
-                    Press <kbd>{isMac ? "Cmd" : "Ctrl"} + D</kbd> to unselect
-                    all items.
+                    Press <kbd>{metaKey} + D</kbd> to unselect all items.
                   </li>
                   <li>
                     Press <kbd>*</kbd> to invert the current selection.

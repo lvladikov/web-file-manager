@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as NavigationMenu from "@radix-ui/react-navigation-menu";
-import { isMac, isEditable } from "../../lib/utils";
+import { metaKey, isEditable } from "../../lib/utils";
 
 const itemClassName =
   "px-4 py-2 flex justify-between hover:bg-sky-600 cursor-pointer";
@@ -58,7 +58,6 @@ const FileMenu = ({ ...props }) => {
     canOpenWith,
   } = props;
 
-  const metaKey = isMac ? "CMD" : "Ctrl";
   const onPlaceholder = () =>
     console.log("This feature will be implemented soon!");
 
@@ -228,8 +227,6 @@ const SelectMenu = ({ ...props }) => {
     onQuickFilter,
     handleItemClick,
   } = props;
-
-  const metaKey = isMac ? "CMD" : "Ctrl";
 
   return (
     <NavigationMenu.Item value="select">
