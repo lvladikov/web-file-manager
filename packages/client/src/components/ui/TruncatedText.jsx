@@ -23,9 +23,23 @@ const TruncatedText = ({ text, className, onClick }) => {
         return;
       }
 
-      const half = Math.floor(charsToFit / 2);
-      const start = text.slice(0, half);
-      const end = text.slice(-half);
+      // Use a 40%/60% split for available characters (charsToFit),
+      // prioritizing the end but positioning the ellipsis more towards the middle.
+      const startSliceLength = Math.max(
+        1, // Ensure at least 1 character is visible at the start
+        Math.floor(charsToFit * 0.4)
+      );
+      const endSliceLength = charsToFit - startSliceLength;
+
+      if (endSliceLength <= 0) {
+        // Fallback for extremely narrow containers
+        setDisplayedText("...");
+        return;
+      }
+
+      const start = text.slice(0, startSliceLength);
+      const end = text.slice(-endSliceLength);
+
       setDisplayedText(`${start}...${end}`);
     };
 

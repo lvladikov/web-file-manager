@@ -136,6 +136,9 @@ export default function App() {
   } = appState();
   const mainRef = useRef(null);
 
+  const otherPanelId = activePanel === "left" ? "right" : "left";
+  const destinationPath = panels[otherPanelId].path;
+
   const selectedNames = [...selections[activePanel]];
   const selectedItemsDetails = selectedNames
     .map((name) => panels[activePanel].items.find((i) => i.name === name))
@@ -245,7 +248,6 @@ export default function App() {
               );
 
               if (itemToNavigate && itemToNavigate.type === "folder") {
-                const otherPanelId = activePanel === "left" ? "right" : "left";
                 const newPath = buildFullPath(
                   panels[activePanel].path,
                   itemToNavigate.name
@@ -293,6 +295,7 @@ export default function App() {
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
       <DestinationBrowserModal
+        key={`dest-browser-${destinationPath}`}
         isVisible={destinationBrowserModal.isVisible}
         initialPath={destinationBrowserModal.initialPath}
         title={destinationBrowserModal.action}

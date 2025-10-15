@@ -45,6 +45,7 @@ const FileItem = ({
   onQuickSelect,
   onQuickUnselect,
   onQuickFilter,
+  onActivatePanel,
   appState,
   boundaryRef,
   allItems,
@@ -93,6 +94,10 @@ const FileItem = ({
       onClick={isRenaming ? (e) => e.stopPropagation() : onClick}
       onDoubleClick={isRenaming ? (e) => e.stopPropagation() : onDoubleClick}
       onContextMenu={(e) => {
+        // Explicitly activate the panel on right-click to ensure activePanel is correct
+        // before any action from the context menu is executed.
+        onActivatePanel();
+
         if (!isSelected) {
           onClick(e);
         }

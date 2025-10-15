@@ -516,6 +516,7 @@ const FilePanel = React.forwardRef(
                   onRenameCancel={onRenameCancel}
                   onClick={(e) => handleItemClick(item.name, e)}
                   onDoubleClick={() => handleDoubleClick(item)}
+                  onActivatePanel={handlePanelClick}
                   style={gridStyle}
                   onPreview={onPreview}
                   onOpen={onOpen}

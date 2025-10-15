@@ -220,23 +220,23 @@ export default function appState() {
     handleNavigate: panelOps.handleNavigate,
   });
 
-  const handleCopyTo = () => {
+  const handleCopyTo = useCallback(() => {
     const otherPanelId = activePanel === "left" ? "right" : "left";
     modals.setDestinationBrowserModal({
       isVisible: true,
       initialPath: panels[otherPanelId].path,
       action: "Copy to...",
     });
-  };
+  }, [activePanel, panels, modals.setDestinationBrowserModal]);
 
-  const handleMoveTo = () => {
+  const handleMoveTo = useCallback(() => {
     const otherPanelId = activePanel === "left" ? "right" : "left";
     modals.setDestinationBrowserModal({
       isVisible: true,
       initialPath: panels[otherPanelId].path,
       action: "Move to...",
     });
-  };
+  }, [activePanel, panels, modals.setDestinationBrowserModal]);
 
   const handleSelectAll = useCallback(
     (panelId) => {
