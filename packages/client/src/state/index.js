@@ -657,7 +657,10 @@ export default function appState() {
 
     return () => {
       isMounted = false;
-      if (wsFileWatcher.current) {
+      if (
+        wsFileWatcher.current &&
+        wsFileWatcher.current.readyState === WebSocket.OPEN
+      ) {
         wsFileWatcher.current.close();
       }
     };
