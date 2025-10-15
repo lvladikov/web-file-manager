@@ -1,6 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { startCopyItems, cancelCopy, deleteItem } from "../lib/api";
-import { buildFullPath, truncatePath } from "../lib/utils";
+import {
+  startCopyItems,
+  cancelCopy,
+  deleteItem,
+  duplicateItems,
+} from "../lib/api";
+import { buildFullPath, truncatePath, basename, dirname } from "../lib/utils";
+
+const getUniqueName = (originalName, existingNames) => {
+  const dotIndex = originalName.lastIndexOf(".");
+  const name =
+    dotIndex === -1 ? originalName : originalName.substring(0, dotIndex);
+  const ext = dotIndex === -1 ? "" : originalName.substring(dotIndex);
+
+  let newName = `${name} copy${ext}`;
+  if (!existingNames.has(newName)) {
+    return newName;
+  }
+
+  let counter = 2;
+  while (true) {
+    newName = `${name} copy ${counter}${ext}`;
+    if (!existingNames.has(newName)) {
+      return newName;
+    }
+    counter++;
+  }
+};
 
 export default function useCopy({
   activePanel,
@@ -32,11 +58,8 @@ export default function useCopy({
     sources: [],
   });
 
-  // --- START: useRef pattern to prevent re-renders ---
   const latestProps = useRef({});
   useEffect(() => {
-    // Keep a ref with the latest props and handlers.
-    // This allows the WebSocket useEffect to access fresh data without needing to re-run.
     latestProps.current = {
       activePanel,
       panels,
@@ -44,7 +67,7 @@ export default function useCopy({
       setError,
       panelRefs,
     };
-  }); // No dependency array, so it updates on every render.
+  });
 
   const performCopy = useCallback(
     async (sources, destinationPath, isMove = false) => {
@@ -52,8 +75,41 @@ export default function useCopy({
       handleCancelRename();
       handleCancelNewFolder();
 
+      const sourceDir = dirname(sources[0]);
+
+      if (sourceDir === destinationPath && !isMove) {
+        try {
+          const panelId = Object.keys(panels).find(
+            (p) => panels[p].path === sourceDir
+          );
+          if (!panelId) {
+            throw new Error("Could not find the source panel.");
+          }
+          const existingNames = new Set(
+            panels[panelId].items.map((item) => item.name)
+          );
+
+          const itemsToDuplicate = sources.map((sourcePath) => {
+            const originalName = basename(sourcePath);
+            const newName = getUniqueName(originalName, existingNames);
+            existingNames.add(newName);
+            return { sourcePath, newName };
+          });
+
+          await duplicateItems(itemsToDuplicate);
+          handleNavigate(panelId, sourceDir, "");
+        } catch (err) {
+          setError(`Duplicate failed: ${err.message}`);
+        }
+        return;
+      }
+
       try {
-        const { jobId } = await startCopyItems(sources, destinationPath, isMove);
+        const { jobId } = await startCopyItems(
+          sources,
+          destinationPath,
+          isMove
+        );
         setCopyProgress({
           isVisible: true,
           status: "scanning",
@@ -71,7 +127,13 @@ export default function useCopy({
         setError(`${isMove ? "Move" : "Copy"} failed: ${err.message}`);
       }
     },
-    [handleCancelRename, handleCancelNewFolder, setError]
+    [
+      handleCancelRename,
+      handleCancelNewFolder,
+      panels,
+      handleNavigate,
+      setError,
+    ]
   );
 
   const handleCopyAction = useCallback(
@@ -104,14 +166,7 @@ export default function useCopy({
 
       await performCopy(sources, destinationPath, isMove);
     },
-    [
-      activePanel,
-      panels,
-      activeSelection,
-      filteredItems,
-      performCopy,
-      setError,
-    ]
+    [activePanel, panels, activeSelection, filteredItems, performCopy, setError]
   );
 
   const handleCancelCopy = useCallback(async () => {
@@ -143,15 +198,13 @@ export default function useCopy({
 
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(
-      `${wsProtocol}//${window.location.host.replace(
-        /:\d+$/,
-        ":3001"
-      )}?jobId=${copyProgress.jobId}&type=copy`
+      `${wsProtocol}//${window.location.host.replace(/:\d+$/, ":3001")}?jobId=${
+        copyProgress.jobId
+      }&type=copy`
     );
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
-      // Get the latest props from the ref, avoiding stale closures.
       const { activePanel, panels, handleNavigate, setError, panelRefs } =
         latestProps.current;
       const data = JSON.parse(event.data);
@@ -192,7 +245,9 @@ export default function useCopy({
             Promise.all(
               copyProgress.sources.map((source) => deleteItem(source))
             ).catch((err) => {
-              setError(`Failed to delete source files after move: ${err.message}`);
+              setError(
+                `Failed to delete source files after move: ${err.message}`
+              );
             });
           }
         // Fallthrough intended

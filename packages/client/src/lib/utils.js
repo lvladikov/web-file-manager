@@ -248,6 +248,21 @@ const basename = (path) => {
   return parts[parts.length - 1];
 };
 
+const dirname = (path) => {
+  const separator = path.includes("\\") ? "\\" : "/";
+  const parts = path.split(separator);
+  if (parts.length > 1) {
+    parts.pop();
+    let result = parts.join(separator);
+    // Handle root paths which might become empty or just a drive letter
+    if (separator === "/" && result === "") return "/";
+    if (separator === "\\" && result.endsWith(":")) return result + "\\";
+    return result;
+  }
+  if (path.includes(separator)) return separator; // It's a root like "/" or "\"
+  return "."; // It's just a filename
+};
+
 const formatSpeed = (bytesPerSecond, spaceBeforeUnit = true) => {
   if (isNaN(bytesPerSecond) || bytesPerSecond === 0) {
     return `0${spaceBeforeUnit ? " " : ""}B/s`;
@@ -301,6 +316,7 @@ export {
   getFileTypeInfo,
   calculateFolderSize,
   basename,
+  dirname,
   formatSpeed,
   truncatePath,
   itemClassName,

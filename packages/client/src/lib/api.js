@@ -318,6 +318,19 @@ const saveFileContent = async (path, content) => {
   return response.json();
 };
 
+const duplicateItems = async (items) => {
+  const response = await fetch("/api/duplicate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to duplicate items.");
+  }
+  return response.json();
+};
+
 export {
   createNewFolder,
   deleteItem,
@@ -348,4 +361,5 @@ export {
   cancelArchiveTest,
   fetchZipContents,
   saveFileContent,
+  duplicateItems,
 };

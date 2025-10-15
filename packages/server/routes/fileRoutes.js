@@ -296,6 +296,34 @@ export default function createFileRoutes(
     }
   });
 
+  // Endpoint to duplicate files/folders
+  router.post("/duplicate", async (req, res) => {
+    const { items } = req.body; // Expects an array of { sourcePath, newName }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "Invalid items array." });
+    }
+
+    try {
+      for (const item of items) {
+        const { sourcePath, newName } = item;
+        const destinationPath = path.join(path.dirname(sourcePath), newName);
+
+        if (await fse.pathExists(destinationPath)) {
+          return res.status(409).json({
+            message: `Destination already exists: ${destinationPath}`,
+          });
+        }
+        await fse.copy(sourcePath, destinationPath);
+      }
+      res.status(200).json({ message: "Items duplicated successfully." });
+    } catch (error) {
+      console.error("Duplicate error:", error);
+      res
+        .status(500)
+        .json({ message: `Failed to duplicate items: ${error.message}` });
+    }
+  });
+
   // Endpoint to cancel a copy job
   router.post("/copy/cancel", async (req, res) => {
     const { jobId } = req.body;
