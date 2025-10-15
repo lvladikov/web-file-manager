@@ -70,8 +70,21 @@ export default function useKeyboardShortcuts(props) {
             e.preventDefault();
             setPreviewModal({ isVisible: false, item: null });
           }
-          // For any other key, stop this handler and let the modal's handler take over.
-          return;
+
+          // Allow Shift + Arrow/PageUp/Down, Home/End to fall through to the general navigation logic (next block)
+          const isShiftNav =
+            e.shiftKey &&
+            (e.key === "ArrowUp" ||
+              e.key === "ArrowDown" ||
+              e.key === "PageUp" ||
+              e.key === "PageDown" ||
+              e.key === "Home" ||
+              e.key === "End");
+
+          if (!isShiftNav) {
+            // For any other key, stop this handler and let the modal's handler take over (BrowserModal.jsx).
+            return;
+          }
         }
 
         // For other previews, allow navigation keys to pass through to the main panel handler.

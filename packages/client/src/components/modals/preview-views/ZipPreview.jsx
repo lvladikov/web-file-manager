@@ -170,6 +170,8 @@ const ZipPreview = forwardRef(
           <Info className="w-5 h-5 mr-3 flex-shrink-0 text-sky-400" />
           <p className="min-w-0">
             Use navigation keys (Up/Down, Enter) to browse the archive contents.
+            Use Shift + navigation keys (Up/Down) to change the item being
+            previewed, i.e. change to another item from the background panel.
           </p>
         </div>
       </BrowserModal>
