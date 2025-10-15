@@ -67,7 +67,7 @@ const BrowserModal = forwardRef(
           confirmButtonText === "Copy Here" ||
           confirmButtonText === "Move Here";
 
-        // 1. Handle case where CONFIRM button is clicked AND NO item is focused.
+        // Handle case where CONFIRM button is clicked AND NO item is focused.
         // This is the default action for path selection modals.
         if (!itemToConfirm) {
           if (isPathConfirmModal) {
@@ -76,7 +76,7 @@ const BrowserModal = forwardRef(
           return;
         }
 
-        // 2. Handle case where an item is double-clicked or the button is clicked with an item focused.
+        // Handle case where an item is double-clicked or the button is clicked with an item focused.
 
         // If the item being confirmed is a folder that is the same as our current path,
         // then confirm the current path, don't build a new one.

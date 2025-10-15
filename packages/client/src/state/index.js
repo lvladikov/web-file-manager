@@ -89,7 +89,7 @@ export default function appState() {
 
   // --- HOOK INITIALIZATION (Order is Important!) ---
 
-  // 1. Independent hooks that provide state and setters
+  // Independent hooks that provide state and setters
   const settings = useSettings({ setError });
   const modals = useModals();
 
@@ -135,7 +135,7 @@ export default function appState() {
 
   const { isCalculatingSize, ...sizeCalculationHandlers } = sizeCalculation;
 
-  // 2. Feature hooks
+  // Feature hooks
   const rename = useRename({
     panels,
     handleNavigate: panelOps.handleNavigate,

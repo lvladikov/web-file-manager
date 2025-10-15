@@ -94,6 +94,7 @@ const PreviewModal = ({
     useState(false);
 
   const zipPreviewRef = useRef(null);
+  const editSearchClearRef = useRef(null);
 
   const [codeLines, setCodeLines] = useState([]);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
@@ -102,9 +103,6 @@ const PreviewModal = ({
   const [editedContent, setEditedContent] = useState(textContent);
   const [undoStack, setUndoStack] = useState([textContent]);
   const [redoStack, setRedoStack] = useState([]);
-
-  const [findTerm, setFindTerm] = useState("");
-  const [replaceTerm, setReplaceTerm] = useState("");
 
   const getPreviewType = (item) => {
     if (!item) return "none";
@@ -119,6 +117,14 @@ const PreviewModal = ({
 
   const previewType = getPreviewType(item);
 
+  // Unified clearing function for View Mode search state
+  const handleClearViewModeSearch = useCallback(() => {
+    setSearchTerm("");
+    setMatches([]);
+    setCurrentMatchIndex(-1);
+    setRegexError("");
+  }, []);
+
   useEffect(() => {
     setIsEditing(startInEditMode);
   }, [startInEditMode]);
@@ -130,16 +136,29 @@ const PreviewModal = ({
     setSearchTerm("");
     setVideoHasError(false);
     setCoverArtUrl(null);
-  }, [item]);
+    handleClearViewModeSearch();
+  }, [item, handleClearViewModeSearch]);
 
   const handleCloseRequest = useCallback(() => {
     const isDirty = isEditing && editedContent !== textContent;
     if (isDirty) {
       setUnsavedChangesModalVisible(true);
     } else {
+      // Clear all search states before closing
+      handleClearViewModeSearch();
+      if (editSearchClearRef.current) {
+        editSearchClearRef.current();
+      }
+
       onClose();
     }
-  }, [isEditing, editedContent, textContent, onClose]);
+  }, [
+    isEditing,
+    editedContent,
+    textContent,
+    onClose,
+    handleClearViewModeSearch,
+  ]);
 
   useEffect(() => {
     if (isVisible && previewType === "audio" && item) {
@@ -252,9 +271,19 @@ const PreviewModal = ({
         if (previewType === "text") {
           e.preventDefault();
           if (isEditing) {
-            setIsFindReplaceVisible((prev) => !prev);
+            setIsFindReplaceVisible((prev) => {
+              if (prev && editSearchClearRef.current) {
+                editSearchClearRef.current(); // Call the clear function on the child
+              }
+              return !prev;
+            });
           } else {
-            setIsSearchVisible((prev) => !prev);
+            setIsSearchVisible((prev) => {
+              if (prev) {
+                handleClearViewModeSearch(); // Clear View Mode search state
+              }
+              return !prev;
+            });
           }
           return;
         }
@@ -281,6 +310,7 @@ const PreviewModal = ({
     editedContent,
     handleCloseRequest,
     unsavedChangesModalVisible,
+    handleClearViewModeSearch,
   ]);
 
   useEffect(() => {
@@ -444,38 +474,6 @@ const PreviewModal = ({
           className={`w-full h-12 bg-black bg-opacity-60 flex-shrink-0 flex justify-between items-center px-3 rounded-t-lg z-20`}
         >
           <div className="flex items-center space-x-4">
-            {isEditing && previewType === "text" && (
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleSave}
-                  disabled={editedContent === textContent}
-                  className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                  title={
-                    editedContent === textContent
-                      ? "No changes to save"
-                      : `Save (${metaKey}+S)`
-                  }
-                >
-                  <Save className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={handleUndo}
-                  disabled={undoStack.length <= 1}
-                  className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                  title={`Undo (${metaKey}+Z)`}
-                >
-                  <Undo className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={handleRedo}
-                  disabled={redoStack.length === 0}
-                  className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
-                  title={`Redo (${isMac ? "CMD+Shift+Z" : "Ctrl+Y"})`}
-                >
-                  <Redo className="w-6 h-6" />
-                </button>
-              </div>
-            )}
             {fileTypeInfo && (
               <div className="flex items-center text-gray-400 text-sm">
                 <Icon type={fileTypeInfo.id} className="w-4 h-4 mr-1.5" />
@@ -562,93 +560,6 @@ const PreviewModal = ({
           </div>
         </div>
 
-        {isEditing && isFindReplaceVisible && previewType === "text" && (
-          <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 p-2 bg-gray-700 border-b border-gray-600 flex-shrink-0">
-            {/* Find Controls */}
-            <div className="flex items-center space-x-2 flex-grow lg:flex-grow-0">
-              <input
-                type="text"
-                placeholder="Find..."
-                value={findTerm}
-                onChange={(e) => setFindTerm(e.target.value)}
-                className="p-1 rounded bg-gray-800 text-white border border-gray-600 w-full lg:w-32"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    if (e.shiftKey) {
-                      goToPrevMatch();
-                    } else {
-                      goToNextMatch();
-                    }
-                  }
-                }}
-              />
-              <button
-                onClick={goToPrevMatch}
-                disabled={matches.length === 0}
-                className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
-              >
-                &lt;
-              </button>
-              <button
-                onClick={goToNextMatch}
-                disabled={matches.length === 0}
-                className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-white disabled:opacity-50"
-              >
-                &gt;
-              </button>
-              <span className="text-gray-300 text-nowrap">
-                {matches.length > 0
-                  ? `${currentMatchIndex + 1} / ${matches.length}`
-                  : "0 / 0"}
-              </span>
-              <label className="flex items-center text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={caseSensitive}
-                  onChange={(e) => setCaseSensitive(e.target.checked)}
-                  className="mr-1"
-                />
-                Case
-              </label>
-              <label className="flex items-center text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={useRegex}
-                  onChange={(e) => setUseRegex(e.target.checked)}
-                  className="mr-1"
-                />
-                Regex
-              </label>
-            </div>
-
-            {/* Replace Controls */}
-            <div className="flex items-center space-x-2 flex-grow lg:flex-grow-0">
-              <input
-                type="text"
-                placeholder="Replace with..."
-                value={replaceTerm}
-                onChange={(e) => setReplaceTerm(e.target.value)}
-                className="p-1 rounded bg-gray-800 text-white border border-gray-600 w-full lg:w-32"
-              />
-              <button
-                onClick={replaceOne}
-                disabled={matches.length === 0}
-                className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-white disabled:opacity-50"
-              >
-                Replace
-              </button>
-              <button
-                onClick={replaceAll}
-                disabled={matches.length === 0}
-                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white disabled:opacity-50"
-              >
-                Replace All
-              </button>
-            </div>
-          </div>
-        )}
-
         {!isEditing && isSearchVisible && previewType === "text" && (
           <div className="w-full h-12 bg-gray-800 flex-shrink-0 flex justify-between items-center px-3 z-10 border-y border-gray-700">
             <input
@@ -691,8 +602,10 @@ const PreviewModal = ({
               {regexError ? (
                 <span className="text-red-400 text-xs">{regexError}</span>
               ) : matches.length > 0 ? (
-                <span>
-                  {currentMatchIndex + 1} / {matches.length}
+                <span className="flex items-center space-x-1">
+                  <span>{currentMatchIndex + 1}</span>
+                  <span>/</span>
+                  <span>{matches.length}</span>
                 </span>
               ) : (
                 <span className="w-20 text-center">
@@ -714,7 +627,10 @@ const PreviewModal = ({
                 <ChevronDown className="w-6 h-6" />
               </button>
               <button
-                onClick={() => setIsSearchVisible(false)}
+                onClick={() => {
+                  setIsSearchVisible(false);
+                  handleClearViewModeSearch(); // Clear state when clicking the X button
+                }}
                 className="p-1 rounded hover:bg-gray-700"
               >
                 <XCircle className="w-6 h-6" />
@@ -769,6 +685,7 @@ const PreviewModal = ({
                 getFileTypeInfo={getFileTypeInfo}
                 isFindReplaceVisible={isFindReplaceVisible}
                 showLineNumbers={showLineNumbers}
+                editSearchClearRef={editSearchClearRef}
               />
             ) : (
               <TextPreview

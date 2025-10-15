@@ -7,7 +7,7 @@ const Breadcrumbs = ({ path, onNavigate }) => {
   const [segmentWidths, setSegmentWidths] = useState([]);
   const [displaySegments, setDisplaySegments] = useState([]);
 
-  // 1. Parse the path into structured data whenever it changes.
+  // Parse the path into structured data whenever it changes.
   useEffect(() => {
     if (!path) {
       setSegments([]);
@@ -39,7 +39,7 @@ const Breadcrumbs = ({ path, onNavigate }) => {
     setSegments(newSegments);
   }, [path]);
 
-  // 2. Measure the segments after they've been rendered invisibly.
+  // Measure the segments after they've been rendered invisibly.
   useLayoutEffect(() => {
     if (
       segments.length > 0 &&
@@ -55,86 +55,94 @@ const Breadcrumbs = ({ path, onNavigate }) => {
     }
   }, [segments, segmentWidths]);
 
-  // 3. Calculate the final visible segments once we have all measurements.
+  // Calculate the final visible segments once we have all measurements.
   useLayoutEffect(() => {
-          const calculateDisplaySegments = () => {
-            if (
-              !containerRef.current ||
-              segments.length === 0 ||
-              segmentWidths.length === 0
-            ) {
-              setDisplaySegments(segments.length ? segments : []);
-              return;
-            }
-    
-            const containerWidth = containerRef.current.offsetWidth;
-            const totalWidth = segmentWidths.reduce((sum, w) => sum + w, 0);
-    
-            if (totalWidth <= containerWidth) {
-              setDisplaySegments(segments);
-              return;
-            }
-    
-            // If we reach here, totalWidth > containerWidth, so we need truncation.
-    
-            const ellipsisWidth = 30; // Estimated width of "..."
-            const separatorWidth = 10; // Estimated width of "/" or "\\"
-    
-            const finalSegments = [];
-            let currentWidth = 0;
-    
-            // Always include the first segment
-            finalSegments.push(segments[0]);
-            currentWidth += segmentWidths[0];
-    
-            // If there's only one segment, TruncatedText will handle its internal truncation
-            if (segments.length === 1) {
-              setDisplaySegments(segments);
-              return;
-            }
-    
-            // Always include the last segment
-            const lastSegment = segments[segments.length - 1];
-            const lastSegmentWidth = segmentWidths[segments.length - 1];
-    
-            // Check if root + ellipsis + last fits
-            // currentWidth already has rootWidth
-            if (currentWidth + separatorWidth + ellipsisWidth + separatorWidth + lastSegmentWidth <= containerWidth) {
-              // If it fits, add ellipsis and last segment
-              finalSegments.push({ type: "ellipsis" });
-              finalSegments.push(lastSegment);
-              currentWidth += separatorWidth + ellipsisWidth + separatorWidth + lastSegmentWidth;
-    
-              // Now try to fill in segments from the end, before the last segment
-              let availableSpaceForMiddle = containerWidth - currentWidth;
-              const middleSegments = [];
-              for (let i = segments.length - 2; i > 0; i--) { // Iterate from second to last to second
-                const segment = segments[i];
-                const segmentWidth = segmentWidths[i];
-                if (availableSpaceForMiddle >= segmentWidth + separatorWidth) {
-                  middleSegments.unshift(segment);
-                  availableSpaceForMiddle -= (segmentWidth + separatorWidth);
-                } else {
-                  break;
-                }
-              }
-              // Insert middle segments before the last segment (which is at finalSegments.length - 1)
-              finalSegments.splice(finalSegments.length - 1, 0, ...middleSegments);
-    
-            } else {
-              // If root + ellipsis + last doesn't fit, just show root and last.
-              // TruncatedText will handle internal truncation of root and last.
-              // We need to make sure the root and last are added with separators.
-              finalSegments.length = 0; // Clear finalSegments
-              finalSegments.push(segments[0]);
-              if (segments.length > 1) {
-                finalSegments.push({ type: "ellipsis" }); // Add ellipsis if there are more than 1 segment
-                finalSegments.push(lastSegment);
-              }
-            }
-    
-            setDisplaySegments(finalSegments);
-          };
+    const calculateDisplaySegments = () => {
+      if (
+        !containerRef.current ||
+        segments.length === 0 ||
+        segmentWidths.length === 0
+      ) {
+        setDisplaySegments(segments.length ? segments : []);
+        return;
+      }
+
+      const containerWidth = containerRef.current.offsetWidth;
+      const totalWidth = segmentWidths.reduce((sum, w) => sum + w, 0);
+
+      if (totalWidth <= containerWidth) {
+        setDisplaySegments(segments);
+        return;
+      }
+
+      // If we reach here, totalWidth > containerWidth, so we need truncation.
+
+      const ellipsisWidth = 30; // Estimated width of "..."
+      const separatorWidth = 10; // Estimated width of "/" or "\\"
+
+      const finalSegments = [];
+      let currentWidth = 0;
+
+      // Always include the first segment
+      finalSegments.push(segments[0]);
+      currentWidth += segmentWidths[0];
+
+      // If there's only one segment, TruncatedText will handle its internal truncation
+      if (segments.length === 1) {
+        setDisplaySegments(segments);
+        return;
+      }
+
+      // Always include the last segment
+      const lastSegment = segments[segments.length - 1];
+      const lastSegmentWidth = segmentWidths[segments.length - 1];
+
+      // Check if root + ellipsis + last fits
+      // currentWidth already has rootWidth
+      if (
+        currentWidth +
+          separatorWidth +
+          ellipsisWidth +
+          separatorWidth +
+          lastSegmentWidth <=
+        containerWidth
+      ) {
+        // If it fits, add ellipsis and last segment
+        finalSegments.push({ type: "ellipsis" });
+        finalSegments.push(lastSegment);
+        currentWidth +=
+          separatorWidth + ellipsisWidth + separatorWidth + lastSegmentWidth;
+
+        // Now try to fill in segments from the end, before the last segment
+        let availableSpaceForMiddle = containerWidth - currentWidth;
+        const middleSegments = [];
+        for (let i = segments.length - 2; i > 0; i--) {
+          // Iterate from second to last to second
+          const segment = segments[i];
+          const segmentWidth = segmentWidths[i];
+          if (availableSpaceForMiddle >= segmentWidth + separatorWidth) {
+            middleSegments.unshift(segment);
+            availableSpaceForMiddle -= segmentWidth + separatorWidth;
+          } else {
+            break;
+          }
+        }
+        // Insert middle segments before the last segment (which is at finalSegments.length - 1)
+        finalSegments.splice(finalSegments.length - 1, 0, ...middleSegments);
+      } else {
+        // If root + ellipsis + last doesn't fit, just show root and last.
+        // TruncatedText will handle internal truncation of root and last.
+        // We need to make sure the root and last are added with separators.
+        finalSegments.length = 0; // Clear finalSegments
+        finalSegments.push(segments[0]);
+        if (segments.length > 1) {
+          finalSegments.push({ type: "ellipsis" }); // Add ellipsis if there are more than 1 segment
+          finalSegments.push(lastSegment);
+        }
+      }
+
+      setDisplaySegments(finalSegments);
+    };
     calculateDisplaySegments();
 
     window.addEventListener("resize", calculateDisplaySegments);
@@ -155,7 +163,10 @@ const Breadcrumbs = ({ path, onNavigate }) => {
         aria-hidden="true"
       >
         {segments.map((segment, index) => (
-          <div key={segment.path} className="flex items-center flex-shrink-0 max-w-[200px]">
+          <div
+            key={segment.path}
+            className="flex items-center flex-shrink-0 max-w-[200px]"
+          >
             <TruncatedText text={segment.text} className="px-1" />
             {!isLast(index, segments) && (
               <span className="select-none">{separator}</span>

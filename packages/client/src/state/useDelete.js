@@ -21,15 +21,15 @@ export default function useDelete({
 
       // Determine the correct items to delete.
       if (itemsToDeleteOverride) {
-        // 1. If an explicit list is passed, use it (for context menu, etc.).
+        // If an explicit list is passed, use it (for context menu, etc.).
         itemsToDelete = itemsToDeleteOverride;
       } else if (activeSelection && activeSelection.size > 0) {
-        // 2. If no override, check for a multi-item selection.
+        // If no override, check for a multi-item selection.
         itemsToDelete = filteredItems.filter((item) =>
           activeSelection.has(item.name)
         );
       } else {
-        // 3. If no selection, fall back to the single focused item.
+        // If no selection, fall back to the single focused item.
         const name = focusedItem[activePanel];
         const focused = name
           ? panels[activePanel].items.find((i) => i.name === name)

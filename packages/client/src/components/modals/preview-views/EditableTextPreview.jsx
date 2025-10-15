@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import Prism from "prismjs";
 import "prismjs/themes/prism-okaidia.css";
-// ... (all other Prismjs imports remain the same)
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-jsx";
@@ -30,12 +29,15 @@ const EditableTextPreview = ({
   getFileTypeInfo,
   isFindReplaceVisible,
   showLineNumbers,
+  editSearchClearRef,
 }) => {
   const [highlightedCode, setHighlightedCode] = useState("");
   const editorRef = useRef(null);
   const preRef = useRef(null);
+  const findInputRef = useRef(null);
   const lineNumbersRef = useRef(null);
   const [lineNumbersForRender, setLineNumbersForRender] = useState([]);
+  const initialCursorSet = useRef(false);
 
   const fileTypeInfo = getFileTypeInfo(item?.name, item?.type);
   const language = fileTypeInfo?.id;
@@ -47,10 +49,64 @@ const EditableTextPreview = ({
   const [currentFindMatchIndex, setCurrentFindMatchIndex] = useState(-1);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
+  const [regexError, setRegexError] = useState("");
 
-  useEffect(() => {
-    editorRef.current?.focus();
+  // Search clearing function for Edit Mode
+  const handleClearEditModeSearch = useCallback(() => {
+    setFindTerm("");
+    setReplaceTerm("");
+    setFindMatches([]);
+    setCurrentFindMatchIndex(-1);
+    setRegexError("");
+    // Note: Do not clear useRegex/caseSensitive flags
   }, []);
+
+  // Expose the clear function via the ref passed from the parent
+  useEffect(() => {
+    if (editSearchClearRef) {
+      editSearchClearRef.current = handleClearEditModeSearch;
+    }
+  }, [editSearchClearRef, handleClearEditModeSearch]);
+
+  // Initial Focus on Mount (runs once)
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+      // Only set range on mount for an immediate focus, the second useEffect will fix the position after content loads
+      editorRef.current.setSelectionRange(0, 0);
+    }
+    // Cleanup function to reset flag when component unmounts (closing modal)
+    return () => {
+      initialCursorSet.current = false;
+    };
+  }, []);
+
+  // Effect to prioritize focus on the Find input when the bar is toggled.
+  useEffect(() => {
+    if (isFindReplaceVisible && findInputRef.current) {
+      // Focus the Find input when the bar opens
+      findInputRef.current.focus();
+    } else if (!isFindReplaceVisible && editorRef.current) {
+      // Return focus to the editor when the bar closes (for immediate typing)
+      editorRef.current.focus();
+    }
+  }, [isFindReplaceVisible]);
+
+  // Set Cursor/Scroll when editedContent is asynchronously loaded (runs after fetch)
+  useEffect(() => {
+    // Check if content is available (not initial "Loading...") AND we haven't done this yet
+    if (
+      editorRef.current &&
+      editedContent.length > 0 &&
+      !initialCursorSet.current
+    ) {
+      // Set cursor to the very start of the file
+      editorRef.current.setSelectionRange(0, 0);
+      // Explicitly scroll the textarea to the top
+      editorRef.current.scrollTop = 0;
+      initialCursorSet.current = true;
+    }
+  }, [editedContent]); // Dependency ensures it runs when the fetched content first arrives.
 
   useEffect(() => {
     const grammar = Prism.languages[language] || Prism.languages.plaintext;
@@ -116,6 +172,7 @@ const EditableTextPreview = ({
     if (!findTerm) {
       setFindMatches([]);
       setCurrentFindMatchIndex(-1);
+      setRegexError("");
       return;
     }
     try {
@@ -126,9 +183,11 @@ const EditableTextPreview = ({
       const currentMatches = Array.from(editedContent.matchAll(regex));
       setFindMatches(currentMatches);
       setCurrentFindMatchIndex(currentMatches.length > 0 ? 0 : -1);
+      setRegexError("");
     } catch (e) {
       setFindMatches([]);
       setCurrentFindMatchIndex(-1);
+      setRegexError("Invalid regex");
     }
   }, [editedContent, findTerm, caseSensitive, useRegex]);
 
@@ -158,6 +217,11 @@ const EditableTextPreview = ({
       replaceTerm +
       editedContent.substring(end);
     onContentChange(newContent);
+
+    // Defer the call to findNext using setTimeout(0).
+    setTimeout(() => {
+      findNext();
+    }, 0);
   };
 
   const replaceAll = () => {
@@ -168,6 +232,8 @@ const EditableTextPreview = ({
       : new RegExp(findTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), flags);
     const newContent = editedContent.replace(regex, replaceTerm);
     onContentChange(newContent);
+    // After replace all, clear search to remove highlights
+    handleClearEditModeSearch();
   };
 
   const FONT_STYLE = {
@@ -259,6 +325,7 @@ const EditableTextPreview = ({
           {/* Find Controls */}
           <div className="flex items-center space-x-2 flex-grow lg:flex-grow-0">
             <input
+              ref={findInputRef}
               type="text"
               placeholder="Find..."
               value={findTerm}
@@ -290,9 +357,15 @@ const EditableTextPreview = ({
               &gt;
             </button>
             <span className="text-gray-300 text-nowrap">
-              {findMatches.length > 0
-                ? `${currentFindMatchIndex + 1} / ${findMatches.length}`
-                : "0 / 0"}
+              {regexError ? (
+                <span className="text-red-400" title={regexError}>
+                  Error
+                </span>
+              ) : findMatches.length > 0 ? (
+                `${currentFindMatchIndex + 1} / ${findMatches.length}`
+              ) : (
+                "0 / 0"
+              )}
             </span>
             <label className="flex items-center text-gray-300">
               <input
