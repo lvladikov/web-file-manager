@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { HardDrive, LoaderCircle, Star } from "lucide-react";
+import {
+  HardDrive,
+  LoaderCircle,
+  Star,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 
 import { formatBytes, isModKey } from "../../lib/utils";
 import { fetchDiskSpace } from "../../lib/api";
@@ -88,6 +94,8 @@ const FilePanel = React.forwardRef(
       appState,
       onChooseFolder,
       boundaryRef,
+      sortConfig,
+      onSort,
     },
     ref
   ) => {
@@ -182,7 +190,15 @@ const FilePanel = React.forwardRef(
         if (!resizing.active) return;
 
         const deltaX = e.clientX - resizing.initialX;
-        let newWidth = resizing.initialWidth + deltaX;
+        let newWidth = resizing.initialWidth;
+
+        // Invert deltaX for the size and modified columns, as the handle is on their left edge.
+        if (resizing.column === "size" || resizing.column === "modified") {
+          newWidth += deltaX * -1; // Reverse the direction of change
+        } else {
+          newWidth += deltaX;
+        }
+
         const minWidth = 60;
 
         if (newWidth < minWidth) {
@@ -215,11 +231,13 @@ const FilePanel = React.forwardRef(
 
     const handleResizeStart = (e, column) => {
       e.preventDefault();
+      // Store the initial width of the column being dragged
+      const initialWidth = columnWidths[column];
       setResizing({
         active: true,
         column: column,
         initialX: e.clientX,
-        initialWidth: columnWidths[column],
+        initialWidth: initialWidth,
       });
     };
 
@@ -287,6 +305,54 @@ const FilePanel = React.forwardRef(
       ref.current?.focus();
     };
 
+    // Handle header click for sorting
+    const handleHeaderClick = (key) => {
+      onSort(panelId, key);
+      // Clear selection and focus when sorting.
+      setSelectedItems(new Set());
+      setFocusedItem(null);
+      setSelectionAnchor(null);
+    };
+
+    // Helper component for sort indicator
+    const SortIndicator = ({ columnKey }) => {
+      if (sortConfig.key !== columnKey) return null;
+      return sortConfig.direction === "asc" ? (
+        <ChevronUp className="w-4 h-4 ml-1 text-sky-400" />
+      ) : (
+        <ChevronDown className="w-4 h-4 ml-1 text-sky-400" />
+      );
+    };
+
+    // Helper component for clickable header
+    const SortableHeader = ({
+      children,
+      columnKey,
+      className = "",
+      style = {},
+    }) => {
+      const keyName = children;
+      const nextDirection =
+        sortConfig.key === columnKey && sortConfig.direction === "asc"
+          ? "Descending"
+          : "Ascending";
+      const titleText = `Click here to sort by ${keyName} in ${nextDirection} order.`;
+
+      return (
+        <span
+          onClick={() => handleHeaderClick(columnKey)}
+          className={`flex items-center cursor-pointer hover:text-white transition-colors duration-150 ${
+            sortConfig.key === columnKey ? "text-sky-400" : "text-gray-400"
+          } ${className}`}
+          style={style}
+          title={titleText}
+        >
+          {children}
+          <SortIndicator columnKey={columnKey} />
+        </span>
+      );
+    };
+
     const handleDoubleClick = (item) => {
       // A double-click is definitive. Cancel any pending rename timer.
       if (clickTimerRef.current) {
@@ -342,16 +408,30 @@ const FilePanel = React.forwardRef(
           setSelectedItems(newSelection);
           setSelectionAnchor(itemName);
         } else if (e.shiftKey && selectionAnchor) {
-          const anchorIndex = items.findIndex(
+          // IMPORTANT: When calculating a range selection, we must use the **currently sorted** list (`filteredItems`).
+          const sortedItems = filteredItems.filter((i) => i.name !== "..");
+
+          // Find indices in the sorted list, then find the corresponding item names from the original list
+          const anchorIndex = sortedItems.findIndex(
             (i) => i.name === selectionAnchor
           );
-          const clickedIndex = items.findIndex((i) => i.name === itemName);
+          const clickedIndex = sortedItems.findIndex(
+            (i) => i.name === itemName
+          );
+
           const start = Math.min(anchorIndex, clickedIndex);
           const end = Math.max(anchorIndex, clickedIndex);
-          if (start === -1 || end === -1) return;
+          if (start === -1 || end === -1) {
+            // Fallback: simple shift click if one item is outside the current filtered view
+            setSelectedItems(new Set([itemName]));
+            setSelectionAnchor(itemName);
+            return;
+          }
+
           const newSelection = new Set(
-            items.slice(start, end + 1).map((i) => i.name)
+            sortedItems.slice(start, end + 1).map((i) => i.name)
           );
+
           setSelectedItems(newSelection);
         } else {
           setSelectedItems(new Set([itemName]));
@@ -449,23 +529,37 @@ const FilePanel = React.forwardRef(
           className="items-center text-gray-400 font-bold border-b border-gray-600 pb-2 mb-1 text-sm"
         >
           <span style={{ gridColumn: "1 / 2" }} />
-          <span style={{ gridColumn: "2 / 3" }} className="pl-8">
+          <SortableHeader
+            columnKey="name"
+            className="pl-3 pr-2"
+            style={{ gridColumn: "2 / 3" }}
+          >
             Name
-          </span>
+          </SortableHeader>
           <Resizer
             onMouseDown={(e) => handleResizeStart(e, "size")}
             onDoubleClick={() => handleAutoSize("size")}
+            title="Drag right to increase Name column width and decrease Size column width. Drag left to decrease Name column width and increase Size column width. Double-click to auto-size."
           />
-          <span style={{ gridColumn: "4 / 5" }} className="text-right pr-4">
+          <SortableHeader
+            columnKey="size"
+            className="text-right pr-3 pl-2"
+            style={{ gridColumn: "4 / 5" }}
+          >
             Size
-          </span>
+          </SortableHeader>
           <Resizer
             onMouseDown={(e) => handleResizeStart(e, "modified")}
             onDoubleClick={() => handleAutoSize("modified")}
+            title="Drag right to increase Size column width and decrease Modified column width. Drag left to decrease Size column width and increase Modified column width. Double-click to auto-size."
           />
-          <span style={{ gridColumn: "6 / 7" }} className="text-right">
+          <SortableHeader
+            columnKey="modified"
+            className="text-right pl-2"
+            style={{ gridColumn: "6 / 7" }}
+          >
             Modified
-          </span>
+          </SortableHeader>
         </div>
 
         <EmptyAreaContextMenu

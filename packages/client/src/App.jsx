@@ -56,6 +56,8 @@ export default function App() {
     autoLoadLyrics,
     helpModal,
     panelRefs,
+    sortConfig,
+    handleSort,
 
     // Setters & Handlers
     setActivePanel,
@@ -538,8 +540,8 @@ export default function App() {
                 }
               }
             }}
-            onOpen={() => handleContextOpen()}
-            onOpenWith={() => handleContextOpenWith()}
+            onOpen={handleContextOpen}
+            onOpenWith={handleContextOpenWith}
             onView={handleViewItem}
             onEdit={handleEdit}
             onCopyToOtherPanel={() => {
@@ -603,6 +605,8 @@ export default function App() {
             onTestArchive={handleTestArchive}
             appState={appState}
             onChooseFolder={openFolderBrowserForPanel}
+            sortConfig={sortConfig[panelId]}
+            onSort={handleSort}
           />
         ))}
       </main>

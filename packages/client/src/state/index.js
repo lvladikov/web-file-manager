@@ -46,6 +46,10 @@ export default function appState() {
     item: { name: null, type: "file" },
     jobType: null,
   });
+  const [sortConfig, setSortConfig] = useState({
+    left: { key: "name", direction: "asc" },
+    right: { key: "name", direction: "asc" },
+  });
 
   // --- Core Refs ---
   const wsRef = useRef(null);
@@ -63,7 +67,7 @@ export default function appState() {
     setFilter((prev) => ({ ...prev, [panelId]: newFilter }));
   };
 
-  const filteredItems = useMemo(() => {
+  const rawFilteredItems = useMemo(() => {
     const getFiltered = (panelId) => {
       const items = panels[panelId].items;
       const currentFilter = filter[panelId];
@@ -86,6 +90,72 @@ export default function appState() {
       right: getFiltered("right"),
     };
   }, [panels, filter]);
+
+  const handleSort = useCallback((panelId, key) => {
+    setSortConfig((prev) => {
+      const currentSort = prev[panelId];
+      let direction = "asc";
+
+      // If the same key is clicked, toggle direction
+      if (currentSort.key === key) {
+        direction = currentSort.direction === "asc" ? "desc" : "asc";
+      }
+
+      return {
+        ...prev,
+        [panelId]: { key, direction },
+      };
+    });
+  }, []);
+
+  const sortedAndFilteredItems = useMemo(() => {
+    const sorted = {};
+    for (const panelId of ["left", "right"]) {
+      const items = rawFilteredItems[panelId];
+      const { key, direction } = sortConfig[panelId];
+
+      const parentItem = items.find((i) => i.name === "..");
+      const sortableItems = items.filter((i) => i.name !== "..");
+
+      const compareFunc = (a, b) => {
+        // 1. Group Folders before Files
+        if (a.type === "folder" && b.type !== "folder") return -1;
+        if (a.type !== "folder" && b.type === "folder") return 1;
+
+        // 2. Sort within the group
+        let aVal = a[key];
+        let bVal = b[key];
+
+        let comparison = 0;
+
+        if (key === "size") {
+          // Null sizes (for folders before calculation) are treated as 0 for sorting
+          aVal = aVal === null ? 0 : aVal;
+          bVal = bVal === null ? 0 : bVal;
+          comparison = aVal - bVal;
+        } else if (key === "modified") {
+          // Convert to timestamp for reliable sorting
+          // Items with no modified date (like '..') are already filtered out
+          aVal = aVal ? new Date(aVal).getTime() : 0;
+          bVal = bVal ? new Date(bVal).getTime() : 0;
+          comparison = aVal - bVal;
+        } else if (key === "name") {
+          // Case-insensitive name sort
+          comparison = aVal.toLowerCase().localeCompare(bVal.toLowerCase());
+        }
+
+        return direction === "asc" ? comparison : -comparison;
+      };
+
+      const finalSortedItems = [...sortableItems].sort(compareFunc);
+      if (parentItem) {
+        finalSortedItems.unshift(parentItem);
+      }
+
+      sorted[panelId] = finalSortedItems;
+    }
+    return sorted;
+  }, [rawFilteredItems, sortConfig]);
 
   // --- HOOK INITIALIZATION (Order is Important!) ---
 
@@ -158,7 +228,7 @@ export default function appState() {
     activePanel,
     panels,
     activeSelection,
-    filteredItems: filteredItems[activePanel],
+    filteredItems: sortedAndFilteredItems[activePanel], // Use sorted/filtered list
     handleNavigate: panelOps.handleNavigate,
     setError,
     panelRefs,
@@ -173,7 +243,7 @@ export default function appState() {
     panels,
     focusedItem,
     activeSelection,
-    filteredItems: filteredItems[activePanel],
+    filteredItems: sortedAndFilteredItems[activePanel], // Use sorted/filtered list
     handleNavigate: panelOps.handleNavigate,
     setError,
     panelRefs,
@@ -241,7 +311,7 @@ export default function appState() {
   const handleSelectAll = useCallback(
     (panelId) => {
       const items = filter[panelId].pattern
-        ? filteredItems[panelId]
+        ? sortedAndFilteredItems[panelId]
         : panels[panelId]?.items;
       if (!items) return;
       const allSelectableItems = items
@@ -252,7 +322,7 @@ export default function appState() {
         [panelId]: new Set(allSelectableItems),
       }));
     },
-    [panels, filter, filteredItems, setSelections]
+    [panels, filter, sortedAndFilteredItems, setSelections]
   );
 
   const handleUnselectAll = useCallback(
@@ -265,7 +335,7 @@ export default function appState() {
   const handleInvertSelection = useCallback(
     (panelId) => {
       const items = filter[panelId].pattern
-        ? filteredItems[panelId]
+        ? sortedAndFilteredItems[panelId]
         : panels[panelId]?.items;
       if (!items) return;
 
@@ -280,7 +350,7 @@ export default function appState() {
 
       setSelections((prev) => ({ ...prev, [panelId]: newSelection }));
     },
-    [panels, filter, filteredItems, selections, setSelections]
+    [panels, filter, sortedAndFilteredItems, selections, setSelections]
   );
 
   const handleStartQuickSelect = (panelId) => {
@@ -294,7 +364,7 @@ export default function appState() {
   const handleQuickSelectConfirm = useCallback(
     (pattern, useRegex, caseSensitive, resetSelection) => {
       const items = filter[activePanel].pattern
-        ? filteredItems[activePanel]
+        ? sortedAndFilteredItems[activePanel]
         : panels[activePanel]?.items;
       if (!items) return;
 
@@ -323,7 +393,7 @@ export default function appState() {
       activePanel,
       panels,
       filter,
-      filteredItems,
+      sortedAndFilteredItems,
       selections,
       modals.quickSelectModal.mode,
       setSelections,
@@ -704,6 +774,7 @@ export default function appState() {
     activeSelection,
     activePath,
     overwritePrompt,
+    sortConfig,
     // Core Setters
     setActivePanel,
     setPanels,
@@ -742,7 +813,7 @@ export default function appState() {
     handleStartFilter,
     handleCloseFilter,
     handleFilterChange,
-    filteredItems,
+    filteredItems: sortedAndFilteredItems,
     handleSwapPanels,
     handleContextOpen,
     handleContextOpenWith,
@@ -750,6 +821,7 @@ export default function appState() {
     handleViewItem,
     handleCopyTo,
     handleMoveTo,
+    handleSort,
     // UI Composition
     actionBarButtons,
   };
