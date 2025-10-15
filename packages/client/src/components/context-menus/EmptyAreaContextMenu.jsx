@@ -1,7 +1,12 @@
 import React from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
-import { metaKey } from "../../lib/utils.js";
+import {
+  metaKey,
+  itemClassName,
+  separatorClassName,
+  submenuTriggerClassName,
+} from "../../lib/utils.js";
 
 const EmptyAreaContextMenu = ({
   onNewFolder,
@@ -17,10 +22,6 @@ const EmptyAreaContextMenu = ({
   boundaryRef,
   children,
 }) => {
-  const itemClassName =
-    "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
-  const separatorClassName = "border-t border-gray-600 mx-2 my-1";
-
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
@@ -41,51 +42,72 @@ const EmptyAreaContextMenu = ({
               >
                 New Folder
               </ContextMenu.Item>
+
               <div className={separatorClassName}></div>
-              <ContextMenu.Item
-                onSelect={onSelectAll}
-                className={itemClassName}
-              >
-                <span>Select All</span>
-                <span className="text-gray-400">{metaKey}+A</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onUnselectAll}
-                className={itemClassName}
-              >
-                <span>Unselect All</span>
-                <span className="text-gray-400">{metaKey}+D</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onInvertSelection}
-                className={itemClassName}
-              >
-                <span>Invert Selection</span>
-                <span className="text-gray-400">*</span>
-              </ContextMenu.Item>
-              <div className={separatorClassName}></div>
-              <ContextMenu.Item
-                onSelect={onQuickSelect}
-                className={itemClassName}
-              >
-                <span>Quick Select</span>
-                <span className="text-gray-400">+</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onQuickUnselect}
-                className={itemClassName}
-              >
-                <span>Quick Unselect</span>
-                <span className="text-gray-400">-</span>
-              </ContextMenu.Item>
-              <div className={separatorClassName}></div>
-              <ContextMenu.Item
-                onSelect={onQuickFilter}
-                className={itemClassName}
-              >
-                <span>Quick Filter</span>
-                <span className="text-gray-400">.</span>
-              </ContextMenu.Item>
+
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                  <span>Select & Filter</span>
+                  <span className="text-gray-400">&gt;</span>
+                </ContextMenu.SubTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.SubContent
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-60"
+                    sideOffset={2}
+                    alignOffset={-5}
+                  >
+                    <ContextMenu.Item
+                      onSelect={onSelectAll}
+                      className={itemClassName}
+                    >
+                      <span>Select All</span>
+                      <span className="text-gray-400">{metaKey}+A</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onUnselectAll}
+                      className={itemClassName}
+                    >
+                      <span>Unselect All</span>
+                      <span className="text-gray-400">{metaKey}+D</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onInvertSelection}
+                      className={itemClassName}
+                    >
+                      <span>Invert Selection</span>
+                      <span className="text-gray-400">*</span>
+                    </ContextMenu.Item>
+
+                    <div className={separatorClassName}></div>
+
+                    <ContextMenu.Item
+                      onSelect={onQuickSelect}
+                      className={itemClassName}
+                    >
+                      <span>Quick Select</span>
+                      <span className="text-gray-400">+</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onQuickUnselect}
+                      className={itemClassName}
+                    >
+                      <span>Quick Unselect</span>
+                      <span className="text-gray-400">-</span>
+                    </ContextMenu.Item>
+
+                    <div className={separatorClassName}></div>
+
+                    <ContextMenu.Item
+                      onSelect={onQuickFilter}
+                      className={itemClassName}
+                    >
+                      <span>Quick Filter</span>
+                      <span className="text-gray-400">.</span>
+                    </ContextMenu.Item>
+                  </ContextMenu.SubContent>
+                </ContextMenu.Portal>
+              </ContextMenu.Sub>
+
               <div className={separatorClassName}></div>
               <ContextMenu.Item
                 onSelect={onRefreshPanel}

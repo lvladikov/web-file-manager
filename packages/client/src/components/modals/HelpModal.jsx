@@ -109,6 +109,12 @@ const HelpModal = ({ isVisible, onClose }) => {
               different locations simultaneously, making it easy to move, copy,
               and compare files and folders between them.
             </p>
+            <p>
+              This project is inspired by applications like Midnight Commander
+              and Double Commander, built with a React frontend and a Node.js
+              (Express) backend. The project is structured as a monorepo using
+              npm workspaces.
+            </p>
             <img
               src={dualPanelsScreenshot}
               alt="Dual Panel Screenshot"
@@ -334,12 +340,14 @@ const HelpModal = ({ isVisible, onClose }) => {
               </li>
               <li>
                 <strong>File Operations:</strong> Contains all major file
-                transfer actions.
+                transfer actions, grouped under the "
+                <strong>Copy & Move</strong>" submenu, and the "
+                <strong>Archive</strong>" submenu.
                 <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
                   <li>
-                    <kbd>Copy to other panel</kbd>: Performs the <kbd>F5</kbd>{" "}
-                    Copy operation on the selected item(s) to the **inactive**
-                    panel.
+                    <kbd>Copy to other panel</kbd>: Performs the Copy (
+                    <kbd>F5</kbd>) operation on the selected item(s) to the
+                    <strong>inactive</strong> panel.
                   </li>
                   <li>
                     <kbd>Copy to clipboard</kbd>: (Coming soon) Standard
@@ -350,9 +358,9 @@ const HelpModal = ({ isVisible, onClose }) => {
                     specific destination for the copy operation.
                   </li>
                   <li>
-                    <kbd>Move to other panel</kbd>: Performs the <kbd>F6</kbd>{" "}
-                    Move operation on the selected item(s) to the **inactive**
-                    panel.
+                    <kbd>Move to other panel</kbd>: Performs the Move (
+                    <kbd>F6</kbd>) operation on the selected item(s) to the
+                    <strong>inactive</strong> panel.
                   </li>
                   <li>
                     <kbd>Move (Cut) to clipboard</kbd>: (Coming soon) Standard
@@ -363,20 +371,11 @@ const HelpModal = ({ isVisible, onClose }) => {
                     specific destination for the move operation.
                   </li>
                   <li>
-                    <kbd>Compress</kbd>: Compresses the selected items into a
-                    zip archive in the active panel or transfers it to the other
-                    panel.
-                  </li>
-                  <li>
-                    <kbd>Decompress Archive</kbd>: Select a ZIP archive and
-                    choose "Decompress" from the context menu or "File &gt;
-                    Decompress". You can decompress to the active panel or the
-                    other panel. A progress modal will appear, showing the
-                    current file being extracted and the overall progress.
-                  </li>
-                  <li>
-                    <kbd>Test Archive</kbd>: Verifies the integrity of a
-                    selected ZIP archive.
+                    <strong>Archive Menu:</strong> Contains options to{" "}
+                    <strong>Compress</strong> the selected item(s) in the active
+                    or other panel, or for a single selected archive, options to{" "}
+                    <strong>Decompress</strong> and
+                    <strong>Test Archive</strong>.
                   </li>
                 </ul>
               </li>
@@ -459,9 +458,10 @@ const HelpModal = ({ isVisible, onClose }) => {
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
                 <strong>File Menu:</strong> Contains actions related to file
-                operations such as Copy (to other panel or a specific folder),
-                Move, Rename, Delete, Compress, Calculate Size, and Refresh.
-                Many of these actions have corresponding function key shortcuts.
+                operations such as <strong>Copy & Move (in a submenu)</strong>,{" "}
+                <strong>Archive (in a submenu)</strong>, Rename, Delete,
+                Calculate Size, and Refresh. Many of these actions have
+                corresponding function key shortcuts.
               </li>
               <li>
                 <strong>Select Menu:</strong> Offers various ways to manage

@@ -279,6 +279,12 @@ const truncatePath = (fullPath, maxLength = 60) => {
   );
 };
 
+// --- Shared Context Menu Class Names ---
+const itemClassName =
+  "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
+const separatorClassName = "border-t border-gray-600 mx-2 my-1";
+const submenuTriggerClassName = `${itemClassName} font-bold text-sky-400`;
+
 export {
   buildFullPath,
   formatBytes,
@@ -297,4 +303,7 @@ export {
   basename,
   formatSpeed,
   truncatePath,
+  itemClassName,
+  separatorClassName,
+  submenuTriggerClassName,
 };

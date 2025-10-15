@@ -1,7 +1,12 @@
 import React, { useEffect } from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
-import { metaKey } from "../../lib/utils.js";
+import {
+  metaKey,
+  itemClassName,
+  separatorClassName,
+  submenuTriggerClassName,
+} from "../../lib/utils.js";
 
 const AppContextMenu = ({
   targetItems,
@@ -88,9 +93,8 @@ const AppContextMenu = ({
 
   const onPlaceholder = () => alert("This feature will be implemented soon!");
 
-  const itemClassName =
-    "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
-  const separatorClassName = "border-t border-gray-600 mx-2 my-1";
+  const shouldShowArchiveGroup = count > 0;
+  const isSingleArchive = count === 1 && firstItem.type === "archive";
 
   return (
     <ContextMenu.Root>
@@ -140,41 +144,61 @@ const AppContextMenu = ({
 
               {!isMultiSelect && <div className={separatorClassName}></div>}
 
-              <ContextMenu.Item
-                onSelect={onCopyToOtherPanel}
-                className={itemClassName}
-              >
-                <span>Copy to other panel</span>
-                <span className="text-gray-400">F5</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onPlaceholder}
-                className={`${itemClassName} text-gray-400`}
-              >
-                <span>Copy to clipboard</span>
-                <span className="text-gray-400">{metaKey}+C</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item onSelect={onCopyTo} className={itemClassName}>
-                Copy to...
-              </ContextMenu.Item>
-              <div className={separatorClassName}></div>
-              <ContextMenu.Item
-                onSelect={onMoveToOtherPanel}
-                className={itemClassName}
-              >
-                <span>Move to other panel</span>
-                <span className="text-gray-400">F6</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onPlaceholder}
-                className={`${itemClassName} text-gray-400`}
-              >
-                <span>Move (Cut) to clipboard</span>
-                <span className="text-gray-400">{metaKey}+X</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item onSelect={onMoveTo} className={itemClassName}>
-                Move to...
-              </ContextMenu.Item>
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                  <span>Copy & Move</span>
+                  <span className="text-gray-400">&gt;</span>
+                </ContextMenu.SubTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.SubContent
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
+                    sideOffset={2}
+                    alignOffset={-5}
+                  >
+                    <ContextMenu.Item
+                      onSelect={onCopyToOtherPanel}
+                      className={itemClassName}
+                    >
+                      <span>Copy to other panel</span>
+                      <span className="text-gray-400">F5</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onPlaceholder}
+                      className={`${itemClassName} text-gray-400`}
+                    >
+                      <span>Copy to clipboard</span>
+                      <span className="text-gray-400">{metaKey}+C</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onCopyTo}
+                      className={itemClassName}
+                    >
+                      Copy to...
+                    </ContextMenu.Item>
+                    <div className={separatorClassName}></div>
+                    <ContextMenu.Item
+                      onSelect={onMoveToOtherPanel}
+                      className={itemClassName}
+                    >
+                      <span>Move to other panel</span>
+                      <span className="text-gray-400">F6</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onPlaceholder}
+                      className={`${itemClassName} text-gray-400`}
+                    >
+                      <span>Move (Cut) to clipboard</span>
+                      <span className="text-gray-400">{metaKey}+X</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onMoveTo}
+                      className={itemClassName}
+                    >
+                      Move to...
+                    </ContextMenu.Item>
+                  </ContextMenu.SubContent>
+                </ContextMenu.Portal>
+              </ContextMenu.Sub>
 
               <div className={separatorClassName}></div>
 
@@ -200,45 +224,62 @@ const AppContextMenu = ({
                 <span className="text-gray-400">F8</span>
               </ContextMenu.Item>
 
-              <div className={separatorClassName}></div>
-
-              {!isMultiSelect && firstItem.type === "archive" ? (
+              {shouldShowArchiveGroup && (
                 <>
-                  <ContextMenu.Item
-                    onSelect={onDecompressInActivePanel}
-                    className={itemClassName}
-                  >
-                    Decompress in active panel
-                  </ContextMenu.Item>
-                  <ContextMenu.Item
-                    onSelect={onDecompressToOtherPanel}
-                    className={itemClassName}
-                  >
-                    Decompress to other panel
-                  </ContextMenu.Item>
-                  <ContextMenu.Item
-                    onSelect={onTestArchive}
-                    className={itemClassName}
-                  >
-                    Test Archive
-                  </ContextMenu.Item>
+                  <div className={separatorClassName}></div>
+                  <ContextMenu.Sub>
+                    <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                      <span>Archive</span>
+                      <span className="text-gray-400">&gt;</span>
+                    </ContextMenu.SubTrigger>
+                    <ContextMenu.Portal>
+                      <ContextMenu.SubContent
+                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
+                        sideOffset={2}
+                        alignOffset={-5}
+                      >
+                        {isSingleArchive ? (
+                          <>
+                            <ContextMenu.Item
+                              onSelect={onDecompressInActivePanel}
+                              className={itemClassName}
+                            >
+                              Decompress in active panel
+                            </ContextMenu.Item>
+                            <ContextMenu.Item
+                              onSelect={onDecompressToOtherPanel}
+                              className={itemClassName}
+                            >
+                              Decompress to other panel
+                            </ContextMenu.Item>
+                            <ContextMenu.Item
+                              onSelect={onTestArchive}
+                              className={itemClassName}
+                            >
+                              Test Archive
+                            </ContextMenu.Item>
+                          </>
+                        ) : (
+                          <>
+                            <ContextMenu.Item
+                              onSelect={onCompressInActivePanel}
+                              className={itemClassName}
+                            >
+                              Compress in active panel
+                            </ContextMenu.Item>
+                            <ContextMenu.Item
+                              onSelect={onCompressToOtherPanel}
+                              className={itemClassName}
+                            >
+                              Compress to other panel
+                            </ContextMenu.Item>
+                          </>
+                        )}
+                      </ContextMenu.SubContent>
+                    </ContextMenu.Portal>
+                  </ContextMenu.Sub>
                 </>
-              ) : count > 0 ? (
-                <>
-                  <ContextMenu.Item
-                    onSelect={onCompressInActivePanel}
-                    className={itemClassName}
-                  >
-                    Compress in active panel
-                  </ContextMenu.Item>
-                  <ContextMenu.Item
-                    onSelect={onCompressToOtherPanel}
-                    className={itemClassName}
-                  >
-                    Compress to other panel
-                  </ContextMenu.Item>
-                </>
-              ) : null}
+              )}
 
               {folderCount > 0 && (
                 <>
@@ -262,55 +303,68 @@ const AppContextMenu = ({
               )}
 
               <div className={separatorClassName}></div>
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                  <span>Select & Filter</span>
+                  <span className="text-gray-400">&gt;</span>
+                </ContextMenu.SubTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.SubContent
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-60"
+                    sideOffset={2}
+                    alignOffset={-5}
+                  >
+                    <ContextMenu.Item
+                      onSelect={onSelectAll}
+                      className={itemClassName}
+                    >
+                      <span>Select All</span>
+                      <span className="text-gray-400">{metaKey}+A</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onUnselectAll}
+                      className={itemClassName}
+                    >
+                      <span>Unselect All</span>
+                      <span className="text-gray-400">{metaKey}+D</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onInvertSelection}
+                      className={itemClassName}
+                    >
+                      <span>Invert Selection</span>
+                      <span className="text-gray-400">*</span>
+                    </ContextMenu.Item>
 
-              <ContextMenu.Item
-                onSelect={onSelectAll}
-                className={itemClassName}
-              >
-                <span>Select All</span>
-                <span className="text-gray-400">{metaKey}+A</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onUnselectAll}
-                className={itemClassName}
-              >
-                <span>Unselect All</span>
-                <span className="text-gray-400">{metaKey}+D</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onInvertSelection}
-                className={itemClassName}
-              >
-                <span>Invert Selection</span>
-                <span className="text-gray-400">*</span>
-              </ContextMenu.Item>
+                    <div className={separatorClassName}></div>
 
-              <div className={separatorClassName}></div>
+                    <ContextMenu.Item
+                      onSelect={onQuickSelect}
+                      className={itemClassName}
+                    >
+                      <span>Quick Select</span>
+                      <span className="text-gray-400">+</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onQuickUnselect}
+                      className={itemClassName}
+                    >
+                      <span>Quick Unselect</span>
+                      <span className="text-gray-400">-</span>
+                    </ContextMenu.Item>
 
-              <ContextMenu.Item
-                onSelect={onQuickSelect}
-                className={itemClassName}
-              >
-                <span>Quick Select</span>
-                <span className="text-gray-400">+</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onQuickUnselect}
-                className={itemClassName}
-              >
-                <span>Quick Unselect</span>
-                <span className="text-gray-400">-</span>
-              </ContextMenu.Item>
+                    <div className={separatorClassName}></div>
 
-              <div className={separatorClassName}></div>
-
-              <ContextMenu.Item
-                onSelect={onQuickFilter}
-                className={itemClassName}
-              >
-                <span>Quick Filter</span>
-                <span className="text-gray-400">.</span>
-              </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onQuickFilter}
+                      className={itemClassName}
+                    >
+                      <span>Quick Filter</span>
+                      <span className="text-gray-400">.</span>
+                    </ContextMenu.Item>
+                  </ContextMenu.SubContent>
+                </ContextMenu.Portal>
+              </ContextMenu.Sub>
 
               <div className={separatorClassName}></div>
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as NavigationMenu from "@radix-ui/react-navigation-menu";
-import { metaKey, isEditable } from "../../lib/utils";
+import { metaKey, isEditable, submenuTriggerClassName } from "../../lib/utils";
 
 const itemClassName =
   "px-4 py-2 flex justify-between hover:bg-sky-600 cursor-pointer";
@@ -8,10 +8,18 @@ const disabledItemClassName =
   "px-4 py-2 flex justify-between text-gray-500 cursor-not-allowed";
 const separatorClassName = "border-t border-gray-600 mx-2 my-1";
 
-const MenuItem = ({ label, shortcut, onClick, disabled = false }) => (
+const MenuItem = ({
+  label,
+  shortcut,
+  onClick,
+  disabled = false,
+  className = "",
+}) => (
   <div
     onClick={!disabled ? onClick : undefined}
-    className={disabled ? disabledItemClassName : itemClassName}
+    className={
+      disabled ? disabledItemClassName : itemClassName + " " + className
+    }
   >
     <span>{label}</span>
     {shortcut && <span className="text-gray-400">{shortcut}</span>}
@@ -61,6 +69,117 @@ const FileMenu = ({ ...props }) => {
   const onPlaceholder = () =>
     console.log("This feature will be implemented soon!");
 
+  const [isCopyMoveSubmenuOpen, setIsCopyMoveSubmenuOpen] = useState(false);
+  const [isArchiveSubmenuOpen, setIsArchiveSubmenuOpen] = useState(false);
+
+  const shouldShowArchiveGroup =
+    activePanelSelections.size > 0 || canPerformArchiveAction;
+  const isSingleArchive = canPerformArchiveAction;
+
+  // Archive submenu logic
+  const ArchiveGroup = () => (
+    <div
+      onMouseEnter={() => setIsArchiveSubmenuOpen(true)}
+      onMouseLeave={() => setIsArchiveSubmenuOpen(false)}
+      className="relative"
+    >
+      {/* Submenu Trigger UI: Use submenuTriggerClassName */}
+      <div className={submenuTriggerClassName}>
+        <span>Archive</span>
+        <span className="text-gray-400">&gt;</span>
+      </div>
+
+      {/* Submenu Content (Simulated popover) */}
+      {isArchiveSubmenuOpen && (
+        <div className="absolute top-0 left-full mt-[-1px] w-72 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+          {isSingleArchive ? (
+            <>
+              <MenuItem
+                label="Decompress in active panel"
+                onClick={() => handleItemClick(onDecompressInActivePanel)}
+              />
+              <MenuItem
+                label="Decompress to other panel"
+                onClick={() => handleItemClick(onDecompressToOtherPanel)}
+              />
+              <MenuItem
+                label="Test Archive"
+                onClick={() => handleItemClick(onTestArchive)}
+              />
+            </>
+          ) : (
+            <>
+              <MenuItem
+                label="Compress in active panel"
+                onClick={() => handleItemClick(onCompressInActivePanel)}
+              />
+              <MenuItem
+                label="Compress to other panel"
+                onClick={() => handleItemClick(onCompressToOtherPanel)}
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  // Copy & Move Submenu logic
+  const CopyMoveGroup = () => (
+    <div
+      onMouseEnter={() => setIsCopyMoveSubmenuOpen(true)}
+      onMouseLeave={() => setIsCopyMoveSubmenuOpen(false)}
+      className="relative"
+    >
+      {/* Submenu Trigger UI: Use submenuTriggerClassName */}
+      <div className={submenuTriggerClassName}>
+        <span>Copy & Move</span>
+        <span className="text-gray-400">&gt;</span>
+      </div>
+
+      {/* Submenu Content (Simulated popover) */}
+      {isCopyMoveSubmenuOpen && (
+        <div className="absolute top-0 left-full mt-[-1px] w-72 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+          <MenuItem
+            label="Copy to other panel"
+            shortcut="F5"
+            onClick={() => handleItemClick(onCopyToOtherPanel)}
+            disabled={!canCopyToOtherPanel}
+          />
+          <MenuItem
+            label="Copy to clipboard"
+            shortcut={`${metaKey}+C`}
+            onClick={() => handleItemClick(onPlaceholder)}
+            disabled
+          />
+          <MenuItem
+            label="Copy to ..."
+            onClick={() => handleItemClick(onCopyTo)}
+            disabled={!canCopyToOtherPanel}
+          />
+          <div className={separatorClassName} />
+          <MenuItem
+            label="Move to other panel"
+            shortcut="F6"
+            onClick={() => handleItemClick(onMoveToOtherPanel)}
+            disabled={!canMoveToOtherPanel}
+          />
+          <MenuItem
+            label="Move (Cut) to clipboard"
+            shortcut={`${metaKey}+X`}
+            onClick={() => handleItemClick(onPlaceholder)}
+            disabled
+          />
+          <MenuItem
+            label="Move to ..."
+            onClick={() => handleItemClick(onMoveTo)}
+            disabled={!canMoveToOtherPanel}
+          />
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <NavigationMenu.Item value="file">
       <NavigationMenu.Trigger className="px-3 py-1 rounded hover:bg-gray-700">
@@ -97,42 +216,10 @@ const FileMenu = ({ ...props }) => {
         {(canPreview || canOpen || canOpenWith) && (
           <div className={separatorClassName} />
         )}
-        <MenuItem
-          label="Copy to other panel"
-          shortcut="F5"
-          onClick={() => handleItemClick(onCopyToOtherPanel)}
-          disabled={!canCopyToOtherPanel}
-        />
-        <MenuItem
-          label="Copy to clipboard"
-          shortcut={`${metaKey}+C`}
-          onClick={() => handleItemClick(onPlaceholder)}
-          disabled
-        />
-        <MenuItem
-          label="Copy to ..."
-          onClick={() => handleItemClick(onCopyTo)}
-          disabled={!canCopyToOtherPanel}
-        />
+
+        <CopyMoveGroup />
         <div className={separatorClassName} />
-        <MenuItem
-          label="Move to other panel"
-          shortcut="F6"
-          onClick={() => handleItemClick(onMoveToOtherPanel)}
-          disabled={!canMoveToOtherPanel}
-        />
-        <MenuItem
-          label="Move (Cut) to clipboard"
-          shortcut={`${metaKey}+X`}
-          onClick={() => handleItemClick(onPlaceholder)}
-          disabled
-        />
-        <MenuItem
-          label="Move to ..."
-          onClick={() => handleItemClick(onMoveTo)}
-          disabled={!canMoveToOtherPanel}
-        />
-        <div className={separatorClassName} />
+
         <MenuItem
           label="Rename"
           shortcut="F2"
@@ -150,38 +237,17 @@ const FileMenu = ({ ...props }) => {
           shortcut="F8"
           onClick={() => handleItemClick(onDelete)}
           disabled={!canDelete}
+          className={`${itemClassName} text-red-400 hover:text-red-300`}
         />
         <div className={separatorClassName} />
-        {activePanelSelections.size > 0 && !canPerformArchiveAction && (
+
+        {shouldShowArchiveGroup && (
           <>
-            <MenuItem
-              label="Compress in active panel"
-              onClick={() => handleItemClick(onCompressInActivePanel)}
-            />
-            <MenuItem
-              label="Compress to other panel"
-              onClick={() => handleItemClick(onCompressToOtherPanel)}
-            />
+            <ArchiveGroup />
             <div className={separatorClassName} />
           </>
         )}
-        {canPerformArchiveAction && (
-          <>
-            <MenuItem
-              label="Decompress in active panel"
-              onClick={() => handleItemClick(onDecompressInActivePanel)}
-            />
-            <MenuItem
-              label="Decompress to other panel"
-              onClick={() => handleItemClick(onDecompressToOtherPanel)}
-            />
-            <MenuItem
-              label="Test Archive"
-              onClick={() => handleItemClick(onTestArchive)}
-            />
-            <div className={separatorClassName} />
-          </>
-        )}
+
         <MenuItem
           label={calculateSizeLabel}
           onClick={() => handleItemClick(onCalculateSize)}
@@ -231,7 +297,7 @@ const SelectMenu = ({ ...props }) => {
   return (
     <NavigationMenu.Item value="select">
       <NavigationMenu.Trigger className="px-3 py-1 rounded hover:bg-gray-700">
-        Select
+        Select & Filter
       </NavigationMenu.Trigger>
       <NavigationMenu.Content className="absolute top-full left-0 mt-1 w-60 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-white font-mono text-sm">
         <MenuItem

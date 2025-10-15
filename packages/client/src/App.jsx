@@ -176,6 +176,9 @@ export default function App() {
     }
   };
 
+  // Create a closure for the top menu's Quick Filter using the activePanel ID.
+  const handleMenuQuickFilter = () => handleStartFilter(activePanel);
+
   return (
     <div
       className="flex flex-col h-screen bg-gray-900 text-white"
@@ -265,7 +268,7 @@ export default function App() {
           onInvertSelection={handleInvertSelection}
           onQuickSelect={handleStartQuickSelect}
           onQuickUnselect={handleStartQuickUnselect}
-          onQuickFilter={handleStartFilter}
+          onQuickFilter={handleMenuQuickFilter}
           onCompressInActivePanel={handleCompressInActivePanel}
           onCompressToOtherPanel={handleCompressToOtherPanel}
           onDecompressInActivePanel={handleDecompressInActivePanel}

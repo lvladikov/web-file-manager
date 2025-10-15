@@ -1,6 +1,8 @@
 # Dual-Panel File Manager Monorepo [ACTIVE WORK IN PROGRESS - DO NOT USE YET]
 
-This project is a dual-panel file manager inspired by applications like Midnight Commander and Double Commander, built with a React frontend and a Node.js (Express) backend. The project is structured as a monorepo using npm workspaces.
+This is a dual-panel file manager designed for efficient file operations. The two independent panels allow you to browse two different locations simultaneously, making it easy to move, copy, and compare files and folders between them.
+
+This project is inspired by applications like Midnight Commander and Double Commander, built with a React frontend and a Node.js (Express) backend. The project is structured as a monorepo using npm workspaces.
 
 ## General Look and Feel
 
@@ -120,7 +122,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions (Viewing, File Operations, Organization, Folder Tools).
 
   - **Viewing:** Preview, Open, and Open with...
-  - **File Operations:** Contains all major file transfer actions.
+  - **File Operations:** Contains all major file transfer actions, grouped under the "**Copy & Move**" submenu, and the "**Archive**" submenu.
 
     - <kbd>Copy to other panel</kbd>: Performs the Copy (<kbd>F5</kbd>) operation on the selected item(s) to the **inactive** panel.
     - <kbd>Copy to clipboard</kbd>: (Coming soon) Standard clipboard copy operation.
