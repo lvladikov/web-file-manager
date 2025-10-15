@@ -157,15 +157,22 @@ const AppContextMenu = ({
                 onSelect={onPlaceholder}
                 className={`${itemClassName} text-gray-400`}
               >
-                <span>Move (Cut) to clipboard</span>
-                <span className="text-gray-400">{metaKey}+X</span>
+                Copy to ...
               </ContextMenu.Item>
+              <div className={separatorClassName}></div>
               <ContextMenu.Item
                 onSelect={onMoveToOtherPanel}
                 className={itemClassName}
               >
                 <span>Move to other panel</span>
                 <span className="text-gray-400">F6</span>
+              </ContextMenu.Item>
+              <ContextMenu.Item
+                onSelect={onPlaceholder}
+                className={`${itemClassName} text-gray-400`}
+              >
+                <span>Move (Cut) to clipboard</span>
+                <span className="text-gray-400">{metaKey}+X</span>
               </ContextMenu.Item>
               <ContextMenu.Item
                 onSelect={onPlaceholder}
