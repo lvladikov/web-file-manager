@@ -308,10 +308,6 @@ const FilePanel = React.forwardRef(
     // Handle header click for sorting
     const handleHeaderClick = (key) => {
       onSort(panelId, key);
-      // Clear selection and focus when sorting.
-      setSelectedItems(new Set());
-      setFocusedItem(null);
-      setSelectionAnchor(null);
     };
 
     // Helper component for sort indicator
