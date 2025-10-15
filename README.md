@@ -117,23 +117,23 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions (Viewing, File Operations, Organization, Folder Tools).
 
-  ![Context Menu Screenshot](packages/client/screenshots/context-menu.png)
-
   - **Viewing:** Preview, Open, and Open with...
   - **File Operations:** Contains all major file transfer actions.
 
-  - <kbd>Copy to other panel</kbd>: Performs the Copy (<kbd>F5</kbd>) operation on the selected item(s) to the **inactive** panel.
-  - <kbd>Copy to clipboard</kbd>: (Coming soon) Standard clipboard copy operation.
-  - <kbd>Copy to...</kbd>: Opens a modal to select a specific destination directory for the copy operation.
-  - <kbd>Move to other panel</kbd>: Performs the Move (<kbd>F6</kbd>) operation on the selected item(s) to the **inactive** panel.
-  - <kbd>Move (Cut) to clipboard</kbd>: (Coming soon) Standard clipboard cut operation.
-  - <kbd>Move to...</kbd>: Opens a modal to select a specific destination directory for the move operation.
-  - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
-  - <kbd>Decompress Archive</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
-  - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, reporting any corrupt files or general issues.
+    - <kbd>Copy to other panel</kbd>: Performs the Copy (<kbd>F5</kbd>) operation on the selected item(s) to the **inactive** panel.
+    - <kbd>Copy to clipboard</kbd>: (Coming soon) Standard clipboard copy operation.
+    - <kbd>Copy to...</kbd>: Opens a modal to select a specific destination directory for the copy operation.
+    - <kbd>Move to other panel</kbd>: Performs the Move (<kbd>F6</kbd>) operation on the selected item(s) to the **inactive** panel.
+    - <kbd>Move (Cut) to clipboard</kbd>: (Coming soon) Standard clipboard cut operation.
+    - <kbd>Move to...</kbd>: Opens a modal to select a specific destination directory for the move operation.
+    - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
+    - <kbd>Decompress Archive</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
+    - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, reporting any corrupt files or general issues.
 
   - **Organization:** Rename and Delete the item.
   - **Folder Tools:** For folders, you can also Calculate Size or set the folder's path in the opposite panel.
+
+    ![Context Menu Screenshot](packages/client/screenshots/context-menu.png)
 
 - **Calculate Folder Size & Progress**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing <kbd>Spacebar</kbd> on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed. During any long-running operation, you can click and hold on the animated icon in the dialog's header to make the dialog semi-transparent (20% opacity), allowing you to see the panels behind. Releasing the mouse button restores full visibility.
 
