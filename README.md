@@ -86,6 +86,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **File & Folder Listing**: Each panel lists files and folders. Long names are dynamically truncated. Icons next to each name (folder icon for folders, text file icon for text files, image icon for images, etc.) help identify the type.
 
+  - **Column Sorting:** You can sort the list by clicking on the column headers (Name, Size, Modified). Clicking the same column cycles through ascending (up arrow) and descending (down arrow) order. The selected files will remain selected even after sorting.
+
   ![Folder Truncation Screenshot](packages/client/screenshots/folder-truncation.png)
   ![File Truncation Screenshot](packages/client/screenshots/file-truncation.png)
 

@@ -127,6 +127,15 @@ const HelpModal = ({ isVisible, onClose }) => {
               (...), ensuring you can still see the beginning and end of the
               name.
             </p>
+            <p>
+              <strong>Sorting</strong>: You can sort the list by clicking on the
+              column headers (<strong>Name</strong>, <strong>Size</strong>,{" "}
+              <strong>Modified</strong>). Clicking the same column header
+              toggles the sort direction between ascending (up arrow) and
+              descending (down arrow).{" "}
+              <strong>Note: The item selection remains preserved</strong> when
+              changing the sort order.
+            </p>
             <img
               src={folderTruncationScreenshot}
               alt="Folder Truncation Screenshot"
