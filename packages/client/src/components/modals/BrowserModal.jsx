@@ -9,6 +9,7 @@ import React, {
 import { HardDrive, LoaderCircle } from "lucide-react";
 
 import Icon from "../../components/ui/Icon.jsx";
+import TruncatedText from "../ui/TruncatedText.jsx";
 
 import { isMac } from "../../lib/utils";
 import { fetchDirectory } from "../../lib/api";
@@ -61,13 +62,21 @@ const BrowserModal = forwardRef(
       (itemOverride) => {
         const itemToConfirm = itemOverride || focusedItemRef.current;
 
-        // If there's no item, the only valid action is to confirm the current directory.
+        const isPathConfirmModal =
+          confirmButtonText === "Select Folder" ||
+          confirmButtonText === "Copy Here" ||
+          confirmButtonText === "Move Here";
+
+        // 1. Handle case where CONFIRM button is clicked AND NO item is focused.
+        // This is the default action for path selection modals.
         if (!itemToConfirm) {
-          if (confirmButtonText === "Select Folder") {
+          if (isPathConfirmModal) {
             onConfirm(pathRef.current);
           }
           return;
         }
+
+        // 2. Handle case where an item is double-clicked or the button is clicked with an item focused.
 
         // If the item being confirmed is a folder that is the same as our current path,
         // then confirm the current path, don't build a new one.
@@ -79,11 +88,8 @@ const BrowserModal = forwardRef(
           return;
         }
 
-        // For all other cases (like selecting a file or a valid subfolder), build the full path.
-        const fullPath =
-          itemToConfirm.name === ".."
-            ? pathRef.current
-            : buildFullPath(pathRef.current, itemToConfirm.name);
+        // For sub-folders or files (like in ZipPreview), confirm the path to the item.
+        const fullPath = buildFullPath(pathRef.current, itemToConfirm.name);
         onConfirm(fullPath);
       },
       [onConfirm, confirmButtonText, currentPath]
@@ -240,6 +246,7 @@ const BrowserModal = forwardRef(
       filterItem,
       handleConfirm,
       focusedItem,
+      onClose,
     ]);
 
     useEffect(() => {
@@ -257,6 +264,16 @@ const BrowserModal = forwardRef(
     }, [focusedItem]);
 
     if (!isVisible) return null;
+
+    // Determine if the button should be disabled
+    const isPathConfirmModal =
+      confirmButtonText === "Select Folder" ||
+      confirmButtonText === "Copy Here" ||
+      confirmButtonText === "Move Here";
+
+    const isButtonDisabled =
+      !confirmButtonText || // Button is hidden
+      (!isPathConfirmModal && !focusedItem); // Button is present, requires item (e.g. AppBrowser), and no item is focused
 
     const modalContent = (
       <div
@@ -279,11 +296,14 @@ const BrowserModal = forwardRef(
             {error}
           </div>
         )}
-        <div className="bg-gray-900 p-2 rounded-t-md mb-2 flex items-center text-sm">
-          <HardDrive className="w-5 h-5 mr-3 text-gray-400" />
-          <span className="font-bold truncate">
-            {currentPath || "Loading..."}
-          </span>
+        <div
+          className="bg-gray-900 p-2 rounded-t-md mb-2 flex items-center text-sm"
+          title={currentPath || ""}
+        >
+          <HardDrive className="w-5 h-5 mr-3 text-gray-400 flex-shrink-0" />
+          <div className="font-bold overflow-hidden flex-1 pr-1">
+            <TruncatedText text={currentPath || "Loading..."} />
+          </div>
         </div>
         <div
           key={currentPath}
@@ -328,7 +348,9 @@ const BrowserModal = forwardRef(
                   }}
                 >
                   <Icon type={item.type} className="mr-1" />
-                  <span className="flex-grow truncate">{item.name}</span>
+                  <div className="flex-grow min-w-0">
+                    <TruncatedText text={item.name} />
+                  </div>
                 </div>
               );
             })}
@@ -372,7 +394,7 @@ const BrowserModal = forwardRef(
             <button
               ref={confirmButtonRef}
               onClick={() => handleConfirm()}
-              disabled={confirmButtonText !== "Select Folder" && !focusedItem}
+              disabled={isButtonDisabled}
               className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-500 w-full sm:w-auto text-center"
             >
               {confirmButtonText}

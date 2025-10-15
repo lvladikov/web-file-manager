@@ -44,9 +44,14 @@ const TruncatedText = ({ text, className, onClick }) => {
   );
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="relative w-full overflow-hidden">
       {hiddenMeasurer}
-      <span className={className} onClick={onClick}>{displayedText}</span>
+      <span
+        className={`${className || ""} block whitespace-nowrap overflow-hidden`}
+        onClick={onClick}
+      >
+        {displayedText}
+      </span>
     </div>
   );
 };

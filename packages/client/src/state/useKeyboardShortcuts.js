@@ -22,6 +22,8 @@ export default function useKeyboardShortcuts(props) {
         setFolderBrowserModal,
         appBrowserModal,
         setAppBrowserModal,
+        destinationBrowserModal,
+        setDestinationBrowserModal,
         sizeCalcModal,
         helpModal,
         setHelpModal,
@@ -287,6 +289,7 @@ export default function useKeyboardShortcuts(props) {
       } else if (
         folderBrowserModal.isVisible ||
         appBrowserModal.isVisible ||
+        destinationBrowserModal.isVisible ||
         sizeCalcModal.isVisible ||
         helpModal.isVisible ||
         error
@@ -300,6 +303,8 @@ export default function useKeyboardShortcuts(props) {
             });
           if (appBrowserModal.isVisible)
             setAppBrowserModal((s) => ({ ...s, isVisible: false }));
+          if (destinationBrowserModal.isVisible)
+            setDestinationBrowserModal({ isVisible: false });
           if (helpModal.isVisible) setHelpModal({ isVisible: false });
           if (error) setError(null);
         }

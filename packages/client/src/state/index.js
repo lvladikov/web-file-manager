@@ -220,6 +220,24 @@ export default function appState() {
     handleNavigate: panelOps.handleNavigate,
   });
 
+  const handleCopyTo = () => {
+    const otherPanelId = activePanel === "left" ? "right" : "left";
+    modals.setDestinationBrowserModal({
+      isVisible: true,
+      initialPath: panels[otherPanelId].path,
+      action: "Copy to...",
+    });
+  };
+
+  const handleMoveTo = () => {
+    const otherPanelId = activePanel === "left" ? "right" : "left";
+    modals.setDestinationBrowserModal({
+      isVisible: true,
+      initialPath: panels[otherPanelId].path,
+      action: "Move to...",
+    });
+  };
+
   const handleSelectAll = useCallback(
     (panelId) => {
       const items = filter[panelId].pattern
@@ -575,6 +593,8 @@ export default function appState() {
     setFolderBrowserModal: modals.setFolderBrowserModal,
     appBrowserModal: modals.appBrowserModal,
     setAppBrowserModal: modals.setAppBrowserModal,
+    destinationBrowserModal: modals.destinationBrowserModal,
+    setDestinationBrowserModal: modals.setDestinationBrowserModal,
     sizeCalcModal: sizeCalculation.sizeCalcModal,
     helpModal: modals.helpModal,
     setHelpModal: modals.setHelpModal,
@@ -728,6 +748,8 @@ export default function appState() {
     handleContextOpenWith,
     handleOverwriteDecision,
     handleViewItem,
+    handleCopyTo,
+    handleMoveTo,
     // UI Composition
     actionBarButtons,
   };

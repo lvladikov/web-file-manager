@@ -7,6 +7,12 @@ export default function useModals() {
     path: null,
   });
 
+  const [destinationBrowserModal, setDestinationBrowserModal] = useState({
+    isVisible: false,
+    initialPath: "",
+    action: null,
+  });
+
   const [folderBrowserModal, setFolderBrowserModal] = useState({
     isVisible: false,
     targetPanelId: null,
@@ -37,5 +43,7 @@ export default function useModals() {
     setQuickSelectModal,
     helpModal,
     setHelpModal,
+    destinationBrowserModal,
+    setDestinationBrowserModal,
   };
 }

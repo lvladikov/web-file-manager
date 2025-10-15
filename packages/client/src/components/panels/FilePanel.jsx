@@ -74,6 +74,8 @@ const FilePanel = React.forwardRef(
       onEdit,
       onCopyToOtherPanel,
       onMoveToOtherPanel,
+      onCopyTo,
+      onMoveTo,
       onRename,
       onDelete,
       onSetOtherPanelPath,
@@ -524,6 +526,8 @@ const FilePanel = React.forwardRef(
                   onEdit={onEdit}
                   onCopyToOtherPanel={onCopyToOtherPanel}
                   onMoveToOtherPanel={onMoveToOtherPanel}
+                  onCopyTo={onCopyTo}
+                  onMoveTo={onMoveTo}
                   onRename={onRename}
                   onDelete={onDelete}
                   onSetOtherPanelPath={onSetOtherPanelPath}

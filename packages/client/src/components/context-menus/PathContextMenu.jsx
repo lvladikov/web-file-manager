@@ -2,7 +2,8 @@ import React from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 
 const PathContextMenu = ({ onChooseFolder, onSwapPanels, children }) => {
-  const itemClassName = "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
+  const itemClassName =
+    "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
   const separatorClassName = "border-t border-gray-600 mx-2 my-1";
 
   return (
@@ -14,7 +15,7 @@ const PathContextMenu = ({ onChooseFolder, onSwapPanels, children }) => {
           onClick={(e) => e.stopPropagation()}
         >
           <ContextMenu.Item onSelect={onChooseFolder} className={itemClassName}>
-            Choose folder...
+            Select a folder...
           </ContextMenu.Item>
           <div className={separatorClassName}></div>
           <ContextMenu.Item onSelect={onSwapPanels} className={itemClassName}>

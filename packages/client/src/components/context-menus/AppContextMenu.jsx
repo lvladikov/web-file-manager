@@ -12,6 +12,8 @@ const AppContextMenu = ({
   onView,
   onCopyToOtherPanel,
   onMoveToOtherPanel,
+  onCopyTo,
+  onMoveTo,
   onRename,
   onEdit,
   onDelete,
@@ -153,11 +155,8 @@ const AppContextMenu = ({
                 <span>Copy to clipboard</span>
                 <span className="text-gray-400">{metaKey}+C</span>
               </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onPlaceholder}
-                className={`${itemClassName} text-gray-400`}
-              >
-                Copy to ...
+              <ContextMenu.Item onSelect={onCopyTo} className={itemClassName}>
+                Copy to...
               </ContextMenu.Item>
               <div className={separatorClassName}></div>
               <ContextMenu.Item
@@ -174,10 +173,7 @@ const AppContextMenu = ({
                 <span>Move (Cut) to clipboard</span>
                 <span className="text-gray-400">{metaKey}+X</span>
               </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onPlaceholder}
-                className={`${itemClassName} text-gray-400`}
-              >
+              <ContextMenu.Item onSelect={onMoveTo} className={itemClassName}>
                 Move to...
               </ContextMenu.Item>
 

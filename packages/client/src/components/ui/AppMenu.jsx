@@ -22,6 +22,8 @@ const FileMenu = ({ ...props }) => {
   const {
     onCopyToOtherPanel,
     onMoveToOtherPanel,
+    onCopyTo,
+    onMoveTo,
     onRename,
     onEdit,
     onDelete,
@@ -110,8 +112,8 @@ const FileMenu = ({ ...props }) => {
         />
         <MenuItem
           label="Copy to ..."
-          onClick={() => handleItemClick(onPlaceholder)}
-          disabled
+          onClick={() => handleItemClick(onCopyTo)}
+          disabled={!canCopyToOtherPanel}
         />
         <div className={separatorClassName} />
         <MenuItem
@@ -128,8 +130,8 @@ const FileMenu = ({ ...props }) => {
         />
         <MenuItem
           label="Move to ..."
-          onClick={() => handleItemClick(onPlaceholder)}
-          disabled
+          onClick={() => handleItemClick(onMoveTo)}
+          disabled={!canMoveToOtherPanel}
         />
         <div className={separatorClassName} />
         <MenuItem

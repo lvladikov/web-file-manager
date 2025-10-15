@@ -16,6 +16,7 @@ import FilePanel from "./components/panels/FilePanel";
 import ApplicationBrowserModal from "./components/modals/ApplicationBrowserModal";
 import CalculatingSizeModal from "./components/modals/CalculatingSizeModal";
 import DeleteConfirmModal from "./components/modals/DeleteConfirmModal";
+import DestinationBrowserModal from "./components/modals/DestinationBrowserModal";
 import ErrorModal from "./components/modals/ErrorModal";
 import FolderBrowserModal from "./components/modals/FolderBrowserModal";
 import HelpModal from "./components/modals/HelpModal";
@@ -38,6 +39,7 @@ export default function App() {
     loading,
     error,
     appBrowserModal,
+    destinationBrowserModal,
     folderBrowserModal,
     copyProgress,
     editingPath,
@@ -62,6 +64,7 @@ export default function App() {
     setSelectionAnchor,
     setError,
     setAppBrowserModal,
+    setDestinationBrowserModal,
     setFolderBrowserModal,
     setPreviewModal,
     setColumnWidths,
@@ -128,6 +131,8 @@ export default function App() {
     handleTestArchive,
     closeArchiveTestModal,
     handleSwapPanels,
+    handleCopyTo,
+    handleMoveTo,
   } = appState();
   const mainRef = useRef(null);
 
@@ -202,6 +207,8 @@ export default function App() {
               .map((item) => buildFullPath(sourcePath, item.name));
             performCopy(sources, destinationPath, true);
           }}
+          onCopyTo={handleCopyTo}
+          onMoveTo={handleMoveTo}
           onRename={() => {
             if (selections[activePanel].size === 1) {
               const name = [...selections[activePanel]][0];
@@ -285,6 +292,20 @@ export default function App() {
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
+      <DestinationBrowserModal
+        isVisible={destinationBrowserModal.isVisible}
+        initialPath={destinationBrowserModal.initialPath}
+        title={destinationBrowserModal.action}
+        onConfirm={(destinationPath, isMove) => {
+          setDestinationBrowserModal({ isVisible: false });
+          const sourcePath = panels[activePanel].path;
+          const sources = [...selections[activePanel]].map((name) =>
+            buildFullPath(sourcePath, name)
+          );
+          performCopy(sources, destinationPath, isMove);
+        }}
+        onClose={() => setDestinationBrowserModal({ isVisible: false })}
+      />
       <FolderBrowserModal
         isVisible={folderBrowserModal.isVisible}
         initialPath={folderBrowserModal.initialPath}
@@ -544,6 +565,8 @@ export default function App() {
                 .map((item) => buildFullPath(sourcePath, item.name));
               performCopy(sources, destinationPath, true);
             }}
+            onCopyTo={() => handleCopyTo(panelId)}
+            onMoveTo={() => handleMoveTo(panelId)}
             onRename={() => {
               if (selections[panelId].size === 1) {
                 const name = [...selections[panelId]][0];
