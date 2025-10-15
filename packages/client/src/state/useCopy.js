@@ -193,6 +193,46 @@ export default function useCopy({
     setOverwritePrompt,
   ]);
 
+  const handleDuplicate = useCallback(async () => {
+    const sourcePanelId = activePanel;
+    const sourcePanel = panels[sourcePanelId];
+
+    if (!sourcePanel) {
+      setError("Panel data is not available.");
+      return;
+    }
+
+    const sourcePath = sourcePanel.path;
+
+    if (activeSelection.size === 0) {
+      return;
+    }
+
+    try {
+      const existingNames = new Set(sourcePanel.items.map((item) => item.name));
+      const itemsToDuplicate = filteredItems
+        .filter((item) => activeSelection.has(item.name))
+        .map((item) => {
+          const originalName = item.name;
+          const newName = getUniqueName(originalName, existingNames);
+          existingNames.add(newName); // Add to existing names to handle multiple duplications in one go
+          return { sourcePath: buildFullPath(sourcePath, item.name), newName };
+        });
+
+      await duplicateItems(itemsToDuplicate);
+      handleNavigate(sourcePanelId, sourcePath, "");
+    } catch (err) {
+      setError(`Duplicate failed: ${err.message}`);
+    }
+  }, [
+    activePanel,
+    panels,
+    activeSelection,
+    filteredItems,
+    handleNavigate,
+    setError,
+  ]);
+
   useEffect(() => {
     if (!copyProgress.jobId) return;
 
@@ -317,5 +357,6 @@ export default function useCopy({
     handleCopyAction,
     handleCancelCopy,
     performCopy,
+    handleDuplicate,
   };
 }

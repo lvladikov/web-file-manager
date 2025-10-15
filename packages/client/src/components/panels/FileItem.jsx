@@ -29,6 +29,7 @@ const FileItem = ({
   onMoveTo,
   onRename,
   onDelete,
+  onDuplicate,
   onSetOtherPanelPath,
   onCalculateSize,
   onCompressInActivePanel,
@@ -178,6 +179,7 @@ const FileItem = ({
       onRename={onRename}
       onEdit={onEdit}
       onDelete={onDelete}
+      onDuplicate={onDuplicate}
       onSetOtherPanelPath={onSetOtherPanelPath}
       onCalculateSize={onCalculateSize}
       onCompressInActivePanel={onCompressInActivePanel}

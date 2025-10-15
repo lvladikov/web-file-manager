@@ -119,6 +119,7 @@ export default function App() {
     handleCopyToClipboard,
     handleCutToClipboard,
     handlePasteFromClipboard,
+    handleDuplicate,
 
     // Derived State
     activePath,
@@ -305,6 +306,7 @@ export default function App() {
           canOpenWith={canOpenWith}
           canEdit={canEdit}
           clipboard={clipboard}
+          onDuplicate={handleDuplicate}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -588,6 +590,7 @@ export default function App() {
             onCopyToClipboard={handleCopyToClipboard}
             onCutToClipboard={handleCutToClipboard}
             onPasteFromClipboard={handlePasteFromClipboard}
+            onDuplicate={handleDuplicate}
             onRename={() => {
               if (selections[panelId].size === 1) {
                 const name = [...selections[panelId]][0];

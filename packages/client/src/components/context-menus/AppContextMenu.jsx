@@ -25,6 +25,7 @@ const AppContextMenu = ({
   onRename,
   onEdit,
   onDelete,
+  onDuplicate,
   onCalculateSize,
   onSetOtherPanelPath,
   onRefreshPanel,
@@ -178,6 +179,13 @@ const AppContextMenu = ({
                       className={itemClassName}
                     >
                       Copy to...
+                    </ContextMenu.Item>
+                    <div className={separatorClassName}></div>
+                    <ContextMenu.Item
+                      onSelect={onDuplicate}
+                      className={itemClassName}
+                    >
+                      <span>Duplicate</span>
                     </ContextMenu.Item>
                     <div className={separatorClassName}></div>
                     <ContextMenu.Item

@@ -38,6 +38,8 @@ const FileMenu = ({ ...props }) => {
     onRename,
     onEdit,
     onDelete,
+    onDuplicate,
+    canDuplicate,
     onCalculateSize,
     onSetOtherPanelPath,
     onRefreshPanel,
@@ -157,6 +159,12 @@ const FileMenu = ({ ...props }) => {
             label="Copy to ..."
             onClick={() => handleItemClick(onCopyTo)}
             disabled={!canCopyToOtherPanel}
+          />
+          <div className={separatorClassName} />
+          <MenuItem
+            label="Duplicate"
+            onClick={() => handleItemClick(onDuplicate)}
+            disabled={!canDuplicate}
           />
           <div className={separatorClassName} />
           <MenuItem
@@ -396,6 +404,7 @@ const AppMenu = (props) => {
     singleItemSelected &&
     firstSelectedItemDetails &&
     firstSelectedItemDetails.type === "archive";
+  const canDuplicate = activePanelSelections.size > 0;
 
   const fileMenuProps = {
     ...props,
@@ -409,6 +418,7 @@ const AppMenu = (props) => {
     canPerformArchiveAction,
     calculateSizeLabel,
     handleItemClick,
+    canDuplicate,
   };
 
   const selectMenuProps = {

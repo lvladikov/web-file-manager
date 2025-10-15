@@ -700,6 +700,9 @@ export default function appState() {
     }
     setOverwritePrompt({ isVisible: false, item: null });
   };
+  const handleDuplicate = useCallback(() => {
+    copy.handleDuplicate();
+  }, [copy]);
 
   useKeyboardShortcuts({
     deleteModalVisible: del.deleteModalVisible,
@@ -881,6 +884,7 @@ export default function appState() {
     handleCopyToClipboard,
     handleCutToClipboard,
     handlePasteFromClipboard,
+    handleDuplicate,
     // UI Composition
     actionBarButtons,
   };

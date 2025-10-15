@@ -85,6 +85,7 @@ const FilePanel = React.forwardRef(
       onMoveTo,
       onRename,
       onDelete,
+      onDuplicate,
       onSetOtherPanelPath,
       onCalculateSize,
       onCompressInActivePanel,
@@ -627,6 +628,7 @@ const FilePanel = React.forwardRef(
                   onMoveTo={onMoveTo}
                   onRename={onRename}
                   onDelete={onDelete}
+                  onDuplicate={onDuplicate}
                   onSetOtherPanelPath={onSetOtherPanelPath}
                   onCalculateSize={onCalculateSize}
                   onCompressInActivePanel={onCompressInActivePanel}
