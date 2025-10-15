@@ -382,10 +382,7 @@ export default function useKeyboardShortcuts(props) {
             calculateSizeForMultipleFolders(selectedFolders, activePanel);
           } else if (selectedFolders.length === 1) {
             handleStartSizeCalculation(selectedFolders[0]);
-          } else if (
-            selectedItems.length === 1 &&
-            isItemPreviewable(selectedItems[0])
-          ) {
+          } else if (selectedItems.length === 1) {
             setPreviewModal({ isVisible: true, item: selectedItems[0] });
           }
         } else {
@@ -395,7 +392,7 @@ export default function useKeyboardShortcuts(props) {
             if (item) {
               if (item.type === "folder") {
                 handleStartSizeCalculation(item);
-              } else if (isItemPreviewable(item)) {
+              } else {
                 setPreviewModal({ isVisible: true, item: item });
               }
             }
@@ -403,6 +400,7 @@ export default function useKeyboardShortcuts(props) {
         }
         return;
       }
+
       if (e.key === "Backspace") {
         e.preventDefault();
         const parentItem = panels[activePanel]?.items.find(

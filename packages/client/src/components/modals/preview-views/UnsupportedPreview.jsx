@@ -1,4 +1,4 @@
-import { FileText, XCircle } from "lucide-react";
+import { FileText, Folder } from "lucide-react";
 
 const UnsupportedPreview = ({
   item,
@@ -7,19 +7,20 @@ const UnsupportedPreview = ({
   onClose,
   activePath,
 }) => {
+  const isFolder = item.type === "folder";
+
   return (
-    <div className="flex flex-col items-center justify-center text-center p-8 h-full relative">
-      <button
-        className="absolute top-2 right-2 p-1 text-gray-300 hover:text-white"
-        onClick={onClose}
-        title="Close (Esc)"
-      >
-        <XCircle className="w-7 h-7" />
-      </button>
-      <FileText className="w-24 h-24 text-gray-500 mb-4" />
-      <p className="text-xl text-gray-300 mb-2">Cannot Preview File</p>
+    <div className="flex flex-col items-center justify-center text-center p-8 h-full">
+      {isFolder ? (
+        <Folder className="w-24 h-24 text-gray-500 mb-4" />
+      ) : (
+        <FileText className="w-24 h-24 text-gray-500 mb-4" />
+      )}
+      <p className="text-xl text-gray-300 mb-2">
+        {isFolder ? "Cannot Preview Folder" : "Cannot Preview File"}
+      </p>
       <p className="font-mono text-gray-400 mb-6 break-all">{item.name}</p>
-      {item.type === "folder" ? (
+      {isFolder ? (
         <button
           onClick={() => {
             onStartSizeCalculation(item);

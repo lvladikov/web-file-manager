@@ -65,7 +65,10 @@ const isItemPreviewable = (item) => {
   );
 };
 
-const getFileTypeInfo = (filename = "") => {
+const getFileTypeInfo = (filename = "", type) => {
+  if (type === "folder") return { id: "folder", displayName: "Folder" };
+  if (type === "parent") return { id: "parent", displayName: "Parent" };
+
   if (!filename) return { id: "file", displayName: "File" };
 
   const lowerFilename = filename.toLowerCase();

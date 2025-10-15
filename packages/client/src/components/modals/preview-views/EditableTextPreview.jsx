@@ -37,7 +37,8 @@ const EditableTextPreview = ({
   const lineNumbersRef = useRef(null);
   const [lineNumbersForRender, setLineNumbersForRender] = useState([]);
 
-  const language = getFileTypeInfo(item?.name).id;
+  const fileTypeInfo = getFileTypeInfo(item?.name, item?.type);
+  const language = fileTypeInfo?.id;
 
   // State for find and replace functionality
   const [findTerm, setFindTerm] = useState("");

@@ -412,7 +412,7 @@ const PreviewModal = ({
 
   if (!isVisible || !item) return null;
   const { fullPath } = item;
-  const fileTypeInfo = getFileTypeInfo(item?.name);
+  const fileTypeInfo = getFileTypeInfo(item?.name, item?.type);
   const language = fileTypeInfo?.id;
 
   return (
@@ -438,9 +438,7 @@ const PreviewModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className={`w-full h-12 bg-black bg-opacity-60 flex-shrink-0 flex justify-between items-center px-3 rounded-t-lg z-20 ${
-            previewType === "unsupported" ? "hidden" : ""
-          }`}
+          className={`w-full h-12 bg-black bg-opacity-60 flex-shrink-0 flex justify-between items-center px-3 rounded-t-lg z-20`}
         >
           <div className="flex items-center space-x-4">
             {isEditing && previewType === "text" && (
