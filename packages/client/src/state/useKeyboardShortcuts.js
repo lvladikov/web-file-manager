@@ -548,7 +548,11 @@ export default function useKeyboardShortcuts(props) {
         const newFocusedName = panelItems[newIndex]?.name;
         if (typeof newFocusedName === "undefined") return;
         setFocusedItem((prev) => ({ ...prev, [activePanel]: newFocusedName }));
-        if (e.shiftKey) {
+
+        // Only perform range selection if the preview modal is NOT visible.
+        const shouldRangeSelect = e.shiftKey && !previewModal.isVisible;
+
+        if (shouldRangeSelect) {
           const anchorName =
             selectionAnchor[activePanel] || panelItems[0]?.name;
           const anchorIndex = panelItems.findIndex(
