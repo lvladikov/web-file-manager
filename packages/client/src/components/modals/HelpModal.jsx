@@ -36,6 +36,7 @@ const HelpModal = ({ isVisible, onClose }) => {
     "Panel Usage and Information",
     "Real-time Folder Monitoring",
     "Navigation & Selection",
+    "New Folder & New File",
     "Quick Select / Unselect & Quick Filter",
     "Previewing Files",
     "Context Menus",
@@ -281,6 +282,31 @@ const HelpModal = ({ isVisible, onClose }) => {
           </HelpSection>
 
           <HelpSection
+            id="new-folder-and-new-file"
+            title="New Folder & New File"
+          >
+            <p>
+              You can create a new folder or a new empty text file directly from
+              the application.
+            </p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>New Folder:</strong> Press <kbd>F7</kbd> or use the "New
+                Folder" option in the "File" menu or the context menu. A new
+                folder will be created with a default name, ready for you to
+                rename.
+              </li>
+              <li>
+                <strong>New File:</strong> Use the "New File" option in the
+                "File" menu or the context menu. This will create a new, empty
+                text file (`.txt`) with a default name. The filename will be
+                selected up to the extension, so you can start typing the name
+                right away.
+              </li>
+            </ul>
+          </HelpSection>
+
+          <HelpSection
             id="quick-select-/-unselect-and-quick-filter"
             title="Quick Select / Unselect & Quick Filter"
           >
@@ -321,11 +347,39 @@ const HelpModal = ({ isVisible, onClose }) => {
               <kbd>Spacebar</kbd>. This is a quick way to view content without
               opening an external program.
             </p>
-            <p>
-              Supported types include: images (jpg, png, gif), text files (txt,
-              md, js), PDFs, audio (mp3, flac), video (mp4, webm), and zip
-              archives.
-            </p>
+            <p>Supported file types for preview include:</p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>Images:</strong> JPG, PNG, GIF, BMP, TIFF, WebP
+              </li>
+              <li>
+                <strong>Documents:</strong> PDF
+              </li>
+              <li>
+                <strong>Video:</strong> MP4, WebM, Ogg, MOV, MKV
+              </li>
+              <li>
+                <strong>Audio:</strong> MP3, M4A, AAC, FLAC, WAV, Ogg, WMA
+              </li>
+              <li>
+                <strong>Text &amp; Code:</strong> Text (<code>txt</code>),
+                Markdown (<code>md</code>), JavaScript (<code>js</code>,{" "}
+                <code>jsx</code>
+                ), TypeScript (<code>ts</code>, <code>tsx</code>), JSON (
+                <code>json</code>), CSS (<code>css</code>), HTML (
+                <code>html</code>), YAML (<code>yml</code>, <code>yaml</code>),
+                Python (<code>py</code>), Shell Script (<code>sh</code>), Log (
+                <code>log</code>), XML (<code>xml</code>), Config (
+                <code>cfg</code>, <code>ini</code>), NFO (<code>nfo</code>),
+                Properties (<code>properties</code>), Cue Sheet (
+                <code>cue</code>), and other files like{" "}
+                <code>.editorconfig</code>, <code>.gitignore</code>,{" "}
+                <code>LICENSE</code>.
+              </li>
+              <li>
+                <strong>Archives:</strong> ZIP
+              </li>
+            </ul>
           </HelpSection>
 
           <HelpSection id="context-menus" title="Context Menus">
@@ -335,6 +389,10 @@ const HelpModal = ({ isVisible, onClose }) => {
               sections.
             </p>
             <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>New:</strong> A submenu to create a{" "}
+                <strong>New Folder</strong> or a <strong>New File</strong>.
+              </li>
               <li>
                 <strong>Viewing:</strong> Preview, Open, and Open with...
               </li>
@@ -458,7 +516,8 @@ const HelpModal = ({ isVisible, onClose }) => {
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
                 <strong>File Menu:</strong> Contains actions related to file
-                operations such as <strong>Copy & Move (in a submenu)</strong>,{" "}
+                operations such as <strong>New (in a submenu)</strong>,{" "}
+                <strong>Copy &amp; Move (in a submenu)</strong>,{" "}
                 <strong>Archive (in a submenu)</strong>, Rename, Delete,
                 Calculate Size, and Refresh. Many of these actions have
                 corresponding function key shortcuts.
