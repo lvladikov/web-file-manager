@@ -14,6 +14,7 @@ import Breadcrumbs from "../ui/Breadcrumbs";
 import FavouritesDropdown from "../ui/FavouritesDropdown";
 import Resizer from "../ui/Resizer";
 import NewFolderItem from "../panels/NewFolderItem";
+import NewFileItem from "../panels/NewFileItem";
 import FileItem from "../panels/FileItem";
 import FilterInput from "../ui/FilterInput";
 import EmptyAreaContextMenu from "../context-menus/EmptyAreaContextMenu";
@@ -28,6 +29,8 @@ const FilePanel = React.forwardRef(
       renamingItem,
       isCreating,
       newFolderValue,
+      isCreatingFile,
+      newFileValue,
       setActivePanel,
       onNavigate,
       onNavigateToPath,
@@ -39,6 +42,9 @@ const FilePanel = React.forwardRef(
       onNewFolderChange,
       onNewFolderSubmit,
       onNewFolderCancel,
+      onNewFileChange,
+      onNewFileSubmit,
+      onNewFileCancel,
       loading,
       selectedItems,
       setSelectedItems,
@@ -65,6 +71,7 @@ const FilePanel = React.forwardRef(
       onCloseFilter,
       filteredItems,
       onNewFolder,
+      onNewFile,
       onRefreshPanel,
       onRefreshBothPanels,
       onSelectAll,
@@ -567,7 +574,8 @@ const FilePanel = React.forwardRef(
 
         <EmptyAreaContextMenu
           boundaryRef={boundaryRef}
-          onNewFolder={() => onNewFolder(panelId)}
+          onNewFolder={onNewFolder}
+          onNewFile={onNewFile}
           onRefreshPanel={() => onRefreshPanel(panelId)}
           onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
           onSelectAll={() => onSelectAll(panelId)}
@@ -583,6 +591,7 @@ const FilePanel = React.forwardRef(
           <div
             ref={scrollContainerRef}
             className="flex-grow overflow-y-auto overflow-x-hidden relative"
+            onContextMenu={handlePanelClick}
           >
             {isCreating && (
               <NewFolderItem
@@ -590,6 +599,15 @@ const FilePanel = React.forwardRef(
                 onChange={onNewFolderChange}
                 onSubmit={onNewFolderSubmit}
                 onCancel={onNewFolderCancel}
+                style={gridStyle}
+              />
+            )}
+            {isCreatingFile && (
+              <NewFileItem
+                value={newFileValue}
+                onChange={onNewFileChange}
+                onSubmit={onNewFileSubmit}
+                onCancel={onNewFileCancel}
                 style={gridStyle}
               />
             )}
@@ -653,6 +671,8 @@ const FilePanel = React.forwardRef(
                   onCopyToClipboard={onCopyToClipboard}
                   onCutToClipboard={onCutToClipboard}
                   onPasteFromClipboard={onPasteFromClipboard}
+                  onNewFolder={onNewFolder}
+                  onNewFile={onNewFile}
                 />
               ))}
           </div>

@@ -55,6 +55,8 @@ const FileItem = ({
   onCopyToClipboard,
   onCutToClipboard,
   onPasteFromClipboard,
+  onNewFolder,
+  onNewFile,
 }) => {
   const inputRef = useRef(null);
 
@@ -204,6 +206,8 @@ const FileItem = ({
       onCopyToClipboard={onCopyToClipboard}
       onCutToClipboard={onCutToClipboard}
       onPasteFromClipboard={onPasteFromClipboard}
+      onNewFolder={onNewFolder}
+      onNewFile={onNewFile}
     >
       {renderFileItemContent()}
     </AppContextMenu>

@@ -10,6 +10,7 @@ import {
 import useDelete from "./useDelete";
 import useRename from "./useRename";
 import useNewFolder from "./useNewFolder";
+import useNewFile from "./useNewFile";
 import useCopy from "./useCopy";
 import useSizeCalculation from "./useSizeCalculation";
 import useKeyboardShortcuts from "./useKeyboardShortcuts";
@@ -231,6 +232,18 @@ export default function appState() {
     setSelectionAnchor,
     setError,
   });
+
+  const newFile = useNewFile({
+    renamingItem: rename.renamingItem,
+    creatingFolder: newFolder.creatingFolder,
+    panels,
+    handleNavigate: panelOps.handleNavigate,
+    setSelections,
+    setFocusedItem,
+    setSelectionAnchor,
+    setError,
+  });
+
   const activeSelection = selections[activePanel];
 
   const getSelectedSources = useCallback(() => {
@@ -254,6 +267,7 @@ export default function appState() {
     panelRefs,
     handleCancelRename: rename.handleCancelRename,
     handleCancelNewFolder: newFolder.handleCancelNewFolder,
+    handleCancelNewFile: newFile.handleCancelNewFile,
     wsRef,
     overwritePrompt,
     setOverwritePrompt,
@@ -849,6 +863,7 @@ export default function appState() {
     ...modals,
     ...rename,
     ...newFolder,
+    ...newFile,
     ...copy,
     ...del,
     ...sizeCalculationHandlers,

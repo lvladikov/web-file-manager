@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from "react";
+import { File } from "lucide-react";
 
-import { Folder } from "lucide-react";
-
-const NewFolderItem = ({ value, onChange, onSubmit, onCancel, style }) => {
+const NewFileItem = ({ value, onChange, onSubmit, onCancel, style }) => {
   const inputRef = useRef(null);
   const justMounted = useRef(true);
 
@@ -12,19 +11,26 @@ const NewFolderItem = ({ value, onChange, onSubmit, onCancel, style }) => {
     }, 200);
 
     if (inputRef.current) {
-      // Delay focusing to allow other elements (like the context menu) to release focus first
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          inputRef.current.select();
+          const point = value.lastIndexOf('.');
+          if (point !== -1) {
+            inputRef.current.setSelectionRange(0, point);
+          } else {
+            input_ref.current.select();
+          }
         }
       }, 150);
     }
   }, []);
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") onSubmit();
-    if (e.key === "Escape") onCancel();
+    if (e.key === "Enter") {
+      onSubmit();
+    } else if (e.key === "Escape") {
+      onCancel();
+    }
   };
 
   const handleBlur = () => {
@@ -39,7 +45,7 @@ const NewFolderItem = ({ value, onChange, onSubmit, onCancel, style }) => {
         style={{ gridColumn: "1 / 2" }}
         className="flex justify-center items-center"
       >
-        <Folder className="w-5 h-5 text-sky-500" />
+        <File className="w-5 h-5 text-gray-400" />
       </div>
       <div style={{ gridColumn: "2 / 3" }} className="pr-4 min-w-0">
         <input
@@ -57,4 +63,4 @@ const NewFolderItem = ({ value, onChange, onSubmit, onCancel, style }) => {
   );
 };
 
-export default NewFolderItem;
+export default NewFileItem;

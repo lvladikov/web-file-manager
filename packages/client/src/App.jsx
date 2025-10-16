@@ -87,6 +87,11 @@ export default function App() {
     handleConfirmRename,
     handleCancelRename,
     handleStartNewFolder,
+    handleStartNewFile,
+    creatingFile,
+    setCreatingFile,
+    handleConfirmNewFile,
+    handleCancelNewFile,
     handleContextOpen,
     handleContextOpenWith,
     handleSetOtherPanelPath,
@@ -307,6 +312,8 @@ export default function App() {
           canEdit={canEdit}
           clipboard={clipboard}
           onDuplicate={handleDuplicate}
+          onNewFolder={handleStartNewFolder}
+          onNewFile={handleStartNewFile}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -479,6 +486,8 @@ export default function App() {
             renamingItem={renamingItem}
             isCreating={creatingFolder.panelId === panelId}
             newFolderValue={creatingFolder.value}
+            isCreatingFile={creatingFile.panelId === panelId}
+            newFileValue={creatingFile.value}
             onStartRename={handleStartRename}
             onRenameChange={(e) =>
               setRenamingItem((prev) => ({ ...prev, value: e.target.value }))
@@ -490,6 +499,11 @@ export default function App() {
             }
             onNewFolderSubmit={handleConfirmNewFolder}
             onNewFolderCancel={handleCancelNewFolder}
+            onNewFileChange={(e) =>
+              setCreatingFile((prev) => ({ ...prev, value: e.target.value }))
+            }
+            onNewFileSubmit={handleConfirmNewFile}
+            onNewFileCancel={handleCancelNewFile}
             setActivePanel={setActivePanel}
             onNavigate={(target) =>
               handleNavigate(panelId, panels[panelId].path, target)
@@ -534,6 +548,7 @@ export default function App() {
             onCloseFilter={handleCloseFilter}
             filteredItems={filteredItems[panelId]}
             onNewFolder={() => handleStartNewFolder(panelId)}
+            onNewFile={() => handleStartNewFile(panelId)}
             onRefreshPanel={() => handleRefreshPanel(panelId)}
             onRefreshBothPanels={handleRefreshAllPanels}
             onSelectAll={() => handleSelectAll(panelId)}

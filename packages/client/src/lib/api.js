@@ -1,3 +1,15 @@
+const createNewFile = async (newFilePath) => {
+  const response = await fetch("/api/new-file", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ newFilePath }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to create file.");
+  }
+};
+
 const createNewFolder = async (newFolderPath) => {
   const response = await fetch("/api/new-folder", {
     method: "POST",
@@ -345,6 +357,7 @@ const cancelDuplicate = async (jobId) => {
 };
 
 export {
+  createNewFile,
   createNewFolder,
   deleteItem,
   fetchDeleteSummary,

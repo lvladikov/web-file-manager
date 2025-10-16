@@ -377,6 +377,31 @@ export default function createFileRoutes(
     }
   });
 
+  // Endpoint to create a new file
+  router.post("/new-file", async (req, res) => {
+    const { newFilePath } = req.body;
+    if (!newFilePath) {
+      return res
+        .status(400)
+        .json({ message: "A path for the new file is required." });
+    }
+
+    try {
+      if (await fse.pathExists(newFilePath)) {
+        return res
+          .status(409)
+          .json({ message: "A file with that name already exists." });
+      }
+      await fse.createFile(newFilePath);
+      res.status(201).json({ message: "File created successfully." });
+    } catch (error) {
+      console.error("New file error:", error);
+      res
+        .status(500)
+        .json({ message: `Failed to create file: ${error.message}` });
+    }
+  });
+
   // Endpoint to compress files/folders
   router.post("/compress", async (req, res) => {
     const { sources, destination, sourceDirectory } = req.body;

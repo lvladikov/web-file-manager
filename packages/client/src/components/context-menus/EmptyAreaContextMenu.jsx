@@ -10,6 +10,7 @@ import {
 
 const EmptyAreaContextMenu = ({
   onNewFolder,
+  onNewFile,
   onRefreshPanel,
   onRefreshBothPanels,
   onSelectAll,
@@ -39,12 +40,33 @@ const EmptyAreaContextMenu = ({
               className="w-full h-full rounded"
               style={{ maxHeight: "80vh" }}
             >
-              <ContextMenu.Item
-                onSelect={onNewFolder}
-                className={itemClassName}
-              >
-                New Folder
-              </ContextMenu.Item>
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                  <span>New</span>
+                  <span className="text-gray-400">&gt;</span>
+                </ContextMenu.SubTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.SubContent
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-48"
+                    sideOffset={2}
+                    alignOffset={-5}
+                  >
+                    <ContextMenu.Item
+                      onSelect={onNewFolder}
+                      className={itemClassName}
+                    >
+                      <span>New Folder</span>
+                      <span className="text-gray-400">F7</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onNewFile}
+                      className={itemClassName}
+                    >
+                      New File
+                    </ContextMenu.Item>
+                  </ContextMenu.SubContent>
+                </ContextMenu.Portal>
+              </ContextMenu.Sub>
 
               {clipboard && clipboard.sources.length > 0 && (
                 <>

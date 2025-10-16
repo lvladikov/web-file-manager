@@ -70,14 +70,44 @@ const FileMenu = ({ ...props }) => {
     canOpen,
     canOpenWith,
     clipboard,
+    onNewFolder,
+    onNewFile,
+    activePanel,
   } = props;
 
   const [isCopyMoveSubmenuOpen, setIsCopyMoveSubmenuOpen] = useState(false);
   const [isArchiveSubmenuOpen, setIsArchiveSubmenuOpen] = useState(false);
+  const [isNewSubmenuOpen, setIsNewSubmenuOpen] = useState(false);
 
   const shouldShowArchiveGroup =
     activePanelSelections.size > 0 || canPerformArchiveAction;
   const isSingleArchive = canPerformArchiveAction;
+
+  const NewGroup = () => (
+    <div
+      onMouseEnter={() => setIsNewSubmenuOpen(true)}
+      onMouseLeave={() => setIsNewSubmenuOpen(false)}
+      className="relative"
+    >
+      <div className={submenuTriggerClassName}>
+        <span>New</span>
+        <span className="text-gray-400">&gt;</span>
+      </div>
+      {isNewSubmenuOpen && (
+        <div className="absolute top-0 left-full mt-[-1px] w-48 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+          <MenuItem
+            label="New Folder"
+            shortcut="F7"
+            onClick={() => handleItemClick(() => onNewFolder(activePanel))}
+          />
+          <MenuItem
+            label="New File"
+            onClick={() => handleItemClick(() => onNewFile(activePanel))}
+          />
+        </div>
+      )}
+    </div>
+  );
 
   // Archive submenu logic
   const ArchiveGroup = () => (
@@ -205,6 +235,8 @@ const FileMenu = ({ ...props }) => {
         File
       </NavigationMenu.Trigger>
       <NavigationMenu.Content className="absolute top-full left-0 mt-1 w-80 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-white font-mono text-sm">
+        <NewGroup />
+        <div className={separatorClassName} />
         {canPreview && (
           <MenuItem
             label="Preview"
