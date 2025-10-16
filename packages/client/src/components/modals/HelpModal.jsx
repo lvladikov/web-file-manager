@@ -12,6 +12,8 @@ import panelInfoScreenshot from "../../../screenshots/panel-info.png";
 import contextMenuScreenshot from "../../../screenshots/context-menu.png";
 import fileTruncationScreenshot from "../../../screenshots/file-truncation.png";
 import folderTruncationScreenshot from "../../../screenshots/folder-truncation.png";
+import quickFilterScreenshot from "../../../screenshots/quick-filter.png";
+import itemsSelectionScreenshot from "../../../screenshots/items-selection.png";
 import folderUpScreenshot from "../../../screenshots/folder-up.png";
 
 import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
@@ -241,16 +243,16 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
-                <strong>Mouse:</strong> Double-click a folder to enter it.
-                Double-click the ".." entry to go up to the parent directory.
-              </li>
-              <li>
-                <strong>Keyboard:</strong> Use <kbd>ArrowUp</kbd> and{" "}
-                <kbd>ArrowDown</kbd> to change focus. Press <kbd>Enter</kbd> to
-                open a file or enter a directory. Press <kbd>Backspace</kbd> to
-                navigate to the parent directory. <kbd>Home</kbd>,{" "}
-                <kbd>End</kbd>, <kbd>PageUp</kbd>, and <kbd>PageDown</kbd> work
-                as expected.
+                Navigate using mouse (double-click to enter folder/open file) or
+                keyboard (<kbd>ArrowUp</kbd>/<kbd>Down</kbd>, <kbd>Enter</kbd>,{" "}
+                <kbd>Backspace</kbd>, <kbd>Home</kbd>, <kbd>End</kbd>,{" "}
+                <kbd>PageUp</kbd>/<kbd>PageDown</kbd>). Use the ".." entry to go
+                up to the parent directory.
+                <img
+                  src={folderUpScreenshot}
+                  alt="Folder Up Screenshot"
+                  className="w-3/4 mx-auto rounded-lg shadow-lg"
+                />
               </li>
               <li>
                 <strong>Selection:</strong>
@@ -273,13 +275,13 @@ const HelpModal = ({ isVisible, onClose }) => {
                     Press <kbd>*</kbd> to invert the current selection.
                   </li>
                 </ul>
+                <img
+                  src={itemsSelectionScreenshot}
+                  alt="Items Selection Screenshot"
+                  className="w-3/4 mx-auto rounded-lg shadow-lg"
+                />
               </li>
             </ul>
-            <img
-              src={folderUpScreenshot}
-              alt="Folder Up Screenshot"
-              className="w-3/4 mx-auto rounded-lg shadow-lg"
-            />
           </HelpSection>
 
           <HelpSection
@@ -312,6 +314,11 @@ const HelpModal = ({ isVisible, onClose }) => {
                 items in real-time. This is useful for quickly finding items in
                 large directories. File operations like Copy and Delete will
                 only apply to the filtered items.
+                <img
+                  src={quickFilterScreenshot}
+                  alt="Quick Filter Screenshot"
+                  className="w-3/4 mx-auto rounded-lg shadow-lg"
+                />
               </li>
             </ul>
           </HelpSection>

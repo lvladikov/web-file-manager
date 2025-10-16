@@ -99,9 +99,13 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **Real-time Folder Monitoring**: The application automatically monitors the directories shown in both panels for any changes made outside of the app. If you create, delete, or rename a file or folder in one of the visible directories using another program (like your operating system's file explorer), the panel will automatically refresh to reflect these changes in real-time.
 
-- **Navigation & Selection**: Navigate using mouse (double-click to enter folder/open file) or keyboard (<kbd>ArrowUp</kbd>/<kbd>Down</kbd>, <kbd>Enter</kbd>, <kbd>Backspace</kbd>, <kbd>Home</kbd>, <kbd>End</kbd>, <kbd>PageUp</kbd>/<kbd>PageDown</kbd>).
+- **Navigation & Selection**: Navigate using mouse (double-click to enter folder/open file) or keyboard (<kbd>ArrowUp</kbd>/<kbd>Down</kbd>, <kbd>Enter</kbd>, <kbd>Backspace</kbd>, <kbd>Home</kbd>, <kbd>End</kbd>, <kbd>PageUp</kbd>/<kbd>PageDown</kbd>). Use the ".." entry to go up to the parent directory.
 
-  - **Selection**: Click to select. <kbd>Cmd/Ctrl + click</kbd> to add/remove. <kbd>Shift + click</kbd> to select a range.
+  ![Folder Up Screenshot](packages/client/screenshots/folder-up.png)
+
+  - **Selection**: Click an item to select it. <kbd>Cmd/Ctrl + click</kbd> to add/remove. <kbd>Shift + click</kbd> to select a range.
+
+    ![Items Selection Screenshot](packages/client/screenshots/items-selection.png)
 
   - **Select All** (<kbd>Cmd/Ctrl+A</kbd>)
 
@@ -115,7 +119,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - **Quick Filter** (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy and Delete will only apply to the filtered items.
 
-    ![Folder Up Screenshot](packages/client/screenshots/folder-up.png)
+    ![Quick Filter Screenshot](packages/client/screenshots/quick-filter.png)
 
 - **File Preview**: Preview images, videos, PDFs, text files, and zip archives by focusing an item and pressing <kbd>Spacebar</kbd>. Supported formats include:
 
