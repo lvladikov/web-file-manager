@@ -900,7 +900,7 @@ export function initializeWebSocketServer(
 
 
         ws.on("close", async () => {
-          console.log(`[ws] Client disconnected for job: ${jobId}`);
+          console.log(`[ws] Client disconnected for ${jobType} job: ${jobId}`);
           if (job.ws === ws) job.ws = null;
 
           // If a compress job is still running and the client disconnects, mark it as cancelled

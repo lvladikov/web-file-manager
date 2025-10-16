@@ -8,6 +8,20 @@ export default function useCopyPaths({
   setCopyPathsModal,
   wsRef,
 }) {
+  const cancelCopyPaths = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    setCopyPathsModal({
+      isVisible: false,
+      jobId: null,
+      currentPath: "",
+      count: 0,
+      mode: "clipboard",
+      onCancel: null,
+    });
+  }, [setCopyPathsModal, wsRef]);
+
   const getPaths = useCallback(
     async (isAbsolute, includeSubfolders, download = false) => {
       try {
@@ -40,6 +54,7 @@ export default function useCopyPaths({
           currentPath: "Starting...",
           count: 0,
           mode: download ? "download" : "clipboard",
+          onCancel: cancelCopyPaths,
         });
 
         const wsProtocol =

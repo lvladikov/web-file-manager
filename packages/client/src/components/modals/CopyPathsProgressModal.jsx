@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LoaderCircle, XCircle } from "lucide-react";
 import TruncatedText from "../ui/TruncatedText";
 
@@ -10,6 +10,24 @@ const CopyPathsProgressModal = ({
   mode,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
+
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    };
+
+    if (isVisible) {
+      document.addEventListener("keydown", handleEscape);
+    } else {
+      document.removeEventListener("keydown", handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isVisible, onCancel]);
 
   if (!isVisible) return null;
   return (

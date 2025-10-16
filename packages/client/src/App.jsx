@@ -481,7 +481,7 @@ export default function App() {
         currentPath={copyPathsModal.currentPath}
         count={copyPathsModal.count}
         mode={copyPathsModal.mode}
-        onCancel={() => {}}
+        onCancel={copyPathsModal.onCancel}
       />
 
       <main
