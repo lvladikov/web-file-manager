@@ -133,7 +133,7 @@ const FileMenu = ({ ...props }) => {
 
       {/* Submenu Content (Simulated popover) */}
       {isArchiveSubmenuOpen && (
-        <div className="absolute top-0 left-full mt-[-1px] w-72 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+        <div className="absolute top-0 left-full mt-[-1px] w-60 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
           {isSingleArchive ? (
             <>
               <MenuItem
