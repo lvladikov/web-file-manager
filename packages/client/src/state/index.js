@@ -295,6 +295,8 @@ export default function appState() {
     setActivePanel,
     panelRefs,
     wsRef,
+    filter,
+    filteredItems: sortedAndFilteredItems,
   });
 
   const decompress = useDecompress({
@@ -310,6 +312,8 @@ export default function appState() {
     panelRefs,
     overwritePrompt,
     setOverwritePrompt,
+    filter,
+    filteredItems: sortedAndFilteredItems,
   });
 
   const archiveTest = useArchiveIntegrityTest({
@@ -318,6 +322,8 @@ export default function appState() {
     selections,
     setError,
     wsRef,
+    filter,
+    filteredItems: sortedAndFilteredItems,
   });
 
   const { handleSwapPanels } = useSwapPanels({
@@ -325,7 +331,16 @@ export default function appState() {
     handleNavigate: panelOps.handleNavigate,
   });
 
-  const copyPaths = useCopyPaths({ setError, activePanel, panels, selections, setCopyPathsModal: modals.setCopyPathsModal, wsRef });
+  const copyPaths = useCopyPaths({
+    setError,
+    activePanel,
+    panels,
+    selections,
+    setCopyPathsModal: modals.setCopyPathsModal,
+    wsRef,
+    filter,
+    filteredItems: sortedAndFilteredItems,
+  });
 
   const handleCopyTo = useCallback(() => {
     const otherPanelId = activePanel === "left" ? "right" : "left";

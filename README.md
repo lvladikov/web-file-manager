@@ -117,7 +117,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - **Quick Unselect** (<kbd>-</kbd>): Opens a dialog to unselect items based on a pattern.
 
-  - **Quick Filter** (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy and Delete will only apply to the filtered items.
+  - **Quick Filter** (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy, Copy Path, Calculate folder size, Archive operations and Delete will only apply to the filtered items.
 
     ![Quick Filter Screenshot](packages/client/screenshots/quick-filter.png)
 
@@ -160,8 +160,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
     - **Archive _Submenu_:**
       - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
-      - <kbd>Decompress Archive</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
-      - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, reporting any corrupt files or general issues.
+      - <kbd>Decompress</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
+      - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, including multiple selected ZIP archives, reporting any corrupt files or general issues.
 
   - **Organization:** Rename and Delete the item.
   - **Folder Tools:** For folders, you can also Calculate Size or set the folder's path in the opposite panel.

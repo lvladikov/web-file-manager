@@ -312,8 +312,9 @@ const HelpModal = ({ isVisible, onClose }) => {
                 </strong>{" "}
                 Opens an input at the bottom of the panel to filter the visible
                 items in real-time. This is useful for quickly finding items in
-                large directories. File operations like Copy and Delete will
-                only apply to the filtered items.
+                large directories. File operations like Copy, Copy Paths,
+                Calculate folder size, Archive operations and Delete will only
+                apply to the filtered items.
                 <img
                   src={quickFilterScreenshot}
                   alt="Quick Filter Screenshot"
@@ -462,11 +463,24 @@ const HelpModal = ({ isVisible, onClose }) => {
                     persist at their location.
                   </li>
                   <li>
-                    <strong>Archive</strong> <em>Menu:</em> Contains options to{" "}
-                    <strong>Compress</strong> the selected item(s) in the active
-                    or other panel, or for a single selected archive, options to{" "}
-                    <strong>Decompress</strong> and
-                    <strong>Test Archive</strong>.
+                    <strong>Archive</strong> <em>Menu:</em>
+                    <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
+                      <li>
+                        <kbd>Compress</kbd>: Compresses the selected items into
+                        a zip archive in the active panel or transfers it to the
+                        other panel.
+                      </li>
+                      <li>
+                        <kbd>Decompress</kbd>: Decompresses a selected ZIP
+                        archive to the active or other panel, with progress
+                        tracking.
+                      </li>
+                      <li>
+                        <kbd>Test Archive</kbd>: Verifies the integrity of a
+                        selected ZIP archive, including multiple selected ZIP
+                        archives, reporting any corrupt files or general issues.
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </li>

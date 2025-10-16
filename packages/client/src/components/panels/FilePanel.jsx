@@ -135,7 +135,10 @@ const FilePanel = React.forwardRef(
       let files = 0;
       let folders = 0;
       let totalSize = 0;
-      const selectedFullItems = panelData.items.filter((item) =>
+
+      const itemsToConsider = filter.pattern ? filteredItems : panelData.items;
+
+      const selectedFullItems = itemsToConsider.filter((item) =>
         selectedItems.has(item.name)
       );
 
@@ -158,7 +161,7 @@ const FilePanel = React.forwardRef(
       setSelectedFileCount(files);
       setSelectedFolderCount(folders);
       setSelectedItemsTotalSize(totalSize);
-    }, [selectedItems, panelData.items]);
+    }, [selectedItems, panelData.items, filter.pattern, filteredItems]);
 
     useEffect(() => {
       const getDiskSpace = async () => {
@@ -678,6 +681,8 @@ const FilePanel = React.forwardRef(
                   onNewFile={onNewFile}
                   copyAbsolutePaths={copyAbsolutePaths}
                   copyRelativePaths={copyRelativePaths}
+                  filter={filter}
+                  filteredItems={filteredItems}
                 />
               ))}
           </div>

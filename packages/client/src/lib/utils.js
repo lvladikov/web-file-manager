@@ -273,6 +273,9 @@ const formatSpeed = (bytesPerSecond, spaceBeforeUnit = true) => {
 };
 
 const truncatePath = (fullPath, maxLength = 60) => {
+  if (fullPath === undefined || fullPath === null) {
+    return "";
+  }
   if (fullPath.length <= maxLength) {
     return fullPath;
   }

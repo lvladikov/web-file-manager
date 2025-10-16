@@ -204,6 +204,8 @@ export default function App() {
           activePanel={activePanel}
           panels={panels}
           activePanelSelections={selections[activePanel]}
+          filter={filter}
+          filteredItems={filteredItems}
           onCopyToOtherPanel={() => {
             const sourcePanelId = activePanel;
             const destPanelId = sourcePanelId === "left" ? "right" : "left";
@@ -254,8 +256,10 @@ export default function App() {
             handleDeleteItem(itemsToDelete);
           }}
           onCalculateSize={() => {
-            const panelItems = panels[activePanel].items;
-            const foldersToCalc = panelItems.filter(
+            const itemsToConsider = filter[activePanel].pattern
+              ? filteredItems[activePanel]
+              : panels[activePanel].items;
+            const foldersToCalc = itemsToConsider.filter(
               (item) =>
                 selections[activePanel].has(item.name) && item.type === "folder"
             );
@@ -471,8 +475,11 @@ export default function App() {
         currentFile={archiveTestProgress.currentFile}
         totalFiles={archiveTestProgress.totalFiles}
         testedFiles={archiveTestProgress.testedFiles}
-        report={archiveTestProgress.report}
-        error={archiveTestProgress.error}
+        reports={archiveTestProgress.reports}
+        errors={archiveTestProgress.errors}
+        totalArchives={archiveTestProgress.totalArchives}
+        testedArchives={archiveTestProgress.testedArchives}
+        currentArchiveName={archiveTestProgress.currentArchiveName}
         onCancel={handleCancelArchiveTest}
         onClose={closeArchiveTestModal}
       />
@@ -641,7 +648,10 @@ export default function App() {
             }}
             onSetOtherPanelPath={() => handleSetOtherPanelPath()}
             onCalculateSize={() => {
-              const foldersToCalc = panels[panelId].items.filter(
+              const itemsToConsider = filter[panelId].pattern
+                ? filteredItems[panelId]
+                : panels[panelId].items;
+              const foldersToCalc = itemsToConsider.filter(
                 (i) => i.type === "folder" && selections[panelId].has(i.name)
               );
               if (foldersToCalc.length > 0) {

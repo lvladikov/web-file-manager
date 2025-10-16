@@ -86,10 +86,20 @@ const AppContextMenu = ({
     (item) => item.type === "folder"
   ).length;
 
+  const isAllArchives =
+    hasFiles &&
+    !hasFolders &&
+    targetItems.every((item) => item.type === "archive");
+  const selectedArchiveCount = targetItems.filter(
+    (item) => item.type === "archive"
+  ).length;
+
   const deleteLabel = `Delete ${
     isMultiSelect
       ? isMixed
         ? `${count} Items`
+        : isAllArchives
+        ? `${count} Archives`
         : isAllFolders
         ? `${count} Folders`
         : `${count} Files`
@@ -100,10 +110,17 @@ const AppContextMenu = ({
       ? `Calculate size of ${folderCount} folders`
       : "Calculate folder size";
 
+  const testArchiveLabel =
+    selectedArchiveCount > 1
+      ? `Test ${selectedArchiveCount} Archives`
+      : "Test Archive";
+
   const onPlaceholder = () => alert("This feature will be implemented soon!");
 
   const shouldShowArchiveGroup = count > 0;
-  const isSingleArchive = count === 1 && firstItem.type === "archive";
+  const canCompress = count > 0 && !isAllArchives;
+  const canDecompress = selectedArchiveCount === 1;
+  const canTestArchive = selectedArchiveCount > 0;
 
   return (
     <ContextMenu.Root>
@@ -126,7 +143,7 @@ const AppContextMenu = ({
                 </ContextMenu.SubTrigger>
                 <ContextMenu.Portal>
                   <ContextMenu.SubContent
-                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-48"
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-40"
                     sideOffset={2}
                     alignOffset={-5}
                   >
@@ -439,11 +456,11 @@ const AppContextMenu = ({
                     </ContextMenu.SubTrigger>
                     <ContextMenu.Portal>
                       <ContextMenu.SubContent
-                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-60"
+                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-66"
                         sideOffset={2}
                         alignOffset={-5}
                       >
-                        {isSingleArchive ? (
+                        {canDecompress ? (
                           <>
                             <ContextMenu.Item
                               onSelect={onDecompressInActivePanel}
@@ -457,14 +474,17 @@ const AppContextMenu = ({
                             >
                               Decompress to other panel
                             </ContextMenu.Item>
-                            <ContextMenu.Item
-                              onSelect={onTestArchive}
-                              className={itemClassName}
-                            >
-                              Test Archive
-                            </ContextMenu.Item>
                           </>
-                        ) : (
+                        ) : null}
+                        {canTestArchive ? (
+                          <ContextMenu.Item
+                            onSelect={onTestArchive}
+                            className={itemClassName}
+                          >
+                            {testArchiveLabel}
+                          </ContextMenu.Item>
+                        ) : null}
+                        {canCompress ? (
                           <>
                             <ContextMenu.Item
                               onSelect={onCompressInActivePanel}
@@ -479,7 +499,7 @@ const AppContextMenu = ({
                               Compress to other panel
                             </ContextMenu.Item>
                           </>
-                        )}
+                        ) : null}
                       </ContextMenu.SubContent>
                     </ContextMenu.Portal>
                   </ContextMenu.Sub>

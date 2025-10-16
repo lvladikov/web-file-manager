@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { buildFullPath, basename } from "../lib/utils";
 import { compressFiles } from "../lib/api";
 
@@ -13,6 +13,8 @@ const useCompress = ({
   setActivePanel,
   panelRefs,
   wsRef,
+  filter,
+  filteredItems,
 }) => {
   const [compressProgress, setCompressProgress] = useState({
     isVisible: false,
@@ -46,12 +48,17 @@ const useCompress = ({
     });
   };
 
-  const handleCompress = async (targetPanelId) => {
+  const handleCompress = useCallback(async (targetPanelId) => {
     const sourcePanelId = activePanel;
     const sourcePath = panels[sourcePanelId].path;
+
+    const itemsToConsider = filter[sourcePanelId].pattern
+      ? filteredItems[sourcePanelId]
+      : panels[sourcePanelId].items;
+
     const itemsToCompress = [...selections[sourcePanelId]]
       .map((itemName) =>
-        panels[sourcePanelId].items.find((item) => item.name === itemName)
+        itemsToConsider.find((item) => item.name === itemName)
       )
       .filter(Boolean); // Filter out any nulls if item not found
 
@@ -185,16 +192,16 @@ const useCompress = ({
       }));
       setError(`Compression failed: ${err.message}`);
     }
-  };
+  }, [activePanel, panels, selections, setError, handleRefreshPanel, setSelections, setFocusedItem, setActivePanel, panelRefs, wsRef, filter, filteredItems]);
 
-  const handleCompressInActivePanel = () => {
+  const handleCompressInActivePanel = useCallback(() => {
     handleCompress(activePanel);
-  };
+  }, [handleCompress, activePanel]);
 
-  const handleCompressToOtherPanel = () => {
+  const handleCompressToOtherPanel = useCallback(() => {
     const otherPanelId = activePanel === "left" ? "right" : "left";
     handleCompress(otherPanelId);
-  };
+  }, [handleCompress, activePanel]);
 
   return {
     compressProgress,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { decompressFiles, cancelDecompress } from "../lib/api";
 import { buildFullPath, truncatePath } from "../lib/utils";
 
@@ -15,6 +15,8 @@ const useDecompress = ({
   panelRefs,
   overwritePrompt,
   setOverwritePrompt,
+  filter,
+  filteredItems,
 }) => {
   const [decompressProgress, setDecompressProgress] = useState({
     isVisible: false,
@@ -60,7 +62,7 @@ const useDecompress = ({
     }
   };
 
-  const handleDecompress = async (targetPanelId) => {
+  const handleDecompress = useCallback(async (targetPanelId) => {
     const sourcePanelId = activePanel;
     const sourcePath = panels[sourcePanelId].path;
     const selection = [...selections[sourcePanelId]];
@@ -70,7 +72,11 @@ const useDecompress = ({
       return;
     }
 
-    const archiveItem = panels[sourcePanelId].items.find(
+    const itemsToConsider = filter[sourcePanelId].pattern
+      ? filteredItems[sourcePanelId]
+      : panels[sourcePanelId].items;
+
+    const archiveItem = itemsToConsider.find(
       (item) => item.name === selection[0]
     );
 
@@ -191,16 +197,16 @@ const useDecompress = ({
       setError(err.message);
       setDecompressProgress((prev) => ({ ...prev, isVisible: false }));
     }
-  };
+  }, [activePanel, panels, selections, setError, handleRefreshPanel, wsRef, setActivePanel, setSelections, setFocusedItem, panelRefs, overwritePrompt, setOverwritePrompt, filter, filteredItems]);
 
-  const handleDecompressInActivePanel = () => {
+  const handleDecompressInActivePanel = useCallback(() => {
     handleDecompress(activePanel);
-  };
+  }, [handleDecompress, activePanel]);
 
-  const handleDecompressToOtherPanel = () => {
+  const handleDecompressToOtherPanel = useCallback(() => {
     const otherPanelId = activePanel === "left" ? "right" : "left";
     handleDecompress(otherPanelId);
-  };
+  }, [handleDecompress, activePanel]);
 
   return {
     decompressProgress,

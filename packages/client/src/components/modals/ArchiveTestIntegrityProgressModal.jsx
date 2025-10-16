@@ -11,29 +11,36 @@ const ArchiveTestIntegrityProgressModal = ({
   currentFile,
   totalFiles,
   testedFiles,
-  report,
-  error,
+  reports,
+  errors,
+  totalArchives,
+  testedArchives,
+  currentArchiveName,
   onCancel,
   onClose,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
 
-  const isFinished = !!report || !!error;
-  const hasFailures = !!error;
-  const hasTotal = typeof totalFiles === "number" && totalFiles > 0;
-  const progressPercentage = hasTotal ? (testedFiles / totalFiles) * 100 : 0;
+  const isFinishedOverall = testedArchives === totalArchives && totalArchives > 0;
+  const hasOverallFailures = errors.length > 0;
+
+  const isCurrentArchiveFinished = !!reports.find(r => r.name === currentArchiveName) || !!errors.find(e => e.name === currentArchiveName);
+  const hasCurrentArchiveTotal = typeof totalFiles === "number" && totalFiles > 0;
+  const currentArchiveProgressPercentage = hasCurrentArchiveTotal ? (testedFiles / totalFiles) * 100 : 0;
 
   const renderTitle = () => {
-    if (isFinished) {
-      return hasFailures ? "Test Complete: Issues Found" : "Test Complete: OK";
+    if (isFinishedOverall) {
+      return hasOverallFailures ? "All Tests Complete: Issues Found" : "All Tests Complete: OK";
+    } else if (totalArchives > 1) {
+      return `Testing Archives (${testedArchives} of ${totalArchives})...`;
     }
     return "Testing Archive Integrity...";
   };
 
   const renderIcon = () => {
-    if (isFinished) {
-      return hasFailures ? (
+    if (isFinishedOverall) {
+      return hasOverallFailures ? (
         <AlertTriangle className="w-6 h-6 mr-2 text-red-500" />
       ) : (
         <CheckCircle2 className="w-6 h-6 mr-2 text-green-500" />
@@ -59,8 +66,9 @@ const ArchiveTestIntegrityProgressModal = ({
           {renderTitle()}
         </h2>
 
-        {!isFinished && (
+        {!isFinishedOverall && currentArchiveName && (
           <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
+            <p className="text-sm">Current Archive: <span className="font-bold text-sky-300">{currentArchiveName}</span></p>
             <p className="text-sm">Testing File:</p>
             <p
               className="font-mono text-gray-300 mb-2 w-full truncate overflow-hidden whitespace-nowrap"
@@ -69,19 +77,19 @@ const ArchiveTestIntegrityProgressModal = ({
               {currentFile}
             </p>
             <div className="w-full bg-gray-700 rounded-full h-2.5 mt-2">
-              {hasTotal && (
+              {hasCurrentArchiveTotal && (
                 <div
                   className="bg-sky-500 h-2.5 rounded-full"
-                  style={{ width: `${progressPercentage}%` }}
+                  style={{ width: `${currentArchiveProgressPercentage}%` }}
                 ></div>
               )}
             </div>
             <div className="flex justify-between items-center text-sm text-gray-400 mt-1">
               <span>
-                {hasTotal ? `${progressPercentage.toFixed(1)}%` : "Scanning..."}
+                {hasCurrentArchiveTotal ? `${currentArchiveProgressPercentage.toFixed(1)}%` : "Scanning..."}
               </span>
               <span>
-                {hasTotal
+                {hasCurrentArchiveTotal
                   ? `${testedFiles} / ${totalFiles} Files`
                   : `${testedFiles} Files Tested`}
               </span>
@@ -89,53 +97,58 @@ const ArchiveTestIntegrityProgressModal = ({
           </div>
         )}
 
-        {isFinished && (
+        {isFinishedOverall && (
           <div className="text-gray-300 space-y-4 mb-6">
-            {hasFailures ? (
-              <div className="bg-red-900/50 border border-red-700 rounded-md p-3">
-                <p className="text-red-300 font-bold mb-3">{error.title}</p>
-                <div className="max-h-60 overflow-y-auto space-y-3">
-                  {error.generalError && (
-                    <div>
-                      <h4 className="font-semibold text-gray-200 text-sm">
-                        General Archive Error:
-                      </h4>
-                      <pre className="mt-1 text-sm text-gray-400 whitespace-pre-wrap font-mono bg-gray-900 p-2 rounded">
-                        {error.generalError}
-                      </pre>
+            {reports.map((item, index) => (
+              <div key={index} className="bg-gray-900/50 border border-gray-700 rounded-md p-3">
+                <p className="font-bold text-sky-300 mb-2">Archive: {item.name}</p>
+                {errors.find(e => e.name === item.name) ? (
+                  <div className="bg-red-900/50 border border-red-700 rounded-md p-3">
+                    <p className="text-red-300 font-bold mb-3">{errors.find(e => e.name === item.name).error.title}</p>
+                    <div className="max-h-60 overflow-y-auto space-y-3">
+                      {errors.find(e => e.name === item.name).error.generalError && (
+                        <div>
+                          <h4 className="font-semibold text-gray-200 text-sm">
+                            General Archive Error:
+                          </h4>
+                          <pre className="mt-1 text-sm text-gray-400 whitespace-pre-wrap font-mono bg-gray-900 p-2 rounded">
+                            {errors.find(e => e.name === item.name).error.generalError}
+                          </pre>
+                        </div>
+                      )}
+                      {errors.find(e => e.name === item.name).error.fileErrors && errors.find(e => e.name === item.name).error.fileErrors.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-gray-200 text-sm">
+                            File-Specific Errors:
+                          </h4>
+                          <ul className="space-y-2 text-sm mt-1">
+                            {errors.find(e => e.name === item.name).error.fileErrors.map((failure, fileIndex) => (
+                              <li key={fileIndex} className="bg-gray-900 p-2 rounded">
+                                <p className="font-semibold text-gray-200">
+                                  {failure.fileName}
+                                </p>
+                                <pre className="text-xs text-gray-400 pl-2 border-l-2 border-gray-600 ml-2 mt-1 whitespace-pre-wrap font-mono">
+                                  {failure.message}
+                                </pre>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {error.fileErrors && error.fileErrors.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-gray-200 text-sm">
-                        File-Specific Errors:
-                      </h4>
-                      <ul className="space-y-2 text-sm mt-1">
-                        {error.fileErrors.map((failure, index) => (
-                          <li key={index} className="bg-gray-900 p-2 rounded">
-                            <p className="font-semibold text-gray-200">
-                              {failure.fileName}
-                            </p>
-                            <pre className="text-xs text-gray-400 pl-2 border-l-2 border-gray-600 ml-2 mt-1 whitespace-pre-wrap font-mono">
-                              {failure.message}
-                            </pre>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <p className="text-green-400 bg-green-900/50 border border-green-700 rounded-md p-3">
+                    All {item.report.totalFiles} files passed the integrity check.
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-green-400 bg-green-900/50 border border-green-700 rounded-md p-3">
-                All {report.totalFiles} files passed the integrity check.
-              </p>
-            )}
+            ))}
           </div>
         )}
 
         <div className="flex justify-end">
-          {isFinished ? (
+          {isFinishedOverall ? (
             <button
               onClick={onClose}
               className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-6 rounded-lg flex items-center"
@@ -147,7 +160,7 @@ const ArchiveTestIntegrityProgressModal = ({
               onClick={onCancel}
               className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg flex items-center"
             >
-              <XCircle className="w-5 h-5 mr-2" /> Cancel
+              <XCircle className="w-5 h-5 mr-2" /> Cancel All
             </button>
           )}
         </div>

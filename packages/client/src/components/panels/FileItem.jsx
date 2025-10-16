@@ -59,6 +59,8 @@ const FileItem = ({
   onNewFile,
   copyAbsolutePaths,
   copyRelativePaths,
+  filter,
+  filteredItems,
 }) => {
   const inputRef = useRef(null);
 
@@ -80,8 +82,10 @@ const FileItem = ({
   };
 
   let targetItems;
+  const itemsToConsider = filter.pattern ? filteredItems : allItems;
+
   if (isSelected) {
-    targetItems = allItems.filter((i) => selectedItems.has(i.name));
+    targetItems = itemsToConsider.filter((i) => selectedItems.has(i.name));
   } else {
     targetItems = [item];
   }

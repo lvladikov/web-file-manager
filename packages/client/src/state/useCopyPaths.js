@@ -7,6 +7,8 @@ export default function useCopyPaths({
   selections,
   setCopyPathsModal,
   wsRef,
+  filter,
+  filteredItems,
 }) {
   const cancelCopyPaths = useCallback(() => {
     if (wsRef.current) {
@@ -26,9 +28,13 @@ export default function useCopyPaths({
     async (isAbsolute, includeSubfolders, download = false) => {
       try {
         const panel = panels[activePanel];
+        const itemsToConsider = filter[activePanel].pattern
+          ? filteredItems[activePanel]
+          : panel.items;
+
         const selectedItems = Array.from(selections[activePanel]).map((name) =>
-          panel.items.find((item) => item.name === name)
-        );
+          itemsToConsider.find((item) => item.name === name)
+        ).filter(Boolean); // Filter out any undefined entries
 
         const response = await fetch("/api/get-paths", {
           method: "POST",
@@ -152,7 +158,7 @@ export default function useCopyPaths({
         setError(err.message);
       }
     },
-    [activePanel, panels, selections, setError, setCopyPathsModal, wsRef]
+    [activePanel, panels, selections, setError, setCopyPathsModal, wsRef, filter, filteredItems]
   );
 
   const copyAbsolutePaths = useCallback(

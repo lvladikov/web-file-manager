@@ -8,6 +8,8 @@ const useArchiveIntegrityTest = ({
   selections,
   setError,
   wsRef,
+  filter,
+  filteredItems,
 }) => {
   const [archiveTestProgress, setArchiveTestProgress] = useState({
     isVisible: false,
@@ -15,26 +17,29 @@ const useArchiveIntegrityTest = ({
     currentFile: "",
     totalFiles: 0,
     testedFiles: 0,
-    report: null,
-    error: null,
+    totalArchives: 0,
+    testedArchives: 0,
+    reports: [], // Array to store reports for each archive
+    errors: [], // Array to store errors for each archive
+    currentArchiveName: "",
   });
 
   const handleCancelArchiveTest = () => {
     if (archiveTestProgress.jobId) {
       cancelArchiveTest(archiveTestProgress.jobId);
     }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
+    // Reset the modal state completely on cancellation
     setArchiveTestProgress({
       isVisible: false,
       jobId: null,
       currentFile: "",
       totalFiles: 0,
       testedFiles: 0,
-      report: null,
-      error: null,
+      totalArchives: 0,
+      testedArchives: 0,
+      reports: [],
+      errors: [],
+      currentArchiveName: "",
     });
   };
 
@@ -44,139 +49,189 @@ const useArchiveIntegrityTest = ({
 
   const handleTestArchive = useCallback(async () => {
     const sourcePanelId = activePanel;
+
+    const itemsToConsider = filter[sourcePanelId].pattern
+      ? filteredItems[sourcePanelId]
+      : panels[sourcePanelId].items;
+
     const itemsToTest = [...selections[sourcePanelId]]
       .map((itemName) =>
-        panels[sourcePanelId].items.find((item) => item.name === itemName)
+        itemsToConsider.find((item) => item.name === itemName)
       )
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((item) => item.type === "archive"); // Only consider archive files
 
-    if (itemsToTest.length !== 1 || itemsToTest[0].type !== "archive") {
-      setError("Please select a single archive file to test.");
+    if (itemsToTest.length === 0) {
+      setError("No archive files selected for testing.");
       return;
     }
 
-    const source = {
-      path: panels[sourcePanelId].path,
-      name: itemsToTest[0].name,
-    };
-
-    setArchiveTestProgress({
+    // Initialize state for the batch test
+    setArchiveTestProgress((prev) => ({
+      ...prev,
       isVisible: true,
-      jobId: null,
-      currentFile: "Preparing...",
-      totalFiles: 0,
-      testedFiles: 0,
-      report: null,
-      error: null,
-    });
+      totalArchives: itemsToTest.length,
+      testedArchives: 0,
+      reports: [],
+      errors: [],
+      currentArchiveName: "",
+      jobId: null, // Clear jobId at the start of a new batch
+    }));
 
-    try {
-      const { jobId } = await testArchive(source);
-      setArchiveTestProgress((prev) => ({ ...prev, jobId }));
+    for (let i = 0; i < itemsToTest.length; i++) {
+      const archiveItem = itemsToTest[i];
+      const isLastArchive = i === itemsToTest.length - 1;
 
-      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(
-        `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=archive-test`
-      );
-      wsRef.current = ws;
+      // Update modal to show current archive being processed
+      setArchiveTestProgress((prev) => ({
+        ...prev,
+        currentArchiveName: archiveItem.name,
+        currentFile: `Preparing to test ${archiveItem.name}...`,
+        totalFiles: 0,
+        testedFiles: 0,
+        // Clear report/error for the current archive's display, but not the accumulated ones
+        report: null,
+        error: null,
+      }));
 
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+      let currentArchiveReport = null;
+      let currentArchiveError = null;
+      let currentJobId = null;
 
-        switch (data.type) {
-          case "start":
-            setArchiveTestProgress((prev) => ({
-              ...prev,
-              totalFiles: data.totalFiles,
-            }));
-            break;
-          case "progress":
-            setArchiveTestProgress((prev) => ({
-              ...prev,
-              testedFiles: data.testedFiles,
-              currentFile: truncatePath(data.currentFile, 60),
-            }));
-            break;
-          case "complete":
-            setArchiveTestProgress((prev) => ({
-              ...prev,
-              report: data.report,
-            }));
-            const { report } = data;
-            const fileErrors = report?.failedFiles || [];
-            const generalError = report?.generalError;
+      try {
+        const source = {
+          path: panels[sourcePanelId].path,
+          name: archiveItem.name,
+        };
 
-            if (fileErrors.length > 0 || generalError) {
-              let title = "Errors were detected in the archive.";
-              if (generalError && fileErrors.length > 0) {
-                title =
-                  "A structural error and multiple file errors were detected.";
-              } else if (generalError) {
-                title = "A structural error was detected in the archive.";
-              } else if (fileErrors.length > 0) {
-                title = `${fileErrors.length} of ${report.totalFiles} files failed the integrity check.`;
-              }
+        const { jobId } = await testArchive(source);
+        currentJobId = jobId;
+        setArchiveTestProgress((prev) => ({ ...prev, jobId: currentJobId }));
 
-              setArchiveTestProgress((prev) => ({
-                ...prev,
-                error: {
-                  title: title,
-                  generalError: generalError,
-                  fileErrors: fileErrors,
-                },
-              }));
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(
+          `${wsProtocol}//${window.location.host}/ws?jobId=${currentJobId}&type=archive-test`
+        );
+
+        await new Promise((resolve) => {
+          ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            switch (data.type) {
+              case "start":
+                setArchiveTestProgress((prev) => ({
+                  ...prev,
+                  totalFiles: data.totalFiles,
+                  currentFile: `Testing ${archiveItem.name}: ${data.currentFile ? truncatePath(data.currentFile, 60) : ''}`,
+                }));
+                break;
+              case "progress":
+                setArchiveTestProgress((prev) => ({
+                  ...prev,
+                  testedFiles: data.testedFiles,
+                  currentFile: `Testing ${archiveItem.name}: ${data.currentFile ? truncatePath(data.currentFile, 60) : ''}`,
+                }));
+                break;
+              case "complete":
+                currentArchiveReport = data.report;
+                const fileErrors = data.report?.failedFiles || [];
+                const generalError = data.report?.generalError;
+
+                if (fileErrors.length > 0 || generalError) {
+                  let title = "Errors were detected in the archive.";
+                  if (generalError && fileErrors.length > 0) {
+                    title =
+                      "A structural error and multiple file errors were detected.";
+                  } else if (generalError) {
+                    title = "A structural error was detected in the archive.";
+                  } else if (fileErrors.length > 0) {
+                    title = `${fileErrors.length} of ${data.report.totalFiles} files failed the integrity check.`;
+                  }
+
+                  currentArchiveError = {
+                    title: title,
+                    generalError: generalError,
+                    fileErrors: fileErrors,
+                  };
+                }
+                setArchiveTestProgress((prev) => ({
+                  ...prev,
+                  currentFile: `Test of ${archiveItem.name} completed.`,
+                }));
+                ws.close();
+                resolve();
+                break;
+              case "failed":
+                currentArchiveError = {
+                  title: data.title || "An error was detected in the archive.",
+                  generalError: data.details,
+                  fileErrors: [],
+                };
+                setArchiveTestProgress((prev) => ({
+                  ...prev,
+                  currentFile: `Test of ${archiveItem.name} failed.`,
+                }));
+                ws.close();
+                resolve();
+                break;
             }
-            break;
-          case "failed":
-            setArchiveTestProgress((prev) => ({
-              ...prev,
-              error: {
-                title: data.title || "An error was detected in the archive.",
-                generalError: data.details,
-                fileErrors: [],
-              },
-            }));
-            break;
-        }
-      };
+          };
 
-      ws.onclose = () => {
-        setArchiveTestProgress((prev) => {
-          if (prev.isVisible && !prev.report && !prev.error) {
-            return {
-              ...prev,
-              error: {
+          ws.onclose = () => {
+            // If the job was cancelled/disconnected before completion/failure
+            if (!currentArchiveReport && !currentArchiveError) {
+              currentArchiveError = {
                 title: "Test Cancelled or Disconnected",
                 generalError: "The connection to the server was lost.",
                 fileErrors: [],
-              },
-            };
-          }
-          return prev;
-        });
-      };
+              };
+              setArchiveTestProgress((prev) => ({
+                ...prev,
+                currentFile: `Test of ${archiveItem.name} cancelled.`,
+              }));
+            }
+            resolve();
+          };
 
-      ws.onerror = () => {
-        setArchiveTestProgress((prev) => ({
-          ...prev,
-          error: {
-            title: "WebSocket Error",
-            generalError: "Could not connect to the progress server.",
-            fileErrors: [],
-          },
-        }));
-      };
-    } catch (err) {
-      setArchiveTestProgress({
-        isVisible: false,
-        error: {
+          ws.onerror = () => {
+            currentArchiveError = {
+              title: "WebSocket Error",
+              generalError: "Could not connect to the progress server.",
+              fileErrors: [],
+            };
+            setArchiveTestProgress((prev) => ({
+              ...prev,
+              currentFile: `Test of ${archiveItem.name} failed due to WebSocket error.`,
+            }));
+            ws.close();
+            resolve();
+          };
+        });
+      } catch (err) {
+        currentArchiveError = {
           title: "Failed to start test",
           generalError: err.message,
           fileErrors: [],
-        },
-      });
+        };
+        setArchiveTestProgress((prev) => ({
+          ...prev,
+          currentFile: `Failed to start test for ${archiveItem.name}.`,
+        }));
+        // Ensure the loop continues even on error starting the test
+        resolve();
+      } finally {
+        setArchiveTestProgress((prev) => ({
+          ...prev,
+          testedArchives: prev.testedArchives + 1,
+          reports: [...prev.reports, { name: archiveItem.name, report: currentArchiveReport }],
+          errors: currentArchiveError ? [...prev.errors, { name: archiveItem.name, error: currentArchiveError }] : prev.errors,
+          jobId: isLastArchive ? null : prev.jobId, // Clear jobId only if it's the last archive
+        }));
+      }
     }
-  }, [activePanel, panels, selections, setError, wsRef]);
+    // After all archives are processed, the modal should remain open with the accumulated reports.
+    // The user will manually close it using closeArchiveTestModal.
+  }, [activePanel, panels, selections, setError, filter, filteredItems]);
 
   return {
     archiveTestProgress,

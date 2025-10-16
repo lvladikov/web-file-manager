@@ -32,7 +32,7 @@ const EmptyAreaContextMenu = ({
         <ContextMenu.Content
           collisionBoundary={boundaryRef.current}
           collisionPadding={80}
-          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
+          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-66"
           onClick={(e) => e.stopPropagation()}
         >
           <ScrollArea.Root className="w-full h-full" type="auto">
@@ -47,7 +47,7 @@ const EmptyAreaContextMenu = ({
                 </ContextMenu.SubTrigger>
                 <ContextMenu.Portal>
                   <ContextMenu.SubContent
-                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-48"
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-40"
                     sideOffset={2}
                     alignOffset={-5}
                   >

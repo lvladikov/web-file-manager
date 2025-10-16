@@ -57,7 +57,6 @@ const FileMenu = ({ ...props }) => {
     canDelete,
     canCalculateSize,
     canSetOtherPanelPath,
-    canPerformArchiveAction,
     activePanelSelections,
     calculateSizeLabel,
     handleItemClick,
@@ -75,6 +74,7 @@ const FileMenu = ({ ...props }) => {
     activePanel,
     copyAbsolutePaths,
     copyRelativePaths,
+    selectedItemsDetails,
   } = props;
 
   const [isCopyMoveSubmenuOpen, setIsCopyMoveSubmenuOpen] = useState(false);
@@ -88,9 +88,21 @@ const FileMenu = ({ ...props }) => {
   const [isCopyPathsDownloadSubmenuOpen, setIsCopyPathsDownloadSubmenuOpen] =
     useState(false);
 
-  const shouldShowArchiveGroup =
-    activePanelSelections.size > 0 || canPerformArchiveAction;
-  const isSingleArchive = canPerformArchiveAction;
+  const selectedArchiveCount = selectedItemsDetails.filter(
+    (item) => item.type === "archive"
+  ).length;
+  const canCompress =
+    selectedItemsDetails.length > 0 &&
+    selectedArchiveCount !== selectedItemsDetails.length;
+  const canDecompress = selectedArchiveCount === 1;
+  const canTestArchive = selectedArchiveCount > 0;
+
+  const testArchiveLabel =
+    selectedArchiveCount > 1
+      ? `Test ${selectedArchiveCount} Archives`
+      : "Test Archive";
+
+  const shouldShowArchiveGroup = selectedItemsDetails.length > 0;
 
   const NewGroup = () => (
     <div
@@ -103,7 +115,7 @@ const FileMenu = ({ ...props }) => {
         <span className="text-gray-400">&gt;</span>
       </div>
       {isNewSubmenuOpen && (
-        <div className="absolute top-0 left-full mt-[-1px] w-48 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+        <div className="absolute top-0 left-full mt-[-1px] w-40 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
           <MenuItem
             label="New Folder"
             shortcut="F7"
@@ -133,8 +145,8 @@ const FileMenu = ({ ...props }) => {
 
       {/* Submenu Content (Simulated popover) */}
       {isArchiveSubmenuOpen && (
-        <div className="absolute top-0 left-full mt-[-1px] w-60 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
-          {isSingleArchive ? (
+        <div className="absolute top-0 left-full mt-[-1px] w-64 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+          {canDecompress ? (
             <>
               <MenuItem
                 label="Decompress in active panel"
@@ -144,12 +156,15 @@ const FileMenu = ({ ...props }) => {
                 label="Decompress to other panel"
                 onClick={() => handleItemClick(onDecompressToOtherPanel)}
               />
-              <MenuItem
-                label="Test Archive"
-                onClick={() => handleItemClick(onTestArchive)}
-              />
             </>
-          ) : (
+          ) : null}
+          {canTestArchive ? (
+            <MenuItem
+              label={testArchiveLabel}
+              onClick={() => handleItemClick(onTestArchive)}
+            />
+          ) : null}
+          {canCompress ? (
             <>
               <MenuItem
                 label="Compress in active panel"
@@ -160,7 +175,7 @@ const FileMenu = ({ ...props }) => {
                 onClick={() => handleItemClick(onCompressToOtherPanel)}
               />
             </>
-          )}
+          ) : null}
         </div>
       )}
     </div>
@@ -531,7 +546,8 @@ const SelectMenu = ({ ...props }) => {
 };
 
 const AppMenu = (props) => {
-  const { activePanelSelections, panels, activePanel } = props;
+  const { activePanelSelections, panels, activePanel, filter, filteredItems } =
+    props;
 
   const [openMenu, setOpenMenu] = useState("");
 
@@ -542,9 +558,12 @@ const AppMenu = (props) => {
     setOpenMenu("");
   };
 
-  const selectedNames = [...activePanelSelections];
-  const selectedItemsDetails = selectedNames
-    .map((name) => panels[activePanel].items.find((i) => i.name === name))
+  const itemsToConsider = filter[activePanel].pattern
+    ? filteredItems[activePanel]
+    : panels[activePanel].items;
+
+  const selectedItemsDetails = Array.from(activePanelSelections)
+    .map((name) => itemsToConsider.find((item) => item.name === name))
     .filter(Boolean);
 
   const singleItemSelected = selectedItemsDetails.length === 1;
@@ -593,6 +612,7 @@ const AppMenu = (props) => {
     calculateSizeLabel,
     handleItemClick,
     canDuplicate,
+    selectedItemsDetails,
   };
 
   const selectMenuProps = {
