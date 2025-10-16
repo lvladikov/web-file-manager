@@ -318,7 +318,7 @@ const saveFileContent = async (path, content) => {
   return response.json();
 };
 
-const duplicateItems = async (items) => {
+const startDuplicateItems = async (items) => {
   const response = await fetch("/api/duplicate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -327,6 +327,19 @@ const duplicateItems = async (items) => {
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.message || "Failed to duplicate items.");
+  }
+  return response.json();
+};
+
+const cancelDuplicate = async (jobId) => {
+  const response = await fetch("/api/duplicate/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to cancel duplicate.");
   }
   return response.json();
 };
@@ -361,5 +374,6 @@ export {
   cancelArchiveTest,
   fetchZipContents,
   saveFileContent,
-  duplicateItems,
+  startDuplicateItems,
+  cancelDuplicate,
 };

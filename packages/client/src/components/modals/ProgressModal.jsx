@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { Copy, XCircle, Search, Move } from "lucide-react";
+import { Copy, XCircle, Search, Move, CopyCheck } from "lucide-react";
 import { formatBytes, formatSpeed } from "../../lib/utils";
 import TruncatedText from "../ui/TruncatedText";
 
@@ -16,6 +16,7 @@ const ProgressModal = ({
   lastUpdateTime,
   onCancel,
   isMove,
+  isDuplicate,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
@@ -26,7 +27,7 @@ const ProgressModal = ({
       ? (currentFileBytesProcessed / currentFileSize) * 100
       : 0;
   const isScanning = status === "scanning";
-  const operation = isMove ? "Move" : "Copy";
+  const operation = isMove ? "Move" : isDuplicate ? "Duplicate" : "Copy";
 
   const calculateSpeed = () => {
     if (!startTime || !lastUpdateTime || copied === 0) return "0 B/s";
@@ -53,13 +54,21 @@ const ProgressModal = ({
             <Search className="w-8 h-8 text-sky-400 mr-3 animate-pulse" />
           ) : isMove ? (
             <Move className="w-8 h-8 text-sky-400 mr-3 animate-pulse" />
+          ) : isDuplicate ? (
+            <CopyCheck className="w-8 h-8 text-sky-400 mr-3 animate-pulse" />
           ) : (
             <Copy className="w-8 h-8 text-sky-400 mr-3 animate-pulse" />
           )}
           <h3 className="text-xl font-bold text-sky-400">
             {isScanning
               ? `Preparing to ${operation}...`
-              : `${operation === "Move" ? "Moving" : "Copying"} in Progress...`}
+              : `${
+                  operation === "Move"
+                    ? "Moving"
+                    : operation === "Duplicate"
+                    ? "Duplicating"
+                    : "Copying"
+                } in Progress...`}
           </h3>
         </div>
 

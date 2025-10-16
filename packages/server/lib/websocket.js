@@ -46,7 +46,8 @@ export function initializeWebSocketServer(
   activeSizeJobs,
   activeCompressJobs,
   activeDecompressJobs,
-  activeArchiveTestJobs
+  activeArchiveTestJobs,
+  activeDuplicateJobs
 ) {
   const wss = new WebSocketServer({ server });
 
@@ -65,6 +66,8 @@ export function initializeWebSocketServer(
         jobMap = activeDecompressJobs;
       } else if (jobType === "archive-test") {
         jobMap = activeArchiveTestJobs;
+      } else if (jobType === "duplicate") {
+        jobMap = activeDuplicateJobs;
       } else {
         // Default to copy if not specified or unknown
         jobMap = activeCopyJobs;
@@ -79,7 +82,7 @@ export function initializeWebSocketServer(
           const data = JSON.parse(message);
           if (data.type === "overwrite_response") {
             if (data.decision === "cancel") {
-              if (jobType === "copy") {
+              if (jobType === "copy" || jobType === "duplicate") {
                 performCopyCancellation(job);
               } else if (jobType === "decompress") {
                 job.status = "cancelled";
@@ -96,14 +99,20 @@ export function initializeWebSocketServer(
           }
         });
 
-        if (jobType === "copy") {
+        if (jobType === "copy" || jobType === "duplicate") {
           (async () => {
+            const currentJobType = jobType; // 'copy' or 'duplicate'
             try {
               job.status = "scanning";
               ws.send(JSON.stringify({ type: "scan_start" }));
 
               let totalSize = 0;
-              for (const sourcePath of job.sources) {
+              const sources =
+                currentJobType === "duplicate"
+                  ? job.items.map((i) => i.sourcePath)
+                  : job.sources;
+
+              for (const sourcePath of sources) {
                 if (job.controller.signal.aborted)
                   throw new Error("Scan cancelled");
                 const stats = await fse.stat(sourcePath);
@@ -119,12 +128,25 @@ export function initializeWebSocketServer(
                 JSON.stringify({ type: "scan_complete", total: job.total })
               );
 
-              for (const sourcePath of job.sources) {
-                const destPath = path.join(
-                  job.destination,
-                  path.basename(sourcePath)
-                );
-                await copyWithProgress(sourcePath, destPath, job);
+              const itemsToProcess =
+                currentJobType === "duplicate"
+                  ? job.items.map((item) => ({
+                      sourcePath: item.sourcePath,
+                      destPath: path.join(
+                        path.dirname(item.sourcePath),
+                        item.newName
+                      ),
+                    }))
+                  : job.sources.map((sourcePath) => ({
+                      sourcePath,
+                      destPath: path.join(
+                        job.destination,
+                        path.basename(sourcePath)
+                      ),
+                    }));
+
+              for (const item of itemsToProcess) {
+                await copyWithProgress(item.sourcePath, item.destPath, job);
               }
 
               job.status = "completed";
@@ -149,7 +171,11 @@ export function initializeWebSocketServer(
                 ws.close(1000, `Job finished with status: ${type}`);
               }
             } finally {
-              setTimeout(() => activeCopyJobs.delete(jobId), 5000);
+              const jobMapToClear =
+                currentJobType === "duplicate"
+                  ? activeDuplicateJobs
+                  : activeCopyJobs;
+              setTimeout(() => jobMapToClear.delete(jobId), 5000);
             }
           })();
         }

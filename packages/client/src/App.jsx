@@ -394,6 +394,7 @@ export default function App() {
         startTime={copyProgress.startTime}
         lastUpdateTime={copyProgress.lastUpdateTime}
         onCancel={handleCancelCopy}
+        isDuplicate={copyProgress.isDuplicate}
       />
       <OverwriteConfirmModal
         isVisible={overwritePrompt.isVisible}

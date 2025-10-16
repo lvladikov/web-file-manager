@@ -18,7 +18,8 @@ export default function createFileRoutes(
   activeSizeJobs,
   activeCompressJobs,
   activeDecompressJobs,
-  activeArchiveTestJobs
+  activeArchiveTestJobs,
+  activeDuplicateJobs
 ) {
   const router = express.Router();
 
@@ -304,24 +305,40 @@ export default function createFileRoutes(
     }
 
     try {
-      for (const item of items) {
-        const { sourcePath, newName } = item;
-        const destinationPath = path.join(path.dirname(sourcePath), newName);
-
-        if (await fse.pathExists(destinationPath)) {
-          return res.status(409).json({
-            message: `Destination already exists: ${destinationPath}`,
-          });
-        }
-        await fse.copy(sourcePath, destinationPath);
-      }
-      res.status(200).json({ message: "Items duplicated successfully." });
+      const jobId = crypto.randomUUID();
+      const job = {
+        id: jobId,
+        status: "pending",
+        ws: null,
+        controller: new AbortController(),
+        items,
+        // These properties are similar to a copy job and will be used by copyWithProgress
+        total: 0,
+        copied: 0,
+        overwriteDecision: "prompt",
+        resolveOverwrite: null,
+      };
+      activeDuplicateJobs.set(jobId, job);
+      res.status(202).json({ jobId });
     } catch (error) {
       console.error("Duplicate error:", error);
       res
         .status(500)
-        .json({ message: `Failed to duplicate items: ${error.message}` });
+        .json({ message: `Failed to start duplication: ${error.message}` });
     }
+  });
+
+  router.post("/duplicate/cancel", async (req, res) => {
+    const { jobId } = req.body;
+    if (!jobId || !activeDuplicateJobs.has(jobId)) {
+      return res.status(404).json({ message: "Job not found." });
+    }
+    const job = activeDuplicateJobs.get(jobId);
+    if (job.status === "scanning" || job.status === "copying") {
+      job.status = "cancelled";
+      job.controller.abort();
+    }
+    res.status(200).json({ message: "Cancellation request received." });
   });
 
   // Endpoint to cancel a copy job

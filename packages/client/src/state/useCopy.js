@@ -3,7 +3,8 @@ import {
   startCopyItems,
   cancelCopy,
   deleteItem,
-  duplicateItems,
+  startDuplicateItems,
+  cancelDuplicate,
 } from "../lib/api";
 import { buildFullPath, truncatePath, basename, dirname } from "../lib/utils";
 
@@ -55,6 +56,7 @@ export default function useCopy({
     startTime: null,
     lastUpdateTime: null,
     isMove: false,
+    isDuplicate: false,
     sources: [],
   });
 
@@ -96,8 +98,21 @@ export default function useCopy({
             return { sourcePath, newName };
           });
 
-          await duplicateItems(itemsToDuplicate);
-          handleNavigate(panelId, sourceDir, "");
+          const { jobId } = await startDuplicateItems(itemsToDuplicate);
+          setCopyProgress({
+            isVisible: true,
+            status: "scanning",
+            copied: 0,
+            total: 0,
+            jobId,
+            currentFile: "Initializing...",
+            sourceCount: sources.length,
+            startTime: Date.now(),
+            lastUpdateTime: Date.now(),
+            isMove: false,
+            isDuplicate: true,
+            sources,
+          });
         } catch (err) {
           setError(`Duplicate failed: ${err.message}`);
         }
@@ -121,19 +136,14 @@ export default function useCopy({
           startTime: Date.now(),
           lastUpdateTime: Date.now(),
           isMove,
+          isDuplicate: false,
           sources,
         });
       } catch (err) {
         setError(`${isMove ? "Move" : "Copy"} failed: ${err.message}`);
       }
     },
-    [
-      handleCancelRename,
-      handleCancelNewFolder,
-      panels,
-      handleNavigate,
-      setError,
-    ]
+    [handleCancelRename, handleCancelNewFolder, panels, setError]
   );
 
   const handleCopyAction = useCallback(
@@ -180,13 +190,18 @@ export default function useCopy({
       setOverwritePrompt({ isVisible: false, item: null });
     } else if (copyProgress.jobId) {
       try {
-        await cancelCopy(copyProgress.jobId);
+        if (copyProgress.isDuplicate) {
+          await cancelDuplicate(copyProgress.jobId);
+        } else {
+          await cancelCopy(copyProgress.jobId);
+        }
       } catch (err) {
         setError(`Failed to send cancel request: ${err.message}`);
       }
     }
   }, [
     copyProgress.jobId,
+    copyProgress.isDuplicate,
     overwritePrompt.isVisible,
     setError,
     wsRef,
@@ -208,39 +223,29 @@ export default function useCopy({
       return;
     }
 
-    try {
-      const existingNames = new Set(sourcePanel.items.map((item) => item.name));
-      const itemsToDuplicate = filteredItems
-        .filter((item) => activeSelection.has(item.name))
-        .map((item) => {
-          const originalName = item.name;
-          const newName = getUniqueName(originalName, existingNames);
-          existingNames.add(newName); // Add to existing names to handle multiple duplications in one go
-          return { sourcePath: buildFullPath(sourcePath, item.name), newName };
-        });
+    const sources = filteredItems
+      .filter((item) => activeSelection.has(item.name))
+      .map((item) => buildFullPath(sourcePath, item.name));
 
-      await duplicateItems(itemsToDuplicate);
-      handleNavigate(sourcePanelId, sourcePath, "");
-    } catch (err) {
-      setError(`Duplicate failed: ${err.message}`);
-    }
+    await performCopy(sources, sourcePath, false);
   }, [
     activePanel,
     panels,
     activeSelection,
     filteredItems,
-    handleNavigate,
+    performCopy,
     setError,
   ]);
 
   useEffect(() => {
     if (!copyProgress.jobId) return;
 
+    const jobType = copyProgress.isDuplicate ? "duplicate" : "copy";
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(
       `${wsProtocol}//${window.location.host.replace(/:\d+$/, ":3001")}?jobId=${
         copyProgress.jobId
-      }&type=copy`
+      }&type=${jobType}`
     );
     wsRef.current = ws;
 
@@ -329,6 +334,7 @@ export default function useCopy({
         startTime: null,
         lastUpdateTime: null,
         isMove: false,
+        isDuplicate: false,
         sources: [],
       });
     };
@@ -344,6 +350,7 @@ export default function useCopy({
     };
   }, [
     copyProgress.jobId,
+    copyProgress.isDuplicate,
     wsRef,
     setOverwritePrompt,
     copyProgress.isMove,

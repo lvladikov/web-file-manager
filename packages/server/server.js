@@ -22,6 +22,9 @@ const activeDecompressJobs = new Map();
 // In-memory store for active archive test jobs
 const activeArchiveTestJobs = new Map();
 
+// In-memory store for active duplicate jobs
+const activeDuplicateJobs = new Map();
+
 // Initialize the WebSocket server
 initializeWebSocketServer(
   server,
@@ -29,7 +32,8 @@ initializeWebSocketServer(
   activeSizeJobs,
   activeCompressJobs,
   activeDecompressJobs,
-  activeArchiveTestJobs
+  activeArchiveTestJobs,
+  activeDuplicateJobs
 );
 
 const port = 3001;
@@ -43,7 +47,8 @@ initializeRoutes(
   activeSizeJobs,
   activeCompressJobs,
   activeDecompressJobs,
-  activeArchiveTestJobs
+  activeArchiveTestJobs,
+  activeDuplicateJobs
 );
 
 server.listen(port, () => {

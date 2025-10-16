@@ -8,7 +8,8 @@ export default function initializeRoutes(
   activeSizeJobs,
   activeCompressJobs,
   activeDecompressJobs,
-  activeArchiveTestJobs
+  activeArchiveTestJobs,
+  activeDuplicateJobs
 ) {
   // File routes need access to the in-memory job stores
   const fileRouter = createFileRoutes(
@@ -16,7 +17,8 @@ export default function initializeRoutes(
     activeSizeJobs,
     activeCompressJobs,
     activeDecompressJobs,
-    activeArchiveTestJobs
+    activeArchiveTestJobs,
+    activeDuplicateJobs
   );
 
   app.use("/api", mediaRoutes);
