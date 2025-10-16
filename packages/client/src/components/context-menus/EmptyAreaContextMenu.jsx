@@ -164,7 +164,7 @@ const EmptyAreaContextMenu = ({
                 onSelect={onSwapPanels}
                 className={itemClassName}
               >
-                <span>Swap Panels</span>
+                <span>Swap panels</span>
                 <span className="text-gray-400">{metaKey}+U</span>
               </ContextMenu.Item>
             </ScrollArea.Viewport>

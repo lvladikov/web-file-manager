@@ -199,7 +199,7 @@ const HelpModal = ({ isVisible, onClose }) => {
                 contents' size.
               </li>
               <li>
-                <strong>Swap Panels:</strong> You can quickly swap the content
+                <strong>Swap panels:</strong> You can quickly swap the content
                 of the two panels using <kbd>{metaKey} + U</kbd>. This is useful
                 when you want to change which panel is the source and which is
                 the destination for file operations, or simply to re-arrange

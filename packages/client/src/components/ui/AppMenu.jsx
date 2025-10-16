@@ -467,7 +467,7 @@ const FileMenu = ({ ...props }) => {
         />
         <div className={separatorClassName} />
         <MenuItem
-          label="Swap Panels"
+          label="Swap panels"
           shortcut={`${metaKey}+U`}
           onClick={() => handleItemClick(onSwapPanels)}
         />
