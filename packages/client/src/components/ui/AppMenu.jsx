@@ -81,9 +81,12 @@ const FileMenu = ({ ...props }) => {
   const [isArchiveSubmenuOpen, setIsArchiveSubmenuOpen] = useState(false);
   const [isNewSubmenuOpen, setIsNewSubmenuOpen] = useState(false);
   const [isCopyPathsSubmenuOpen, setIsCopyPathsSubmenuOpen] = useState(false);
-  const [isIncludeSubfoldersSubmenuOpen, setIsIncludeSubfoldersSubmenuOpen] = useState(false);
-  const [isExcludeSubfoldersSubmenuOpen, setIsExcludeSubfoldersSubmenuOpen] = useState(false);
-  const [isCopyPathsDownloadSubmenuOpen, setIsCopyPathsDownloadSubmenuOpen] = useState(false);
+  const [isIncludeSubfoldersSubmenuOpen, setIsIncludeSubfoldersSubmenuOpen] =
+    useState(false);
+  const [isExcludeSubfoldersSubmenuOpen, setIsExcludeSubfoldersSubmenuOpen] =
+    useState(false);
+  const [isCopyPathsDownloadSubmenuOpen, setIsCopyPathsDownloadSubmenuOpen] =
+    useState(false);
 
   const shouldShowArchiveGroup =
     activePanelSelections.size > 0 || canPerformArchiveAction;
@@ -209,7 +212,7 @@ const FileMenu = ({ ...props }) => {
             className="relative"
           >
             <div className={submenuTriggerClassName}>
-              <span>Copy Paths to Clipboard</span>
+              <span>Copy Paths to clipboard</span>
               <span className="text-gray-400">&gt;</span>
             </div>
             {isCopyPathsSubmenuOpen && (
@@ -227,11 +230,15 @@ const FileMenu = ({ ...props }) => {
                     <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
                       <MenuItem
                         label="Copy absolute paths"
-                        onClick={() => handleItemClick(() => copyAbsolutePaths(true))}
+                        onClick={() =>
+                          handleItemClick(() => copyAbsolutePaths(true))
+                        }
                       />
                       <MenuItem
                         label="Copy relative paths"
-                        onClick={() => handleItemClick(() => copyRelativePaths(true))}
+                        onClick={() =>
+                          handleItemClick(() => copyRelativePaths(true))
+                        }
                       />
                     </div>
                   )}
@@ -249,11 +256,15 @@ const FileMenu = ({ ...props }) => {
                     <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
                       <MenuItem
                         label="Copy absolute paths"
-                        onClick={() => handleItemClick(() => copyAbsolutePaths(false))}
+                        onClick={() =>
+                          handleItemClick(() => copyAbsolutePaths(false))
+                        }
                       />
                       <MenuItem
                         label="Copy relative paths"
-                        onClick={() => handleItemClick(() => copyRelativePaths(false))}
+                        onClick={() =>
+                          handleItemClick(() => copyRelativePaths(false))
+                        }
                       />
                     </div>
                   )}
@@ -267,7 +278,7 @@ const FileMenu = ({ ...props }) => {
             className="relative"
           >
             <div className={submenuTriggerClassName}>
-              <span>Copy Paths and Download</span>
+              <span>Copy Paths and download</span>
               <span className="text-gray-400">&gt;</span>
             </div>
             {isCopyPathsDownloadSubmenuOpen && (
@@ -285,11 +296,15 @@ const FileMenu = ({ ...props }) => {
                     <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
                       <MenuItem
                         label="Absolute paths"
-                        onClick={() => handleItemClick(() => copyAbsolutePaths(true, true))}
+                        onClick={() =>
+                          handleItemClick(() => copyAbsolutePaths(true, true))
+                        }
                       />
                       <MenuItem
                         label="Relative paths"
-                        onClick={() => handleItemClick(() => copyRelativePaths(true, true))}
+                        onClick={() =>
+                          handleItemClick(() => copyRelativePaths(true, true))
+                        }
                       />
                     </div>
                   )}
@@ -307,11 +322,15 @@ const FileMenu = ({ ...props }) => {
                     <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
                       <MenuItem
                         label="Absolute paths"
-                        onClick={() => handleItemClick(() => copyAbsolutePaths(false, true))}
+                        onClick={() =>
+                          handleItemClick(() => copyAbsolutePaths(false, true))
+                        }
                       />
                       <MenuItem
                         label="Relative paths"
-                        onClick={() => handleItemClick(() => copyRelativePaths(false, true))}
+                        onClick={() =>
+                          handleItemClick(() => copyRelativePaths(false, true))
+                        }
                       />
                     </div>
                   )}

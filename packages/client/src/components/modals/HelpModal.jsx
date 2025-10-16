@@ -36,11 +36,12 @@ const HelpModal = ({ isVisible, onClose }) => {
     "Panel Usage and Information",
     "Real-time Folder Monitoring",
     "Navigation & Selection",
-    "New Folder & New File",
     "Quick Select / Unselect & Quick Filter",
     "Previewing Files",
     "Context Menus",
-    "Calculate Folder Size & Progress",
+    "Copy Paths",
+    "Calculate Folder Size",
+    "Progress Modals",
     "Path Bar & Breadcrumbs",
     "Favourites",
     "Top Menus",
@@ -282,31 +283,6 @@ const HelpModal = ({ isVisible, onClose }) => {
           </HelpSection>
 
           <HelpSection
-            id="new-folder-and-new-file"
-            title="New Folder & New File"
-          >
-            <p>
-              You can create a new folder or a new empty text file directly from
-              the application.
-            </p>
-            <ul className="list-disc list-inside space-y-2 pl-4">
-              <li>
-                <strong>New Folder:</strong> Press <kbd>F7</kbd> or use the "New
-                Folder" option in the "File" menu or the context menu. A new
-                folder will be created with a default name, ready for you to
-                rename.
-              </li>
-              <li>
-                <strong>New File:</strong> Use the "New File" option in the
-                "File" menu or the context menu. This will create a new, empty
-                text file (`.txt`) with a default name. The filename will be
-                selected up to the extension, so you can start typing the name
-                right away.
-              </li>
-            </ul>
-          </HelpSection>
-
-          <HelpSection
             id="quick-select-/-unselect-and-quick-filter"
             title="Quick Select / Unselect & Quick Filter"
           >
@@ -390,8 +366,20 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
             <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
-                <strong>New:</strong> A submenu to create a{" "}
-                <strong>New Folder</strong> or a <strong>New File</strong>.
+                <strong>New</strong> <em>Menu</em>: You can create a new folder
+                or a new empty text file directly from the application.
+                <ul className="list-disc list-inside space-y-2 pl-4">
+                  <li>
+                    <kbd>New Folder</kbd> | <kbd>F7</kbd>: A new folder will be
+                    created with a default name, ready for you to rename.
+                  </li>
+                  <li>
+                    <kbd>New File</kbd>: This will create a new, empty text file
+                    (`.txt`) with a default name. The filename will be selected
+                    up to the extension, so you can start typing the name right
+                    away.
+                  </li>
+                </ul>
               </li>
               <li>
                 <strong>Viewing:</strong> Preview, Open, and Open with...
@@ -399,37 +387,75 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <strong>File Operations:</strong> Contains all major file
                 transfer actions, grouped under the "
-                <strong>Copy & Move</strong>" submenu, and the "
+                <strong>Copy & Move</strong>" submenu, the "
+                <strong>Copy Paths to clipboard</strong>" submenu, the "
+                <strong>Copy Paths and download</strong>" submenu, and the "
                 <strong>Archive</strong>" submenu.
                 <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
                   <li>
-                    <kbd>Copy to other panel</kbd>: Performs the Copy (
-                    <kbd>F5</kbd>) operation on the selected item(s) to the
+                    <kbd>Copy to other panel</kbd> | (<kbd>F5</kbd>): Performs
+                    the Copy operation on the selected item(s) to the
                     <strong>inactive</strong> panel.
                   </li>
                   <li>
-                    <kbd>Copy to clipboard</kbd>: (Coming soon) Standard
-                    clipboard copy operation.
+                    <kbd>Copy to clipboard</kbd> | (<kbd>{metaKey} + C</kbd>):
+                    Copies the currently selected items to clipboard, allowing a
+                    follow up operation - Paste from clipboard. After Paste is
+                    complete the original copied items would still be persisted.
                   </li>
                   <li>
                     <kbd>Copy to...</kbd>: Opens a folder selector to choose a
                     specific destination for the copy operation.
                   </li>
                   <li>
-                    <kbd>Move to other panel</kbd>: Performs the Move (
-                    <kbd>F6</kbd>) operation on the selected item(s) to the
+                    <strong>Copy Paths</strong> <em>Menu:</em> Contains options
+                    to copy absolute or relative paths of selected items
+                    (including or excluding subfolder items) to the OS
+                    clipboard, or to download them as a text file.
+                    <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
+                      <li>
+                        <strong>Copy Paths to clipboard:</strong> Copies
+                        absolute or relative paths of selected items (including
+                        or excluding subfolder items) to the OS clipboard.
+                      </li>
+                      <li>
+                        <strong>Copy Paths and download:</strong> Downloads a
+                        text file containing absolute or relative paths of
+                        selected items (including or excluding subfolder items).
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    <kbd>Move to other panel</kbd> | <kbd>F6</kbd>: Performs the
+                    Move operation on the selected item(s) to the
                     <strong>inactive</strong> panel.
                   </li>
                   <li>
-                    <kbd>Move (Cut) to clipboard</kbd>: (Coming soon) Standard
-                    clipboard cut operation.
+                    <kbd>Move (Cut) to clipboard</kbd> | (
+                    <kbd>{metaKey} + X</kbd>
+                    ): Copies (with the intention for Cut/Move) the currently
+                    selected items to clipboard, allowing a follow up operation
+                    - Paste from clipboard. After Paste is complete the original
+                    copied items would be deleted.
                   </li>
                   <li>
                     <kbd>Move to...</kbd>: Opens a folder selector to choose a
                     specific destination for the move operation.
                   </li>
                   <li>
-                    <strong>Archive Menu:</strong> Contains options to{" "}
+                    <kbd>Paste from clipboard</kbd> | (<kbd>{metaKey} + V</kbd>
+                    ): Pastes the currently copied (or cut) items from the app
+                    clipboard, and into the active panel (path). Feel free to
+                    change paths and active panels after you did a Copy/Cut,
+                    thus allowing you to paste your items in a completly
+                    different place and at your convinience (time wise). If the
+                    operation previously selected was Move (Cut), then upon
+                    successful copying of the items, the source items would be
+                    deleted. If it was Copy, then the original items would
+                    persist at their location.
+                  </li>
+                  <li>
+                    <strong>Archive</strong> <em>Menu:</em> Contains options to{" "}
                     <strong>Compress</strong> the selected item(s) in the active
                     or other panel, or for a single selected archive, options to{" "}
                     <strong>Decompress</strong> and
@@ -452,10 +478,51 @@ const HelpModal = ({ isVisible, onClose }) => {
             />
           </HelpSection>
 
-          <HelpSection
-            id="calculate-folder-size-and-progress"
-            title="Calculate Folder Size & Progress"
-          >
+          <HelpSection id="copy-paths" title="Copy Paths">
+            <p>
+              The application provides powerful tools to copy paths of selected
+              items to the clipboard or download them as a text file. These
+              options are available in the "File" menu under "Copy & Move" and
+              in the context menus.
+            </p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>Copy Paths to clipboard:</strong> This submenu allows
+                you to copy the absolute or relative paths of selected items to
+                your operating system's clipboard.
+                <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
+                  <li>
+                    <strong>Include Subfolders:</strong> When selected, if a
+                    folder is among the chosen items, all its subfolders and
+                    files will also be included in the path list.
+                  </li>
+                  <li>
+                    <strong>Exclude Subfolders:</strong> Only the top-level
+                    selected items (files and folders) will have their paths
+                    copied.
+                  </li>
+                  <li>
+                    <strong>Absolute paths:</strong> The full path from the root
+                    of the file system will be copied (e.g.,{" "}
+                    <code>/home/user/documents/file.txt</code>).
+                  </li>
+                  <li>
+                    <strong>Relative paths:</strong> The path will be relative
+                    to the current panel's directory (e.g.,{" "}
+                    <code>documents/file.txt</code>).
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <strong>Copy Paths and download:</strong> Similar to copying to
+                clipboard, but the paths will be saved into a text file (
+                <code>YYYYMMDD-HHMMSS_items_report.txt</code>) and downloaded to
+                your system.
+              </li>
+            </ul>
+          </HelpSection>
+
+          <HelpSection id="calculate-folder-size" title="Calculate Folder Size">
             <p>
               You can calculate the size of a folder (including all its
               subfolders and files) by selecting it and choosing "Calculate
@@ -465,15 +532,18 @@ const HelpModal = ({ isVisible, onClose }) => {
               being processed and the "Size so far". You can cancel the
               operation at any time.
             </p>
+          </HelpSection>
+
+          <HelpSection id="progress-modals" title="Progress Modals">
             <p>
               During any long-running operation (like calculating folder size,
-              copying, or compressing files), a progress dialog will appear,
-              often displaying the instantaneous speed of transfer. If you need
-              to see the panels behind the dialog, you can click and hold on the
-              animated icon (e.g., spinning circle or pulsing search icon) in
-              the dialog's header. This will make the dialog semi-transparent
-              (20% opacity). Releasing the mouse button will restore its full
-              visibility.
+              copying, compressing, decompressing, testing archives, or
+              gathering paths), a progress dialog will appear, often displaying
+              the instantaneous speed of transfer. If you need to see the panels
+              behind the dialog, you can click and hold on the animated icon
+              (e.g., spinning circle or pulsing search icon) in the dialog's
+              header. This will make the dialog semi-transparent (20% opacity).
+              Releasing the mouse button will restore its full visibility.
             </p>
             <SvgCalculateSizeExample />
           </HelpSection>
@@ -517,9 +587,10 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <strong>File Menu:</strong> Contains actions related to file
                 operations such as <strong>New (in a submenu)</strong>,{" "}
-                <strong>Copy &amp; Move (in a submenu)</strong>,{" "}
-                <strong>Archive (in a submenu)</strong>, Rename, Delete,
-                Calculate Size, and Refresh. Many of these actions have
+                <strong>Copy & Move (in a submenu)</strong>,{" "}
+                <strong>Copy Paths to clipboard (in a submenu)</strong>,{" "}
+                <strong>Copy Paths and download (in a submenu)</strong>, Rename,
+                Delete, Calculate Size, and Refresh. Many of these actions have
                 corresponding function key shortcuts.
               </li>
               <li>

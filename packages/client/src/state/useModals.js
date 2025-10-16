@@ -37,7 +37,7 @@ export default function useModals() {
     jobId: null,
     currentPath: "",
     count: 0,
-    mode: "Clipboard",
+    mode: "clipboard",
   });
 
   return {

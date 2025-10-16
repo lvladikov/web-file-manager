@@ -221,8 +221,10 @@ const AppContextMenu = ({
                     </ContextMenu.Item>
                     <div className={separatorClassName}></div>
                     <ContextMenu.Sub>
-                      <ContextMenu.SubTrigger className={submenuTriggerClassName}>
-                        <span>Copy Paths to Clipboard</span>
+                      <ContextMenu.SubTrigger
+                        className={submenuTriggerClassName}
+                      >
+                        <span>Copy Paths to clipboard</span>
                         <span className="text-gray-400">&gt;</span>
                       </ContextMenu.SubTrigger>
                       <ContextMenu.Portal>
@@ -232,7 +234,9 @@ const AppContextMenu = ({
                           alignOffset={-5}
                         >
                           <ContextMenu.Sub>
-                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                            <ContextMenu.SubTrigger
+                              className={submenuTriggerClassName}
+                            >
                               <span>Include Subfolders</span>
                               <span className="text-gray-400">&gt;</span>
                             </ContextMenu.SubTrigger>
@@ -242,17 +246,25 @@ const AppContextMenu = ({
                                 sideOffset={2}
                                 alignOffset={-5}
                               >
-                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(true)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() => copyAbsolutePaths(true)}
+                                  className={itemClassName}
+                                >
                                   Copy absolute paths
                                 </ContextMenu.Item>
-                                <ContextMenu.Item onSelect={() => copyRelativePaths(true)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() => copyRelativePaths(true)}
+                                  className={itemClassName}
+                                >
                                   Copy relative paths
                                 </ContextMenu.Item>
                               </ContextMenu.SubContent>
                             </ContextMenu.Portal>
                           </ContextMenu.Sub>
                           <ContextMenu.Sub>
-                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                            <ContextMenu.SubTrigger
+                              className={submenuTriggerClassName}
+                            >
                               <span>Exclude Subfolders</span>
                               <span className="text-gray-400">&gt;</span>
                             </ContextMenu.SubTrigger>
@@ -262,10 +274,16 @@ const AppContextMenu = ({
                                 sideOffset={2}
                                 alignOffset={-5}
                               >
-                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(false)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() => copyAbsolutePaths(false)}
+                                  className={itemClassName}
+                                >
                                   Copy absolute paths
                                 </ContextMenu.Item>
-                                <ContextMenu.Item onSelect={() => copyRelativePaths(false)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() => copyRelativePaths(false)}
+                                  className={itemClassName}
+                                >
                                   Copy relative paths
                                 </ContextMenu.Item>
                               </ContextMenu.SubContent>
@@ -275,8 +293,10 @@ const AppContextMenu = ({
                       </ContextMenu.Portal>
                     </ContextMenu.Sub>
                     <ContextMenu.Sub>
-                      <ContextMenu.SubTrigger className={submenuTriggerClassName}>
-                        <span>Copy Paths and Download</span>
+                      <ContextMenu.SubTrigger
+                        className={submenuTriggerClassName}
+                      >
+                        <span>Copy Paths and download</span>
                         <span className="text-gray-400">&gt;</span>
                       </ContextMenu.SubTrigger>
                       <ContextMenu.Portal>
@@ -286,7 +306,9 @@ const AppContextMenu = ({
                           alignOffset={-5}
                         >
                           <ContextMenu.Sub>
-                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                            <ContextMenu.SubTrigger
+                              className={submenuTriggerClassName}
+                            >
                               <span>Include Subfolders</span>
                               <span className="text-gray-400">&gt;</span>
                             </ContextMenu.SubTrigger>
@@ -296,17 +318,25 @@ const AppContextMenu = ({
                                 sideOffset={2}
                                 alignOffset={-5}
                               >
-                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(true, true)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() => copyAbsolutePaths(true, true)}
+                                  className={itemClassName}
+                                >
                                   Absolute paths
                                 </ContextMenu.Item>
-                                <ContextMenu.Item onSelect={() => copyRelativePaths(true, true)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() => copyRelativePaths(true, true)}
+                                  className={itemClassName}
+                                >
                                   Relative paths
                                 </ContextMenu.Item>
                               </ContextMenu.SubContent>
                             </ContextMenu.Portal>
                           </ContextMenu.Sub>
                           <ContextMenu.Sub>
-                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                            <ContextMenu.SubTrigger
+                              className={submenuTriggerClassName}
+                            >
                               <span>Exclude Subfolders</span>
                               <span className="text-gray-400">&gt;</span>
                             </ContextMenu.SubTrigger>
@@ -316,10 +346,20 @@ const AppContextMenu = ({
                                 sideOffset={2}
                                 alignOffset={-5}
                               >
-                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(false, true)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() =>
+                                    copyAbsolutePaths(false, true)
+                                  }
+                                  className={itemClassName}
+                                >
                                   Absolute paths
                                 </ContextMenu.Item>
-                                <ContextMenu.Item onSelect={() => copyRelativePaths(false, true)} className={itemClassName}>
+                                <ContextMenu.Item
+                                  onSelect={() =>
+                                    copyRelativePaths(false, true)
+                                  }
+                                  className={itemClassName}
+                                >
                                   Relative paths
                                 </ContextMenu.Item>
                               </ContextMenu.SubContent>

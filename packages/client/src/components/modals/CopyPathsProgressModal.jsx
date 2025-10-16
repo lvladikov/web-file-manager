@@ -27,7 +27,7 @@ const CopyPathsProgressModal = ({
         >
           <LoaderCircle className="w-8 h-8 text-sky-400 mr-3 animate-spin" />
           <h3 className="text-xl font-bold text-sky-400">
-            {`Copying Paths to ${mode}...`}
+            {`Copying paths to ${mode}...`}
           </h3>
         </div>
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-6 break-all">
@@ -38,10 +38,13 @@ const CopyPathsProgressModal = ({
           >
             <TruncatedText text={currentPath} />
           </div>
-          <p className="text-sm border-t border-gray-700 pt-2" title="Includes all folders, subfolders and files">Items found:</p>
-          <p className="font-mono text-gray-300">
-            {count}
+          <p
+            className="text-sm border-t border-gray-700 pt-2"
+            title="Includes all folders, subfolders and files"
+          >
+            Items found:
           </p>
+          <p className="font-mono text-gray-300">{count}</p>
         </div>
         <div className="flex justify-end">
           <button
