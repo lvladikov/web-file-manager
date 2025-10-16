@@ -49,6 +49,8 @@ const AppContextMenu = ({
   clipboard,
   onNewFolder,
   onNewFile,
+  copyAbsolutePaths,
+  copyRelativePaths,
 }) => {
   useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -217,6 +219,115 @@ const AppContextMenu = ({
                     >
                       <span>Duplicate</span>
                     </ContextMenu.Item>
+                    <div className={separatorClassName}></div>
+                    <ContextMenu.Sub>
+                      <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                        <span>Copy Paths to Clipboard</span>
+                        <span className="text-gray-400">&gt;</span>
+                      </ContextMenu.SubTrigger>
+                      <ContextMenu.Portal>
+                        <ContextMenu.SubContent
+                          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-52"
+                          sideOffset={2}
+                          alignOffset={-5}
+                        >
+                          <ContextMenu.Sub>
+                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                              <span>Include Subfolders</span>
+                              <span className="text-gray-400">&gt;</span>
+                            </ContextMenu.SubTrigger>
+                            <ContextMenu.Portal>
+                              <ContextMenu.SubContent
+                                className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-56"
+                                sideOffset={2}
+                                alignOffset={-5}
+                              >
+                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(true)} className={itemClassName}>
+                                  Copy absolute paths
+                                </ContextMenu.Item>
+                                <ContextMenu.Item onSelect={() => copyRelativePaths(true)} className={itemClassName}>
+                                  Copy relative paths
+                                </ContextMenu.Item>
+                              </ContextMenu.SubContent>
+                            </ContextMenu.Portal>
+                          </ContextMenu.Sub>
+                          <ContextMenu.Sub>
+                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                              <span>Exclude Subfolders</span>
+                              <span className="text-gray-400">&gt;</span>
+                            </ContextMenu.SubTrigger>
+                            <ContextMenu.Portal>
+                              <ContextMenu.SubContent
+                                className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-56"
+                                sideOffset={2}
+                                alignOffset={-5}
+                              >
+                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(false)} className={itemClassName}>
+                                  Copy absolute paths
+                                </ContextMenu.Item>
+                                <ContextMenu.Item onSelect={() => copyRelativePaths(false)} className={itemClassName}>
+                                  Copy relative paths
+                                </ContextMenu.Item>
+                              </ContextMenu.SubContent>
+                            </ContextMenu.Portal>
+                          </ContextMenu.Sub>
+                        </ContextMenu.SubContent>
+                      </ContextMenu.Portal>
+                    </ContextMenu.Sub>
+                    <ContextMenu.Sub>
+                      <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                        <span>Copy Paths and Download</span>
+                        <span className="text-gray-400">&gt;</span>
+                      </ContextMenu.SubTrigger>
+                      <ContextMenu.Portal>
+                        <ContextMenu.SubContent
+                          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-52"
+                          sideOffset={2}
+                          alignOffset={-5}
+                        >
+                          <ContextMenu.Sub>
+                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                              <span>Include Subfolders</span>
+                              <span className="text-gray-400">&gt;</span>
+                            </ContextMenu.SubTrigger>
+                            <ContextMenu.Portal>
+                              <ContextMenu.SubContent
+                                className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-56"
+                                sideOffset={2}
+                                alignOffset={-5}
+                              >
+                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(true, true)} className={itemClassName}>
+                                  Absolute paths
+                                </ContextMenu.Item>
+                                <ContextMenu.Item onSelect={() => copyRelativePaths(true, true)} className={itemClassName}>
+                                  Relative paths
+                                </ContextMenu.Item>
+                              </ContextMenu.SubContent>
+                            </ContextMenu.Portal>
+                          </ContextMenu.Sub>
+                          <ContextMenu.Sub>
+                            <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                              <span>Exclude Subfolders</span>
+                              <span className="text-gray-400">&gt;</span>
+                            </ContextMenu.SubTrigger>
+                            <ContextMenu.Portal>
+                              <ContextMenu.SubContent
+                                className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-56"
+                                sideOffset={2}
+                                alignOffset={-5}
+                              >
+                                <ContextMenu.Item onSelect={() => copyAbsolutePaths(false, true)} className={itemClassName}>
+                                  Absolute paths
+                                </ContextMenu.Item>
+                                <ContextMenu.Item onSelect={() => copyRelativePaths(false, true)} className={itemClassName}>
+                                  Relative paths
+                                </ContextMenu.Item>
+                              </ContextMenu.SubContent>
+                            </ContextMenu.Portal>
+                          </ContextMenu.Sub>
+                        </ContextMenu.SubContent>
+                      </ContextMenu.Portal>
+                    </ContextMenu.Sub>
                     <div className={separatorClassName}></div>
                     <ContextMenu.Item
                       onSelect={onMoveToOtherPanel}

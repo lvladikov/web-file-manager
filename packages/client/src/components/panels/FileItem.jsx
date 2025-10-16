@@ -57,6 +57,8 @@ const FileItem = ({
   onPasteFromClipboard,
   onNewFolder,
   onNewFile,
+  copyAbsolutePaths,
+  copyRelativePaths,
 }) => {
   const inputRef = useRef(null);
 
@@ -208,6 +210,8 @@ const FileItem = ({
       onPasteFromClipboard={onPasteFromClipboard}
       onNewFolder={onNewFolder}
       onNewFile={onNewFile}
+      copyAbsolutePaths={copyAbsolutePaths}
+      copyRelativePaths={copyRelativePaths}
     >
       {renderFileItemContent()}
     </AppContextMenu>

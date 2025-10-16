@@ -27,6 +27,7 @@ import QuickSelectModal from "./components/modals/QuickSelectModal";
 import CompressionProgressModal from "./components/modals/CompressionProgressModal";
 import DecompressionProgressModal from "./components/modals/DecompressionProgressModal";
 import ArchiveTestIntegrityProgressModal from "./components/modals/ArchiveTestIntegrityProgressModal";
+import CopyPathsProgressModal from "./components/modals/CopyPathsProgressModal";
 
 export default function App() {
   const {
@@ -146,6 +147,9 @@ export default function App() {
     handleSwapPanels,
     handleCopyTo,
     handleMoveTo,
+    copyAbsolutePaths,
+    copyRelativePaths,
+    copyPathsModal,
   } = appState();
   const mainRef = useRef(null);
 
@@ -314,6 +318,8 @@ export default function App() {
           onDuplicate={handleDuplicate}
           onNewFolder={handleStartNewFolder}
           onNewFile={handleStartNewFile}
+          copyAbsolutePaths={copyAbsolutePaths}
+          copyRelativePaths={copyRelativePaths}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />
@@ -470,6 +476,13 @@ export default function App() {
         onCancel={handleCancelArchiveTest}
         onClose={closeArchiveTestModal}
       />
+      <CopyPathsProgressModal
+        isVisible={copyPathsModal.isVisible}
+        currentPath={copyPathsModal.currentPath}
+        count={copyPathsModal.count}
+        mode={copyPathsModal.mode}
+        onCancel={() => {}}
+      />
 
       <main
         ref={mainRef}
@@ -547,8 +560,10 @@ export default function App() {
             onFilterChange={handleFilterChange}
             onCloseFilter={handleCloseFilter}
             filteredItems={filteredItems[panelId]}
-            onNewFolder={() => handleStartNewFolder(panelId)}
-            onNewFile={() => handleStartNewFile(panelId)}
+            onNewFolder={handleStartNewFolder}
+            onNewFile={handleStartNewFile}
+            copyAbsolutePaths={copyAbsolutePaths}
+            copyRelativePaths={copyRelativePaths}
             onRefreshPanel={() => handleRefreshPanel(panelId)}
             onRefreshBothPanels={handleRefreshAllPanels}
             onSelectAll={() => handleSelectAll(panelId)}

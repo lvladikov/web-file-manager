@@ -19,7 +19,8 @@ export default function createFileRoutes(
   activeCompressJobs,
   activeDecompressJobs,
   activeArchiveTestJobs,
-  activeDuplicateJobs
+  activeDuplicateJobs,
+  activeCopyPathsJobs
 ) {
   const router = express.Router();
 
@@ -634,6 +635,29 @@ export default function createFileRoutes(
         .status(500)
         .json({ message: `Failed to save file: ${error.message}` });
     }
+  });
+
+  // Endpoint to get a list of paths
+  router.post("/get-paths", async (req, res) => {
+    const { items, basePath, isAbsolute, includeSubfolders } = req.body;
+
+    if (!items || !Array.isArray(items) || !basePath) {
+      return res.status(400).json({ message: "Invalid request body." });
+    }
+
+    const jobId = crypto.randomUUID();
+    const job = {
+      id: jobId,
+      status: "pending",
+      ws: null,
+      items,
+      basePath,
+      isAbsolute,
+      includeSubfolders,
+    };
+    activeCopyPathsJobs.set(jobId, job);
+
+    res.status(202).json({ jobId });
   });
 
   return router;

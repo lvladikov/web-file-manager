@@ -32,6 +32,14 @@ export default function useModals() {
     mode: "select", // 'select' or 'unselect'
   });
 
+  const [copyPathsModal, setCopyPathsModal] = useState({
+    isVisible: false,
+    jobId: null,
+    currentPath: "",
+    count: 0,
+    mode: "Clipboard",
+  });
+
   return {
     previewModal,
     setPreviewModal,
@@ -45,5 +53,7 @@ export default function useModals() {
     setHelpModal,
     destinationBrowserModal,
     setDestinationBrowserModal,
+    copyPathsModal,
+    setCopyPathsModal,
   };
 }

@@ -73,11 +73,17 @@ const FileMenu = ({ ...props }) => {
     onNewFolder,
     onNewFile,
     activePanel,
+    copyAbsolutePaths,
+    copyRelativePaths,
   } = props;
 
   const [isCopyMoveSubmenuOpen, setIsCopyMoveSubmenuOpen] = useState(false);
   const [isArchiveSubmenuOpen, setIsArchiveSubmenuOpen] = useState(false);
   const [isNewSubmenuOpen, setIsNewSubmenuOpen] = useState(false);
+  const [isCopyPathsSubmenuOpen, setIsCopyPathsSubmenuOpen] = useState(false);
+  const [isIncludeSubfoldersSubmenuOpen, setIsIncludeSubfoldersSubmenuOpen] = useState(false);
+  const [isExcludeSubfoldersSubmenuOpen, setIsExcludeSubfoldersSubmenuOpen] = useState(false);
+  const [isCopyPathsDownloadSubmenuOpen, setIsCopyPathsDownloadSubmenuOpen] = useState(false);
 
   const shouldShowArchiveGroup =
     activePanelSelections.size > 0 || canPerformArchiveAction;
@@ -196,6 +202,123 @@ const FileMenu = ({ ...props }) => {
             onClick={() => handleItemClick(onDuplicate)}
             disabled={!canDuplicate}
           />
+          <div className={separatorClassName} />
+          <div
+            onMouseEnter={() => setIsCopyPathsSubmenuOpen(true)}
+            onMouseLeave={() => setIsCopyPathsSubmenuOpen(false)}
+            className="relative"
+          >
+            <div className={submenuTriggerClassName}>
+              <span>Copy Paths to Clipboard</span>
+              <span className="text-gray-400">&gt;</span>
+            </div>
+            {isCopyPathsSubmenuOpen && (
+              <div className="absolute top-0 left-full mt-[-1px] w-52 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+                <div
+                  onMouseEnter={() => setIsIncludeSubfoldersSubmenuOpen(true)}
+                  onMouseLeave={() => setIsIncludeSubfoldersSubmenuOpen(false)}
+                  className="relative"
+                >
+                  <div className={submenuTriggerClassName}>
+                    <span>Include Subfolders</span>
+                    <span className="text-gray-400">&gt;</span>
+                  </div>
+                  {isIncludeSubfoldersSubmenuOpen && (
+                    <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+                      <MenuItem
+                        label="Copy absolute paths"
+                        onClick={() => handleItemClick(() => copyAbsolutePaths(true))}
+                      />
+                      <MenuItem
+                        label="Copy relative paths"
+                        onClick={() => handleItemClick(() => copyRelativePaths(true))}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div
+                  onMouseEnter={() => setIsExcludeSubfoldersSubmenuOpen(true)}
+                  onMouseLeave={() => setIsExcludeSubfoldersSubmenuOpen(false)}
+                  className="relative"
+                >
+                  <div className={submenuTriggerClassName}>
+                    <span>Exclude Subfolders</span>
+                    <span className="text-gray-400">&gt;</span>
+                  </div>
+                  {isExcludeSubfoldersSubmenuOpen && (
+                    <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+                      <MenuItem
+                        label="Copy absolute paths"
+                        onClick={() => handleItemClick(() => copyAbsolutePaths(false))}
+                      />
+                      <MenuItem
+                        label="Copy relative paths"
+                        onClick={() => handleItemClick(() => copyRelativePaths(false))}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <div
+            onMouseEnter={() => setIsCopyPathsDownloadSubmenuOpen(true)}
+            onMouseLeave={() => setIsCopyPathsDownloadSubmenuOpen(false)}
+            className="relative"
+          >
+            <div className={submenuTriggerClassName}>
+              <span>Copy Paths and Download</span>
+              <span className="text-gray-400">&gt;</span>
+            </div>
+            {isCopyPathsDownloadSubmenuOpen && (
+              <div className="absolute top-0 left-full mt-[-1px] w-52 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+                <div
+                  onMouseEnter={() => setIsIncludeSubfoldersSubmenuOpen(true)}
+                  onMouseLeave={() => setIsIncludeSubfoldersSubmenuOpen(false)}
+                  className="relative"
+                >
+                  <div className={submenuTriggerClassName}>
+                    <span>Include Subfolders</span>
+                    <span className="text-gray-400">&gt;</span>
+                  </div>
+                  {isIncludeSubfoldersSubmenuOpen && (
+                    <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+                      <MenuItem
+                        label="Absolute paths"
+                        onClick={() => handleItemClick(() => copyAbsolutePaths(true, true))}
+                      />
+                      <MenuItem
+                        label="Relative paths"
+                        onClick={() => handleItemClick(() => copyRelativePaths(true, true))}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div
+                  onMouseEnter={() => setIsExcludeSubfoldersSubmenuOpen(true)}
+                  onMouseLeave={() => setIsExcludeSubfoldersSubmenuOpen(false)}
+                  className="relative"
+                >
+                  <div className={submenuTriggerClassName}>
+                    <span>Exclude Subfolders</span>
+                    <span className="text-gray-400">&gt;</span>
+                  </div>
+                  {isExcludeSubfoldersSubmenuOpen && (
+                    <div className="absolute top-0 left-full mt-[-1px] w-56 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+                      <MenuItem
+                        label="Absolute paths"
+                        onClick={() => handleItemClick(() => copyAbsolutePaths(false, true))}
+                      />
+                      <MenuItem
+                        label="Relative paths"
+                        onClick={() => handleItemClick(() => copyRelativePaths(false, true))}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <div className={separatorClassName} />
           <MenuItem
             label="Move to other panel"

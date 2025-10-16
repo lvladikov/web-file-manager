@@ -72,6 +72,8 @@ const FilePanel = React.forwardRef(
       filteredItems,
       onNewFolder,
       onNewFile,
+      copyAbsolutePaths,
+      copyRelativePaths,
       onRefreshPanel,
       onRefreshBothPanels,
       onSelectAll,
@@ -490,6 +492,7 @@ const FilePanel = React.forwardRef(
               <PathContextMenu
                 onChooseFolder={() => onChooseFolder(panelId)}
                 onSwapPanels={onSwapPanels}
+                onCopyPathToClipboard={() => navigator.clipboard.writeText(panelData.path)}
               >
                 <div
                   onDoubleClick={onPathDoubleClick}
@@ -673,6 +676,8 @@ const FilePanel = React.forwardRef(
                   onPasteFromClipboard={onPasteFromClipboard}
                   onNewFolder={onNewFolder}
                   onNewFile={onNewFile}
+                  copyAbsolutePaths={copyAbsolutePaths}
+                  copyRelativePaths={copyRelativePaths}
                 />
               ))}
           </div>

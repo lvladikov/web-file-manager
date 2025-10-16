@@ -21,6 +21,7 @@ import useCompress from "./useCompress";
 import useDecompress from "./useDecompress";
 import useArchiveIntegrityTest from "./useArchiveIntegrityTest";
 import useSwapPanels from "./useSwapPanels";
+import useCopyPaths from "./useCopyPaths";
 
 export default function appState() {
   // --- Core State ---
@@ -323,6 +324,8 @@ export default function appState() {
     panels,
     handleNavigate: panelOps.handleNavigate,
   });
+
+  const copyPaths = useCopyPaths({ setError, activePanel, panels, selections, setCopyPathsModal: modals.setCopyPathsModal, wsRef });
 
   const handleCopyTo = useCallback(() => {
     const otherPanelId = activePanel === "left" ? "right" : "left";
@@ -871,6 +874,7 @@ export default function appState() {
     ...compress,
     ...decompress,
     ...archiveTest,
+    ...copyPaths,
     // Connector Handlers
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,

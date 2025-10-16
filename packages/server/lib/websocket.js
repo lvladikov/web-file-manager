@@ -47,7 +47,8 @@ export function initializeWebSocketServer(
   activeCompressJobs,
   activeDecompressJobs,
   activeArchiveTestJobs,
-  activeDuplicateJobs
+  activeDuplicateJobs,
+  activeCopyPathsJobs
 ) {
   const wss = new WebSocketServer({ server });
 
@@ -68,6 +69,8 @@ export function initializeWebSocketServer(
         jobMap = activeArchiveTestJobs;
       } else if (jobType === "duplicate") {
         jobMap = activeDuplicateJobs;
+      } else if (jobType === "copy-paths") {
+        jobMap = activeCopyPathsJobs;
       } else {
         // Default to copy if not specified or unknown
         jobMap = activeCopyJobs;
@@ -811,6 +814,90 @@ export function initializeWebSocketServer(
             }
           })();
         }
+
+        if (jobType === "copy-paths") {
+          (async () => {
+            const allPaths = [];
+            const visited = new Set();
+            let count = 0;
+
+            const getPathsRecursive = async (dir) => {
+              if (visited.has(dir)) {
+                return;
+              }
+              visited.add(dir);
+
+              try {
+                const files = await fse.readdir(dir, { withFileTypes: true });
+                for (const file of files) {
+                  const fullPath = path.join(dir, file.name);
+                  allPaths.push(fullPath);
+                  count++;
+                  if (ws.readyState === 1) {
+                    ws.send(
+                      JSON.stringify({
+                        type: "progress",
+                        path: fullPath,
+                        count,
+                      })
+                    );
+                  }
+                  if (file.isDirectory()) {
+                    await getPathsRecursive(fullPath);
+                  }
+                }
+              } catch (error) {
+                console.error(`Could not read directory: ${dir}`, error);
+              }
+            };
+
+            try {
+              if (ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: "start" }));
+              }
+
+              for (const item of job.items) {
+                const fullPath = path.join(job.basePath, item.name);
+                allPaths.push(fullPath);
+                count++;
+                if (ws.readyState === 1) {
+                  ws.send(
+                    JSON.stringify({
+                      type: "progress",
+                      path: fullPath,
+                      count,
+                    })
+                  );
+                }
+                if (job.includeSubfolders && item.type === "folder") {
+                  await getPathsRecursive(fullPath);
+                }
+              }
+
+              const formattedPaths = job.isAbsolute
+                ? allPaths
+                : allPaths.map((p) => path.relative(job.basePath, p));
+
+              if (ws.readyState === 1) {
+                ws.send(
+                  JSON.stringify({ type: "complete", paths: formattedPaths })
+                );
+                ws.close(1000, "Job Completed");
+              }
+            } catch (error) {
+              console.error(`Copy paths job ${jobId} failed:`, error.message);
+              if (ws.readyState === 1) {
+                ws.send(
+                  JSON.stringify({ type: "error", message: error.message })
+                );
+                ws.close(1000, `Job finished with status: error`);
+              }
+            } finally {
+              setTimeout(() => activeCopyPathsJobs.delete(jobId), 5000);
+            }
+          })();
+        }
+
 
         ws.on("close", async () => {
           console.log(`[ws] Client disconnected for job: ${jobId}`);
