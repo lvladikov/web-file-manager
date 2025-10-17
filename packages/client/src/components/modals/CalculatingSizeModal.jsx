@@ -32,6 +32,10 @@ const CalculatingSizeModal = ({
             Calculating Folder Size...
           </h3>
         </div>
+        <p className="text-sm text-gray-400 my-3">
+          For large folders, the initial scan to determine the total size may take
+          some time. Please be patient.
+        </p>
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-6 break-all">
           <p className="text-sm">Processing:</p>
           <p className="font-mono text-gray-300 mb-2 w-full truncate overflow-hidden whitespace-nowrap">

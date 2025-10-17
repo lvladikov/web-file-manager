@@ -15,6 +15,7 @@ import folderTruncationScreenshot from "../../../screenshots/folder-truncation.p
 import quickFilterScreenshot from "../../../screenshots/quick-filter.png";
 import itemsSelectionScreenshot from "../../../screenshots/items-selection.png";
 import folderUpScreenshot from "../../../screenshots/folder-up.png";
+import calcFolderSizeScreenshot from "../../../screenshots/calc-folder-size.png";
 
 import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
 import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
@@ -553,6 +554,11 @@ const HelpModal = ({ isVisible, onClose }) => {
               being processed and the "Size so far". You can cancel the
               operation at any time.
             </p>
+            <img
+              src={calcFolderSizeScreenshot}
+              alt="Calculate Folder Size Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection id="progress-modals" title="Progress Modals">

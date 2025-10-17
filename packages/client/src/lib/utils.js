@@ -190,6 +190,7 @@ const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {
           jobId,
           currentFile: `Starting for ${folder.name}...`,
           sizeSoFar: 0,
+          totalBytes: 0,
           folderName: folder.name,
         });
 
@@ -207,12 +208,19 @@ const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {
         jobWs.onmessage = (event) => {
           const data = JSON.parse(event.data);
           switch (data.type) {
+            case "start":
+              setSizeCalcModal((prev) => ({
+                ...prev,
+                totalBytes: data.totalSize,
+              }));
+              break;
             case "progress":
               // Update the modal with the current file being scanned and size so far.
               setSizeCalcModal((prev) => ({
                 ...prev,
                 currentFile: data.file,
                 sizeSoFar: data.sizeSoFar,
+                totalBytes: data.totalSize,
               }));
               break;
             case "complete":

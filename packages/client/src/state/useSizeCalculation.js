@@ -96,8 +96,9 @@ export default function useSizeCalculation({
               setSizeCalcModal({
                 isVisible: true,
                 jobId,
-                currentFile: `Starting for ${folder.name}...`,
+                currentFile: `Preparing ${folder.name}...`,
                 sizeSoFar: 0,
+                totalBytes: 0,
                 folderName: folder.name,
               });
 
@@ -121,6 +122,7 @@ export default function useSizeCalculation({
                     ...prev,
                     currentFile: data.file,
                     sizeSoFar: data.sizeSoFar,
+                    totalBytes: data.totalSize,
                   }));
                 } else if (data.type === "complete") {
                   resolve(data.size);
@@ -141,6 +143,7 @@ export default function useSizeCalculation({
                   currentFile: "",
                   folderName: null,
                   sizeSoFar: 0,
+                  totalBytes: 0,
                 });
               };
             } catch (err) {

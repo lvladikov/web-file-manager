@@ -198,6 +198,7 @@ const getDirSizeWithProgress = async (dirPath, job) => {
             type: "progress",
             file: itemPath,
             sizeSoFar: job.sizeSoFar,
+            totalSize: job.totalSize,
           })
         );
       }
@@ -213,6 +214,7 @@ const getDirSizeWithProgress = async (dirPath, job) => {
               type: "progress",
               file: itemPath,
               sizeSoFar: job.sizeSoFar,
+              totalSize: job.totalSize,
             })
           );
         }

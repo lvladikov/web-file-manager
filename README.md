@@ -172,6 +172,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 - **Calculate Folder Size**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing <kbd>Spacebar</kbd> on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed.
 
+  ![Calculate Folder Size Screenshot](packages/client/screenshots/calc-folder-size.png)
+
 - **Path Bar & Breadcrumbs**: Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Choose folder..." option.
 
 - **Favourites**: The star icon next to the path bar allows you to manage your favourite paths. Add the current path or select a previously saved favourite path. Favourites are remembered across sessions.
