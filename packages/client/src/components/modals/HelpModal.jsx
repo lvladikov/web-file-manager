@@ -4,9 +4,6 @@ import { XCircle } from "lucide-react";
 import { metaKey } from "../../lib/utils";
 import Icon from "../ui/Icon";
 
-import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
-import SvgBreadcrumbsExample from "../help-diagrams/SvgBreadcrumbsExample";
-import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
 import dualPanelsScreenshot from "../../../screenshots/dual-panels.png";
 import panelInfoScreenshot from "../../../screenshots/panel-info.png";
 import contextMenuScreenshot from "../../../screenshots/context-menu.png";
@@ -16,8 +13,11 @@ import quickFilterScreenshot from "../../../screenshots/quick-filter.png";
 import itemsSelectionScreenshot from "../../../screenshots/items-selection.png";
 import folderUpScreenshot from "../../../screenshots/folder-up.png";
 import calcFolderSizeScreenshot from "../../../screenshots/calc-folder-size.png";
+import copyProgressScreenshot from "../../../screenshots/copy-progress.png";
+import pathBreadcrumbsScreenshot from "../../../screenshots/path-breadcrumbs.png";
 
-import SvgCalculateSizeExample from "../help-diagrams/SvgCalculateSizeExample";
+import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
+import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
 import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
 import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
 
@@ -557,7 +557,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <img
               src={calcFolderSizeScreenshot}
               alt="Calculate Folder Size Screenshot"
-              className="w-3/4 mx-auto rounded-lg shadow-lg"
+              className="w-1/2 mx-auto rounded-lg shadow-lg"
             />
           </HelpSection>
 
@@ -572,7 +572,11 @@ const HelpModal = ({ isVisible, onClose }) => {
               header. This will make the dialog semi-transparent (20% opacity).
               Releasing the mouse button will restore its full visibility.
             </p>
-            <SvgCalculateSizeExample />
+            <img
+              src={copyProgressScreenshot}
+              alt="Copy Progress Screenshot"
+              className="w-1/2 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection
@@ -590,7 +594,11 @@ const HelpModal = ({ isVisible, onClose }) => {
               Right-clicking the path bar gives you an option to "Choose a
               folder..." which opens a folder selection dialog.
             </p>
-            <SvgBreadcrumbsExample />
+            <img
+              src={pathBreadcrumbsScreenshot}
+              alt="Path Breadcrumbs Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection id="favourites" title="Favourites">

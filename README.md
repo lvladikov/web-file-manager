@@ -168,13 +168,17 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
     ![Context Menu Screenshot](packages/client/screenshots/context-menu.png)
 
-- **Progress Modals**: During any long-running operation (like calculating folder size, copying, compressing, decompressing, testing archives, or gathering paths), a progress dialog will appear, often displaying the instantaneous speed of transfer. If you need to see the panels behind the dialog, you can click and hold on the animated icon (e.g., spinning circle or pulsing search icon) in the dialog's header. This will make the dialog semi-transparent (20% opacity). Releasing the mouse button will restore its full visibility.
-
 - **Calculate Folder Size**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing <kbd>Spacebar</kbd> on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed.
 
   ![Calculate Folder Size Screenshot](packages/client/screenshots/calc-folder-size.png)
 
+- **Progress Modals**: During any long-running operation (like calculating folder size, copying, compressing, decompressing, testing archives, or gathering paths), a progress dialog will appear, often displaying the instantaneous speed of transfer. If you need to see the panels behind the dialog, you can click and hold on the animated icon (e.g., spinning circle or pulsing search icon) in the dialog's header. This will make the dialog semi-transparent (20% opacity). Releasing the mouse button will restore its full visibility.
+
+  ![Copy Progress Screenshot](packages/client/screenshots/copy-progress.png)
+
 - **Path Bar & Breadcrumbs**: Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Choose folder..." option.
+
+  ![Path Breadcrumbs Screenshot](packages/client/screenshots/path-breadcrumbs.png)
 
 - **Favourites**: The star icon next to the path bar allows you to manage your favourite paths. Add the current path or select a previously saved favourite path. Favourites are remembered across sessions.
 
