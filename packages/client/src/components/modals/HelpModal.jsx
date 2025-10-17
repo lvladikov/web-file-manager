@@ -15,10 +15,10 @@ import folderUpScreenshot from "../../../screenshots/folder-up.png";
 import calcFolderSizeScreenshot from "../../../screenshots/calc-folder-size.png";
 import copyProgressScreenshot from "../../../screenshots/copy-progress.png";
 import pathBreadcrumbsScreenshot from "../../../screenshots/path-breadcrumbs.png";
+import favouritesMenuScreenshot from "../../../screenshots/favourites-menu.png";
 
 import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
 import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
-import SvgFavouritesExample from "../help-diagrams/SvgFavouritesExample";
 import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
 
 const HelpSection = ({ title, id, children }) => (
@@ -607,9 +607,14 @@ const HelpModal = ({ isVisible, onClose }) => {
               favourite paths. Clicking it opens a dropdown where you can add
               the current path to your favourites, or select a previously saved
               favourite path to navigate to it instantly. Favourites are
-              remembered across sessions.
+              remembered across sessions. There is also a submenu there with
+              recently visited paths, these are session based.
             </p>
-            <SvgFavouritesExample />
+            <img
+              src={favouritesMenuScreenshot}
+              alt="Favourites Menu Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection id="top-menus" title="Top Menus">

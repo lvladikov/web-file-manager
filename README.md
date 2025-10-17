@@ -180,7 +180,9 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   ![Path Breadcrumbs Screenshot](packages/client/screenshots/path-breadcrumbs.png)
 
-- **Favourites**: The star icon next to the path bar allows you to manage your favourite paths. Add the current path or select a previously saved favourite path. Favourites are remembered across sessions.
+- **Favourites**: The star icon next to the path bar allows you to manage your favourite paths. Add the current path or select a previously saved favourite path. Favourites are remembered across sessions. There is also a submenu there with recently visited paths, these are session based.
+
+  ![Favourites Menu Screenshot](packages/client/screenshots/favourites-menu.png)
 
 - **Top Menus**: "File" and "Select" menus provide access to comprehensive file management and selection tools.
 
