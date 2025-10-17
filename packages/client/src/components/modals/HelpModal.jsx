@@ -17,9 +17,8 @@ import copyProgressScreenshot from "../../../screenshots/copy-progress.png";
 import pathBreadcrumbsScreenshot from "../../../screenshots/path-breadcrumbs.png";
 import favouritesMenuScreenshot from "../../../screenshots/favourites-menu.png";
 import fileMenuScreenshot from "../../../screenshots/file-menu.png";
-
-import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
-import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
+import actionBarScreenshot from "../../../screenshots/action-bar.png";
+import overwriteModalScreenshot from "../../../screenshots/overwrite-modal.png";
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -690,7 +689,11 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <kbd>F8</kbd>: Delete the selected items.
               </li>
             </ul>
-            <SvgActionBarExample />
+            <img
+              src={actionBarScreenshot}
+              alt="Action Bar Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection
@@ -709,7 +712,11 @@ const HelpModal = ({ isVisible, onClose }) => {
               button in the dialog to see a detailed explanation of what it
               does.
             </p>
-            <SvgCopyModesExample />
+            <img
+              src={overwriteModalScreenshot}
+              alt="Overwrite Modal Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
             <ul className="list-disc list-inside space-y-2 pl-4 mt-4">
               <li>
                 <strong>For This Item Only:</strong> You can decide to overwrite

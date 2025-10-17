@@ -212,4 +212,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   - <kbd>F8</kbd>: Delete the selected items.
 
+    ![Action Bar Screenshot](packages/client/screenshots/action-bar.png)
+
 - **Copy/Move Operation & Conflict Modes**: When copying/moving, if an item exists in the target, a confirmation dialog appears with choices for handling conflicts (e.g., "Yes to All", "Copy/Move if New", "No to All", "Skip if Source is Empty", "Overwrite if Size Differs", "Replace if Smaller").
+
+  ![Overwrite Modal Screenshot](packages/client/screenshots/overwrite-modal.png)
