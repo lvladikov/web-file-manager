@@ -99,11 +99,10 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
       }
     }
 
-    if (innerZipEntry && getFileType(innerZipEntry.filename, false) === "archive") {
-      // It's a nested zip file, extract it to a temporary location and open it
-      tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
-      const tempInnerZipPath = path.join(tempDir, path.basename(innerZipEntry.filename));
-
+          if (innerZipEntry && getFileType(innerZipEntry.filename, false) === "archive") {
+            // It's a nested zip file, extract it to a temporary location and open it
+            tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"), { mode: 0o700 });
+            const tempInnerZipPath = path.join(tempDir, path.basename(innerZipEntry.filename));
       const readStream = await outerZip.openReadStream(innerZipEntry);
       const writeStream = fse.createWriteStream(tempInnerZipPath);
       await new Promise((resolve, reject) => {

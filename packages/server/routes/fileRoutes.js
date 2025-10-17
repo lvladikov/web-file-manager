@@ -574,14 +574,34 @@ export default function createFileRoutes(
     }
 
     let sourcePath;
+    let zipFilePath = null;
+    let filePathInZip = null;
+    let isNestedZip = false;
+
+    let fullSourcePath;
+
     if (typeof source === "string") {
-      sourcePath = source;
+      fullSourcePath = source;
     } else if (typeof source === "object" && source.path && source.name) {
-      sourcePath = path.join(source.path, source.name);
+      fullSourcePath = path.join(source.path, source.name);
     } else {
       return res
         .status(400)
         .json({ message: "Invalid source archive path provided." });
+    }
+
+    const zipPathMatch = fullSourcePath.match(/^(.*?\.zip)(.*)$/);
+
+    if (zipPathMatch) {
+      zipFilePath = zipPathMatch[1];
+      filePathInZip = zipPathMatch[2].startsWith("/")
+        ? zipPathMatch[2].substring(1)
+        : zipPathMatch[2];
+      // Only consider it a nested zip if there's an actual path within the zip
+      isNestedZip = filePathInZip !== "";
+      sourcePath = fullSourcePath; // Keep the full path for display purposes if needed
+    } else {
+      sourcePath = fullSourcePath;
     }
 
     const jobId = crypto.randomUUID();
@@ -593,6 +613,9 @@ export default function createFileRoutes(
       ws: null,
       zipfile: null, // Will hold the yauzl instance
       controller: new AbortController(), // Initialize AbortController
+      isNestedZip,
+      zipFilePath,
+      filePathInZip,
     };
     activeDecompressJobs.set(jobId, job);
     res.status(202).json({ jobId });

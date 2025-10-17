@@ -4,6 +4,7 @@ import fse from "fs-extra";
 import { open } from "yauzl-promise";
 import { pipeline, Writable, Readable } from "stream";
 import watcher from "./watcher.js";
+import os from "os";
 
 // A Writable stream that does nothing, used to consume read streams for integrity testing
 class NullWritable extends Writable {
@@ -19,6 +20,7 @@ import {
   copyWithProgress,
   getDirTotalSize,
   getAllFiles,
+  getZipFileStream,
 } from "./utils.js";
 
 // Keep track of clients that are watching for file changes
@@ -348,6 +350,8 @@ export function initializeWebSocketServer(
           (async () => {
             let zipfile;
             let progressInterval;
+            let tempNestedZipPath = null; // To store path of extracted nested zip
+
             try {
               job.overwriteDecision = "prompt"; // Initialize
 
@@ -380,7 +384,27 @@ export function initializeWebSocketServer(
                 }
               }
 
-              zipfile = await open(job.source);
+              let sourceToDecompress;
+
+              if (job.isNestedZip) {
+                // Extract the nested zip to a temporary file first
+                const tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-decompress-"), { mode: 0o700 });
+                tempNestedZipPath = path.join(tempDir, path.basename(job.filePathInZip));
+
+                const readStream = await getZipFileStream(job.zipFilePath, job.filePathInZip);
+                const writeStream = fse.createWriteStream(tempNestedZipPath);
+                await new Promise((resolve, reject) => {
+                  readStream.pipe(writeStream);
+                  readStream.on("end", resolve);
+                  readStream.on("error", reject);
+                  writeStream.on("error", reject);
+                });
+                sourceToDecompress = tempNestedZipPath;
+              } else {
+                sourceToDecompress = job.source;
+              }
+
+              zipfile = await open(sourceToDecompress);
               job.zipfile = zipfile;
               job.currentWriteStream = null;
 
@@ -393,7 +417,7 @@ export function initializeWebSocketServer(
                 }
               }
               // Re-open the zipfile to reset the entry stream for actual decompression
-              zipfile = await open(job.source);
+              zipfile = await open(sourceToDecompress);
               job.zipfile = zipfile;
 
               let processedBytes = 0;
@@ -684,6 +708,9 @@ export function initializeWebSocketServer(
               clearInterval(progressInterval);
               if (zipfile) {
                 zipfile.close();
+              }
+              if (tempNestedZipPath) {
+                await fse.remove(path.dirname(tempNestedZipPath)); // Remove the temporary directory
               }
             }
           })();
