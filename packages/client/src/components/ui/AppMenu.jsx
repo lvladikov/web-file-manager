@@ -94,7 +94,7 @@ const FileMenu = ({ ...props }) => {
   const canCompress =
     selectedItemsDetails.length > 0 &&
     selectedArchiveCount !== selectedItemsDetails.length;
-  const canDecompress = selectedArchiveCount === 1;
+  const canDecompress = selectedArchiveCount > 0;
   const canTestArchive = selectedArchiveCount > 0;
 
   const testArchiveLabel =

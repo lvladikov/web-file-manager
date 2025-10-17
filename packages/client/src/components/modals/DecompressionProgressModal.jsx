@@ -13,6 +13,9 @@ const DecompressionProgressModal = ({
   instantaneousSpeed,
   onCancel,
   error,
+  totalArchives,
+  processedArchives,
+  currentArchiveName,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
@@ -27,6 +30,18 @@ const DecompressionProgressModal = ({
     currentFileTotalSize > 0
       ? (currentFileBytesProcessed / currentFileTotalSize) * 100
       : 0;
+
+  const title = error
+    ? "Decompression Error"
+    : totalArchives > 1
+    ? `Decompressing Archives (${processedArchives} of ${totalArchives})...`
+    : "Decompressing Items...";
+
+  const buttonText = error
+    ? totalArchives > 1
+      ? "Continue"
+      : "Close"
+    : "Cancel";
 
   return (
     <div
@@ -46,15 +61,25 @@ const DecompressionProgressModal = ({
           ) : (
             <LoaderCircle className="w-6 h-6 mr-2 animate-spin text-sky-400" />
           )}
-          {error ? "Decompression Error" : "Decompressing Items..."}
+          {title}
         </h2>
 
         {error ? (
-          <p className="text-red-400 mb-4">{error}</p>
+          <div className="bg-red-900/50 p-3 rounded-md mb-4 break-all text-red-300">
+            <p className="font-bold">
+              An error occurred with: {currentArchiveName}
+            </p>
+            <p className="mt-2">{error}</p>
+          </div>
         ) : (
           <>
             <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
-              <p className="text-sm">Overall Progress:</p>
+              <p className="text-sm">
+                Current Archive:{" "}
+                <span className="font-bold text-sky-300">
+                  {currentArchiveName}
+                </span>
+              </p>
               <div className="w-full bg-gray-700 rounded-full h-2.5 mt-2">
                 <div
                   className="bg-sky-500 h-2.5 rounded-full"
@@ -103,8 +128,8 @@ const DecompressionProgressModal = ({
             onClick={onCancel}
             className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg flex items-center"
           >
-            {error ? <XCircle className="w-5 h-5 mr-2" /> : null}{" "}
-            {error ? "Close" : "Cancel"}
+            <XCircle className="w-5 h-5 mr-2" />
+            {buttonText}
           </button>
         </div>
       </div>

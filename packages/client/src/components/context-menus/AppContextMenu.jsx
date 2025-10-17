@@ -119,7 +119,7 @@ const AppContextMenu = ({
 
   const shouldShowArchiveGroup = count > 0;
   const canCompress = count > 0 && !isAllArchives;
-  const canDecompress = selectedArchiveCount === 1;
+  const canDecompress = selectedArchiveCount > 0;
   const canTestArchive = selectedArchiveCount > 0;
 
   return (

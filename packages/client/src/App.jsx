@@ -468,6 +468,9 @@ export default function App() {
         instantaneousSpeed={decompressProgress.instantaneousSpeed}
         onCancel={handleCancelDecompress}
         error={decompressProgress.error}
+        totalArchives={decompressProgress.totalArchives}
+        processedArchives={decompressProgress.processedArchives}
+        currentArchiveName={decompressProgress.currentArchiveName}
       />
       <ArchiveTestIntegrityProgressModal
         key={`archive-test-${archiveTestProgress.jobId}`}
