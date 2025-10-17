@@ -591,6 +591,7 @@ const FilePanel = React.forwardRef(
           boundaryRef={boundaryRef}
           onNewFolder={onNewFolder}
           onNewFile={onNewFile}
+          panelId={panelId}
           onRefreshPanel={() => onRefreshPanel(panelId)}
           onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
           onSelectAll={() => onSelectAll(panelId)}

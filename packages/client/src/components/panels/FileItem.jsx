@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-import { formatBytes, isItemPreviewable } from "../../lib/utils";
+import { formatBytes, isItemPreviewable, formatDate } from "../../lib/utils";
 
 import Icon from "../ui/Icon";
 import TruncatedText from "../ui/TruncatedText";
@@ -161,7 +161,7 @@ const FileItem = ({
         style={{ gridColumn: "6 / 7" }}
         className="text-right flex-shrink-0 whitespace-nowrap"
       >
-        {isRenaming ? "" : item.modified}
+        {isRenaming ? "" : formatDate(item.modified)}
       </span>
     </div>
   );

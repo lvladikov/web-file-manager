@@ -24,6 +24,7 @@ const EmptyAreaContextMenu = ({
   clipboard,
   boundaryRef,
   children,
+  panelId,
 }) => {
   return (
     <ContextMenu.Root>
@@ -52,14 +53,14 @@ const EmptyAreaContextMenu = ({
                     alignOffset={-5}
                   >
                     <ContextMenu.Item
-                      onSelect={onNewFolder}
+                      onSelect={() => onNewFolder(panelId)}
                       className={itemClassName}
                     >
                       <span>New Folder</span>
                       <span className="text-gray-400">F7</span>
                     </ContextMenu.Item>
                     <ContextMenu.Item
-                      onSelect={onNewFile}
+                      onSelect={() => onNewFile(panelId)}
                       className={itemClassName}
                     >
                       New File

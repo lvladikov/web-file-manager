@@ -297,6 +297,13 @@ const truncatePath = (fullPath, maxLength = 60) => {
   );
 };
 
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  // Use toLocaleString with default options for user's locale
+  return date.toLocaleString();
+};
+
 // --- Shared Context Menu Class Names ---
 const itemClassName =
   "px-4 py-2 hover:bg-sky-600 cursor-pointer flex justify-between";
@@ -322,6 +329,7 @@ export {
   dirname,
   formatSpeed,
   truncatePath,
+  formatDate,
   itemClassName,
   separatorClassName,
   submenuTriggerClassName,
