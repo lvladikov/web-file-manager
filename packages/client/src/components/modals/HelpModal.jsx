@@ -16,10 +16,10 @@ import calcFolderSizeScreenshot from "../../../screenshots/calc-folder-size.png"
 import copyProgressScreenshot from "../../../screenshots/copy-progress.png";
 import pathBreadcrumbsScreenshot from "../../../screenshots/path-breadcrumbs.png";
 import favouritesMenuScreenshot from "../../../screenshots/favourites-menu.png";
+import fileMenuScreenshot from "../../../screenshots/file-menu.png";
 
 import SvgActionBarExample from "../help-diagrams/SvgActionBarExample";
 import SvgCopyModesExample from "../help-diagrams/SvgCopyModesExample";
-import SvgTopMenusExample from "../help-diagrams/SvgTopMenusExample";
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -639,7 +639,11 @@ const HelpModal = ({ isVisible, onClose }) => {
                 Selection, Quick Select, Quick Unselect, and Quick Filter.
               </li>
             </ul>
-            <SvgTopMenusExample />
+            <img
+              src={fileMenuScreenshot}
+              alt="File Menu Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection id="function-key-actions" title="Function Key Actions">

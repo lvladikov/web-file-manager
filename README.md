@@ -187,7 +187,10 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 - **Top Menus**: "File" and "Select" menus provide access to comprehensive file management and selection tools.
 
   - **File Menu:** Contains actions related to file operations such as **New (in a submenu)**, **Copy & Move (in a submenu)**, **Copy Paths to Clipboard (in a submenu)**, **Copy Paths and Download (in a submenu)**, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
+
   - **Select Menu:** Offers various ways to manage selections, including Select All, Unselect All, Invert Selection, Quick Select, Quick Unselect, and Quick Filter.
+
+    ![File Menu Screenshot](packages/client/screenshots/file-menu.png)
 
 - **Function Key Actions**: The bar at the bottom of the screen shows primary actions mapped to F1-F8 keys for common operations.
 
