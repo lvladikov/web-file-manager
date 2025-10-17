@@ -1,4 +1,4 @@
-const ImagePreview = ({ item, fullPath, isFullscreen }) => {
+const ImagePreview = ({ item, fullPath, isFullscreen, fileUrl }) => {
   return (
     <div
       className={`flex justify-center items-center bg-black rounded-b-lg overflow-hidden ${
@@ -16,7 +16,7 @@ const ImagePreview = ({ item, fullPath, isFullscreen }) => {
       }
     >
       <img
-        src={`/api/image-preview?path=${encodeURIComponent(fullPath)}`}
+        src={fileUrl || `/api/image-preview?path=${encodeURIComponent(fullPath)}`}
         alt={item.name}
         className="object-contain rounded-b-lg"
         style={{

@@ -11,6 +11,7 @@ const AudioPreview = ({
   fullPath,
   autoLoadLyrics,
   onToggleAutoLoadLyrics,
+  fileUrl,
 }) => {
   const [lyrics, setLyrics] = useState(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
@@ -108,7 +109,10 @@ const AudioPreview = ({
           </p>
           <audio
             ref={audioRef}
-            src={`/api/media-stream?path=${encodeURIComponent(fullPath)}`}
+            src={
+              fileUrl ||
+              `/api/media-stream?path=${encodeURIComponent(fullPath)}`
+            }
             controls
             autoPlay
             className="w-full mt-3"

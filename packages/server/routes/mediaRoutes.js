@@ -3,7 +3,8 @@ import fse from "fs-extra";
 import path from "path";
 import { spawn } from "child_process";
 import { parseFile } from "music-metadata";
-import { getMimeType } from "../lib/utils.js";
+import { getMimeType, getZipFileStream } from "../lib/utils.js";
+import os from "os";
 
 const router = express.Router();
 
@@ -171,8 +172,35 @@ router.get("/track-info", async (req, res) => {
     return res.status(400).json({ message: "File path is required." });
   }
 
+  let actualFilePath = filePath;
+  let tempFilePath = null;
+
   try {
-    const metadata = await parseFile(filePath);
+    const zipPathMatch = filePath.match(/^(.*\.zip)(.*)$/);
+
+    if (zipPathMatch) {
+      const zipFilePath = zipPathMatch[1];
+      const filePathInZip = zipPathMatch[2].startsWith("/")
+        ? zipPathMatch[2].substring(1)
+        : zipPathMatch[2];
+
+      // Create a temporary file to extract the audio for metadata parsing
+      tempFilePath = path.join(
+        fse.mkdtempSync(path.join(os.tmpdir(), "zip-audio-")),
+        path.basename(filePathInZip)
+      );
+      const writeStream = fse.createWriteStream(tempFilePath);
+      const readStream = await getZipFileStream(zipFilePath, filePathInZip);
+      await new Promise((resolve, reject) => {
+        readStream.pipe(writeStream);
+        readStream.on("end", resolve);
+        readStream.on("error", reject);
+        writeStream.on("error", reject);
+      });
+      actualFilePath = tempFilePath;
+    }
+
+    const metadata = await parseFile(actualFilePath);
     const { artist, title } = metadata.common;
 
     if (!artist || !title) {
@@ -185,6 +213,10 @@ router.get("/track-info", async (req, res) => {
   } catch (error) {
     console.error(`Metadata parsing error for ${filePath}:`, error.message);
     res.status(500).json({ message: "Failed to read audio file metadata." });
+  } finally {
+    if (tempFilePath) {
+      await fse.remove(path.dirname(tempFilePath)); // Remove the temporary directory
+    }
   }
 });
 

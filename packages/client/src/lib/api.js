@@ -317,6 +317,25 @@ const fetchZipContents = async (filePath) => {
   return response.json();
 };
 
+const fetchZipFileContent = async (zipFilePath, filePathInZip) => {
+  const response = await fetch(
+    `/api/zip-file-content?zipFilePath=${encodeURIComponent(
+      zipFilePath
+    )}&filePathInZip=${encodeURIComponent(filePathInZip)}`
+  );
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to fetch file content from zip.");
+  }
+  return response.text();
+};
+
+const fetchZipMediaStreamUrl = (zipFilePath, filePathInZip) => {
+  return `/api/zip-media-stream?zipFilePath=${encodeURIComponent(
+    zipFilePath
+  )}&filePathInZip=${encodeURIComponent(filePathInZip)}`;
+};
+
 const saveFileContent = async (path, content) => {
   const response = await fetch("/api/save-file", {
     method: "POST",
@@ -386,6 +405,8 @@ export {
   testArchive,
   cancelArchiveTest,
   fetchZipContents,
+  fetchZipFileContent,
+  fetchZipMediaStreamUrl,
   saveFileContent,
   startDuplicateItems,
   cancelDuplicate,

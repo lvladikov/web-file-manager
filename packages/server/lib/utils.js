@@ -462,10 +462,60 @@ const getAllFiles = async (dirPath, basePath = dirPath) => {
   return files.flat();
 };
 
+const getFileContentFromZip = async (zipFilePath, filePathInZip) => {
+  let zipfile;
+  try {
+    zipfile = await yauzl.open(zipFilePath);
+    for await (const entry of zipfile) {
+      if (entry.filename === filePathInZip) {
+        const readStream = await entry.openReadStream();
+        const chunks = [];
+        for await (const chunk of readStream) {
+          chunks.push(chunk);
+        }
+        return Buffer.concat(chunks).toString("utf8");
+      }
+    }
+    throw new Error(`File not found in zip: ${filePathInZip}`);
+  } finally {
+    if (zipfile) {
+      await zipfile.close();
+    }
+  }
+};
+
+const getZipFileStream = async (zipFilePath, filePathInZip) => {
+  const zipfile = await yauzl.open(zipFilePath);
+  let entryFound = false;
+  try {
+    for await (const entry of zipfile) {
+      if (entry.filename === filePathInZip) {
+        entryFound = true;
+        const stream = await entry.openReadStream();
+        stream.on("close", () => {
+          zipfile.close();
+        });
+        stream.on("error", () => {
+          zipfile.close();
+        });
+        return stream;
+      }
+    }
+    if (!entryFound) {
+      throw new Error(`File not found in zip: ${filePathInZip}`);
+    }
+  } catch (error) {
+    await zipfile.close(); // Ensure zipfile is closed on error
+    throw error;
+  }
+};
+
 export {
   getFileType,
   getZipContents,
   getFilesInZip,
+  getFileContentFromZip,
+  getZipFileStream,
   getDirSizeWithProgress,
   performCopyCancellation,
   getMimeType,

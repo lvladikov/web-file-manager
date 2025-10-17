@@ -12,6 +12,9 @@ import {
   getZipContents,
   getFileType,
   getFilesInZip,
+  getFileContentFromZip,
+  getZipFileStream,
+  getMimeType,
 } from "../lib/utils.js";
 
 export default function createFileRoutes(
@@ -38,6 +41,51 @@ export default function createFileRoutes(
     } catch (error) {
       console.error("Error reading zip file contents:", error);
       res.status(500).json({ message: "Error reading zip file contents." });
+    }
+  });
+
+  // Endpoint to get content of a specific file within a zip
+  router.get("/zip-file-content", async (req, res) => {
+    const { zipFilePath, filePathInZip } = req.query;
+    if (!zipFilePath || !filePathInZip) {
+      return res
+        .status(400)
+        .json({ message: "Zip file path and file path in zip are required." });
+    }
+
+    try {
+      const content = await getFileContentFromZip(zipFilePath, filePathInZip);
+      res.set("Content-Type", "text/plain");
+      res.send(content);
+    } catch (error) {
+      console.error("Error reading file from zip:", error);
+      if (error.message.includes("File not found")) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Error reading file from zip." });
+    }
+  });
+
+  // Endpoint to stream media content from a zip file
+  router.get("/zip-media-stream", async (req, res) => {
+    const { zipFilePath, filePathInZip } = req.query;
+    if (!zipFilePath || !filePathInZip) {
+      return res
+        .status(400)
+        .json({ message: "Zip file path and file path in zip are required." });
+    }
+
+    try {
+      const stream = await getZipFileStream(zipFilePath, filePathInZip);
+      const mimeType = getMimeType(filePathInZip);
+      res.set("Content-Type", mimeType);
+      stream.pipe(res);
+    } catch (error) {
+      console.error("Error streaming media from zip:", error);
+      if (error.message.includes("File not found")) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Error streaming media from zip." });
     }
   });
 

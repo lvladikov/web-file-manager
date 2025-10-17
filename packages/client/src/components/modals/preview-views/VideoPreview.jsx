@@ -7,6 +7,7 @@ const VideoPreview = ({
   videoRef,
   videoHasError,
   handleVideoError,
+  fileUrl,
 }) => {
   return (
     <div
@@ -28,9 +29,10 @@ const VideoPreview = ({
         key={item.name + (videoHasError ? "-transcoded" : "-native")}
         ref={videoRef}
         src={
-          videoHasError
+          fileUrl ||
+          (videoHasError
             ? `/api/video-transcode?path=${encodeURIComponent(fullPath)}`
-            : `/api/media-stream?path=${encodeURIComponent(fullPath)}`
+            : `/api/media-stream?path=${encodeURIComponent(fullPath)}`)
         }
         controls
         autoPlay

@@ -35,7 +35,7 @@ import VideoPreview from "./preview-views/VideoPreview";
 import ZipPreview from "./preview-views/ZipPreview";
 import EditableTextPreview from "./preview-views/EditableTextPreview";
 import UnsavedChangesModal from "./UnsavedChangesModal";
-import { saveFileContent } from "../../lib/api";
+import { saveFileContent, fetchZipFileContent, fetchZipMediaStreamUrl } from "../../lib/api";
 import Icon from "../ui/Icon";
 
 const PreviewInfo = ({ previewType }) => {
@@ -104,9 +104,32 @@ const PreviewModal = ({
   const [undoStack, setUndoStack] = useState([textContent]);
   const [redoStack, setRedoStack] = useState([]);
 
+  const zipPathMatch = item?.fullPath.match(/^(.*\.zip)(.*)$/);
+  const zipFilePath = zipPathMatch ? zipPathMatch[1] : null;
+  const filePathInZip = zipPathMatch
+    ? zipPathMatch[2].startsWith("/")
+      ? zipPathMatch[2].substring(1)
+      : zipPathMatch[2]
+    : null;
+
+  const zipMediaStreamUrl =
+    zipFilePath && filePathInZip
+      ? fetchZipMediaStreamUrl(zipFilePath, filePathInZip)
+      : null;
+
   const getPreviewType = (item) => {
     if (!item) return "none";
     if (item.type === "archive") return "zip";
+
+    const zipPathMatch = item.fullPath.match(/^(.*\.zip)(.*)$/);
+    if (zipPathMatch) {
+      if (isPreviewableImage(item.name)) return "zipImage";
+      if (isPreviewableVideo(item.name)) return "zipVideo";
+      if (isPreviewableAudio(item.name)) return "zipAudio";
+      if (isPreviewablePdf(item.name)) return "zipPdf";
+      if (isPreviewableText(item.name)) return "zipText";
+    }
+
     if (isPreviewablePdf(item.name)) return "pdf";
     if (isPreviewableImage(item.name)) return "image";
     if (isPreviewableVideo(item.name)) return "video";
@@ -322,28 +345,48 @@ const PreviewModal = ({
   }, []);
 
   useEffect(() => {
-    if (isVisible && previewType === "text" && item) {
-      const fetchText = async () => {
-        setTextContent("Loading...");
-        setTextError("");
-        const { fullPath } = item;
-        try {
+    if (
+      (previewType !== "text" && previewType !== "zipText") ||
+      !isVisible ||
+      !item
+    ) {
+      return;
+    }
+
+    const fetchText = async () => {
+      setTextContent("Loading...");
+      setTextError("");
+      const { fullPath } = item;
+
+      try {
+        let text;
+        if (previewType === "zipText") {
+          const zipPathMatch = fullPath.match(/^(.*\.zip)(.*)$/);
+          if (!zipPathMatch) {
+            throw new Error("Invalid zip file path.");
+          }
+          const zipFilePath = zipPathMatch[1];
+          const filePathInZip = zipPathMatch[2].startsWith("/")
+            ? zipPathMatch[2].substring(1)
+            : zipPathMatch[2];
+          text = await fetchZipFileContent(zipFilePath, filePathInZip);
+        } else {
           const res = await fetch(
             `/api/text-content?path=${encodeURIComponent(fullPath)}`
           );
           if (!res.ok)
             throw new Error(`Failed to load file content (${res.status})`);
-          const text = await res.text();
-          setTextContent(text);
-          setEditedContent(text);
-          setUndoStack([text]);
-          setRedoStack([]);
-        } catch (err) {
-          setTextError(err.message);
+          text = await res.text();
         }
-      };
-      fetchText();
-    }
+        setTextContent(text);
+        setEditedContent(text);
+        setUndoStack([text]);
+        setRedoStack([]);
+      } catch (err) {
+        setTextError(err.message);
+      }
+    };
+    fetchText();
   }, [isVisible, item, previewType]);
 
   useEffect(() => {
@@ -642,20 +685,24 @@ const PreviewModal = ({
         {!isEditing && <PreviewInfo previewType={previewType} />}
 
         <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-auto">
-          {previewType === "image" && (
+          {(previewType === "image" || previewType === "zipImage") && (
             <ImagePreview
               item={item}
               fullPath={fullPath}
               isFullscreen={isFullscreen}
+              fileUrl={previewType === "zipImage" ? zipMediaStreamUrl : undefined}
             />
           )}
-          {previewType === "pdf" && (
+          {(previewType === "pdf" || previewType === "zipPdf") && (
             <PdfPreview
-              fileUrl={`/api/media-stream?path=${encodeURIComponent(fullPath)}`}
+              fileUrl={previewType === "zipPdf"
+                ? zipMediaStreamUrl
+                : `/api/media-stream?path=${encodeURIComponent(fullPath)}`
+              }
               isFullscreen={isFullscreen}
             />
           )}
-          {previewType === "video" && (
+          {(previewType === "video" || previewType === "zipVideo") && (
             <VideoPreview
               item={item}
               fullPath={fullPath}
@@ -663,9 +710,10 @@ const PreviewModal = ({
               videoRef={videoRef}
               videoHasError={videoHasError}
               handleVideoError={handleVideoError}
+              fileUrl={previewType === "zipVideo" ? zipMediaStreamUrl : undefined}
             />
           )}
-          {previewType === "audio" && (
+          {(previewType === "audio" || previewType === "zipAudio") && (
             <AudioPreview
               coverArtUrl={coverArtUrl}
               audioRef={audioRef}
@@ -673,9 +721,10 @@ const PreviewModal = ({
               fullPath={fullPath}
               autoLoadLyrics={autoLoadLyrics}
               onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
+              fileUrl={previewType === "zipAudio" ? zipMediaStreamUrl : undefined}
             />
           )}
-          {previewType === "text" &&
+          {(previewType === "text" || previewType === "zipText") &&
             (isEditing ? (
               <EditableTextPreview
                 item={item}
