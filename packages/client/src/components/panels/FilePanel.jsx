@@ -375,9 +375,16 @@ const FilePanel = React.forwardRef(
       }
 
       // Immediately perform the double-click action.
-      item.type === "folder" || item.type === "parent"
-        ? onNavigate(item.name)
-        : onOpenFile(panelData.path, item.name);
+      if (
+        item.type === "folder" ||
+        item.type === "parent" ||
+        item.type === "archive"
+      ) {
+        // added archive here
+        onNavigate(item.name);
+      } else {
+        onOpenFile(panelData.path, item.name);
+      }
     };
 
     const handleItemClick = (itemName, e) => {
@@ -495,7 +502,9 @@ const FilePanel = React.forwardRef(
               <PathContextMenu
                 onChooseFolder={() => onChooseFolder(panelId)}
                 onSwapPanels={onSwapPanels}
-                onCopyPathToClipboard={() => navigator.clipboard.writeText(panelData.path)}
+                onCopyPathToClipboard={() =>
+                  navigator.clipboard.writeText(panelData.path)
+                }
               >
                 <div
                   onDoubleClick={onPathDoubleClick}

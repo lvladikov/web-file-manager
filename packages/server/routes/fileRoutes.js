@@ -11,6 +11,7 @@ import {
   getDirTotalSize,
   getZipContents,
   getFileType,
+  getFilesInZip,
 } from "../lib/utils.js";
 
 export default function createFileRoutes(
@@ -91,8 +92,44 @@ export default function createFileRoutes(
     try {
       const basePath = req.query.path || os.homedir();
       const target = req.query.target || "";
-      const currentPath = path.resolve(basePath, target);
+      let currentPath;
 
+      const zipPathInBasePath = basePath.match(/^(.*\.zip)(.*)$/);
+
+      if (zipPathInBasePath) {
+        const zipFile = zipPathInBasePath[1];
+        const internal = zipPathInBasePath[2] || "/";
+
+        if (target === ".." && (internal === "/" || internal === "")) {
+          // We are at the root of the zip and want to go up
+          currentPath = path.dirname(zipFile);
+        } else {
+          const newInternal = path.posix.normalize(
+            path.posix.join(internal, target)
+          );
+          currentPath = zipFile + newInternal;
+        }
+      } else {
+        currentPath = path.resolve(basePath, target);
+      }
+
+      const finalZipMatch = currentPath.match(/^(.*\.zip)(.*)$/);
+
+      if (finalZipMatch) {
+        const zipFilePath = finalZipMatch[1];
+        const pathInZip = finalZipMatch[2] || "/";
+
+        if (!(await fse.pathExists(zipFilePath))) {
+          return res
+            .status(404)
+            .json({ message: `Archive not found: ${zipFilePath}` });
+        }
+
+        const contents = await getFilesInZip(zipFilePath, pathInZip);
+        return res.json({ path: currentPath, items: contents });
+      }
+
+      // Fallback for regular filesystem paths
       const stats = await fse.stat(currentPath);
       if (!stats.isDirectory()) {
         return res.status(400).json({ message: "Path is not a directory." });
@@ -128,25 +165,18 @@ export default function createFileRoutes(
 
       let validItems = items.filter((item) => !item.error);
 
-      // Sort items: folders first, then files starting with '_', then others, all alphabetically.
       validItems.sort((a, b) => {
-        // Group by type: folders first
         if (a.type === "folder" && b.type !== "folder") return -1;
         if (a.type !== "folder" && b.type === "folder") return 1;
-
-        // Within files, group by underscore prefix
         if (a.type !== "folder" && b.type !== "folder") {
           const a_ = a.name.startsWith("_");
           const b_ = b.name.startsWith("_");
           if (a_ && !b_) return -1;
           if (!a_ && b_) return 1;
         }
-
-        // Default sort by name
         return a.name.localeCompare(b.name);
       });
 
-      // On macOS, prevent listing 'Macintosh HD' when in /Volumes to avoid recursion
       if (os.platform() === "darwin" && currentPath === "/Volumes") {
         validItems = validItems.filter((item) => item.name !== "Macintosh HD");
       }

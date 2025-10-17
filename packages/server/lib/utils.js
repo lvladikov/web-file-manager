@@ -74,6 +74,58 @@ const getZipContents = async (zipFilePath) => {
   return entries;
 };
 
+const getFilesInZip = async (zipFilePath, directoryPath) => {
+  const zip = await yauzl.open(zipFilePath);
+  try {
+    const children = new Map(); // Use a Map to store unique children by name
+
+    let normalizedDir = directoryPath;
+    if (normalizedDir.startsWith("/"))
+      normalizedDir = normalizedDir.substring(1);
+    if (normalizedDir.length > 0 && !normalizedDir.endsWith("/"))
+      normalizedDir += "/";
+    if (directoryPath === "/") normalizedDir = "";
+
+    for await (const entry of zip) {
+      if (!entry.filename.startsWith(normalizedDir)) continue;
+
+      const relativePath = entry.filename.substring(normalizedDir.length);
+      if (relativePath === "" || relativePath === "/") continue;
+
+      const firstSlashIndex = relativePath.indexOf("/");
+      const childName =
+        firstSlashIndex === -1
+          ? relativePath
+          : relativePath.substring(0, firstSlashIndex);
+
+      if (childName && !children.has(childName)) {
+        const isFolder = firstSlashIndex !== -1 || entry.filename.endsWith("/");
+        children.set(childName, {
+          name: childName,
+          type: isFolder ? "folder" : getFileType(childName, false),
+          size: isFolder ? null : entry.uncompressedSize,
+          modified: entry.getLastMod().toLocaleString(),
+          fullPath: `${zipFilePath}/${normalizedDir}${childName}`,
+        });
+      }
+    }
+
+    const entries = Array.from(children.values());
+
+    // Always add '..' for navigation
+    entries.unshift({
+      name: "..",
+      type: "parent",
+      size: null,
+      modified: "",
+    });
+
+    return entries;
+  } finally {
+    await zip.close();
+  }
+};
+
 const getDirSizeWithProgress = async (dirPath, job) => {
   if (job.controller.signal.aborted) throw new Error("Calculation cancelled");
 
@@ -413,6 +465,7 @@ const getAllFiles = async (dirPath, basePath = dirPath) => {
 export {
   getFileType,
   getZipContents,
+  getFilesInZip,
   getDirSizeWithProgress,
   performCopyCancellation,
   getMimeType,

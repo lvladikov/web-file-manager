@@ -453,7 +453,11 @@ export default function useKeyboardShortcuts(props) {
             (i) => i.name === focusedName
           );
           if (item) {
-            if (item.type === "folder" || item.type === "parent") {
+            if (
+              item.type === "folder" ||
+              item.type === "parent" ||
+              item.type === "archive"
+            ) {
               handleNavigate(activePanel, panels[activePanel].path, item.name);
             } else {
               handleOpenFile(panels[activePanel].path, item.name);
