@@ -591,7 +591,7 @@ const HelpModal = ({ isVisible, onClose }) => {
             <p>
               The path is broken into clickable "breadcrumbs". You can click on
               any part of the path to navigate directly to that directory.
-              Right-clicking the path bar gives you an option to "Choose a
+              Right-clicking the path bar gives you an option to "Select a
               folder..." which opens a folder selection dialog.
             </p>
             <img

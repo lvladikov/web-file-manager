@@ -176,7 +176,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
   ![Copy Progress Screenshot](packages/client/screenshots/copy-progress.png)
 
-- **Path Bar & Breadcrumbs**: Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Choose folder..." option.
+- **Path Bar & Breadcrumbs**: Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Select a folder..." option, which opens a folder selection dialog.
 
   ![Path Breadcrumbs Screenshot](packages/client/screenshots/path-breadcrumbs.png)
 
