@@ -118,8 +118,10 @@ const FileItem = ({
       title={
         isRenaming
           ? ""
+          : item.type === "parent"
+          ? "Go up one folder"
           : `${item.name}${
-              item.type !== "folder" && item.type !== "parent"
+              item.type !== "folder"
                 ? " | Double-click to open"
                 : ""
             }`
