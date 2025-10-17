@@ -3,6 +3,7 @@ import path from "path";
 import crypto from "crypto";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
+import os from "os";
 
 const getFileType = (filename, isDirectory) => {
   if (isDirectory) return "folder";
@@ -75,18 +76,65 @@ const getZipContents = async (zipFilePath) => {
 };
 
 const getFilesInZip = async (zipFilePath, directoryPath) => {
-  const zip = await yauzl.open(zipFilePath);
+  let currentZipFile = null;
+  let tempDir = null;
+  let outerZip = null; // Declare outerZip here
+
   try {
+    // Check if directoryPath itself refers to a zip file within the main zipFilePath
+    outerZip = await yauzl.open(zipFilePath);
+    let innerZipEntry = null;
+    let normalizedDirectoryPath = directoryPath.startsWith("/")
+      ? directoryPath.substring(1)
+      : directoryPath;
+
+    if (normalizedDirectoryPath.endsWith("/")) {
+      normalizedDirectoryPath = normalizedDirectoryPath.slice(0, -1);
+    }
+
+    for await (const entry of outerZip) {
+      if (entry.filename === normalizedDirectoryPath) {
+        innerZipEntry = entry;
+        break;
+      }
+    }
+
+    if (innerZipEntry && getFileType(innerZipEntry.filename, false) === "archive") {
+      // It's a nested zip file, extract it to a temporary location and open it
+      tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+      const tempInnerZipPath = path.join(tempDir, path.basename(innerZipEntry.filename));
+
+      const readStream = await outerZip.openReadStream(innerZipEntry);
+      const writeStream = fse.createWriteStream(tempInnerZipPath);
+      await new Promise((resolve, reject) => {
+        readStream.pipe(writeStream);
+        readStream.on("end", resolve);
+        readStream.on("error", reject);
+        writeStream.on("error", reject);
+      });
+      // Close outerZip AFTER the readStream has finished piping
+      await outerZip.close();
+      outerZip = null; // Set to null so it's not closed again in finally
+
+      currentZipFile = await yauzl.open(tempInnerZipPath);
+      normalizedDirectoryPath = ""; // We are now at the root of the inner zip
+    } else {
+      // Not a nested zip, or directoryPath is a regular folder within the zip
+      // Re-open the outerZip to get a fresh iterator for the main content listing
+      currentZipFile = await yauzl.open(zipFilePath);
+      outerZip = null; // Set to null so the original exhausted outerZip is not closed again
+    }
+
     const children = new Map(); // Use a Map to store unique children by name
 
-    let normalizedDir = directoryPath;
+    let normalizedDir = normalizedDirectoryPath;
     if (normalizedDir.startsWith("/"))
       normalizedDir = normalizedDir.substring(1);
     if (normalizedDir.length > 0 && !normalizedDir.endsWith("/"))
       normalizedDir += "/";
-    if (directoryPath === "/") normalizedDir = "";
+    if (normalizedDirectoryPath === "/") normalizedDir = "";
 
-    for await (const entry of zip) {
+    for await (const entry of currentZipFile) {
       if (!entry.filename.startsWith(normalizedDir)) continue;
 
       const relativePath = entry.filename.substring(normalizedDir.length);
@@ -105,7 +153,7 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
           type: isFolder ? "folder" : getFileType(childName, false),
           size: isFolder ? null : entry.uncompressedSize,
           modified: entry.getLastMod().toLocaleString(),
-          fullPath: `${zipFilePath}/${normalizedDir}${childName}`,
+          fullPath: `${zipFilePath}/${normalizedDirectoryPath}${childName}`,
         });
       }
     }
@@ -122,7 +170,15 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
 
     return entries;
   } finally {
-    await zip.close();
+    if (currentZipFile) {
+      await currentZipFile.close();
+    }
+    if (outerZip) { // Close outerZip if it was never assigned to currentZipFile
+      await outerZip.close();
+    }
+    if (tempDir) {
+      await fse.remove(tempDir);
+    }
   }
 };
 

@@ -306,9 +306,11 @@ const cancelArchiveTest = async (jobId) => {
   return response.json();
 };
 
-const fetchZipContents = async (filePath) => {
+const fetchZipContents = async (filePath, directoryPath = "/") => {
   const response = await fetch(
-    `/api/zip-contents?filePath=${encodeURIComponent(filePath)}`
+    `/api/zip-contents?filePath=${encodeURIComponent(
+      filePath
+    )}&directoryPath=${encodeURIComponent(directoryPath)}`
   );
   if (!response.ok) {
     const data = await response.json();

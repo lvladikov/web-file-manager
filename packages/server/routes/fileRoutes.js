@@ -30,14 +30,14 @@ export default function createFileRoutes(
 
   // Endpoint to get contents of a zip file
   router.get("/zip-contents", async (req, res) => {
-    const { filePath } = req.query;
+    const { filePath, directoryPath = "/" } = req.query;
     if (!filePath) {
       return res.status(400).json({ message: "Zip file path is required." });
     }
 
     try {
-      const contents = await getZipContents(filePath);
-      res.json(contents);
+      const contents = await getFilesInZip(filePath, directoryPath);
+      res.json({ path: directoryPath, items: contents });
     } catch (error) {
       console.error("Error reading zip file contents:", error);
       res.status(500).json({ message: "Error reading zip file contents." });

@@ -17,138 +17,39 @@ const ZipPreview = forwardRef(
     const zipFileName = filePath.split("/").pop();
     const browserModalRef = useRef(null);
 
+    const zipPathMatch = filePath.match(/^(.*?\.zip)(.*)$/);
+    const actualZipFilePath = zipPathMatch ? zipPathMatch[1] : filePath;
+    const initialPathInZip = zipPathMatch
+      ? zipPathMatch[2].startsWith("/")
+        ? zipPathMatch[2]
+        : `/${zipPathMatch[2]}`
+      : "/";
+
     const fetchZipDirectory = useCallback(
       async (basePath, target) => {
-        // Normalize basePath and target to use '/' as separator
-
-        let normalizedBasePath = basePath.replace(/\\/g, "/");
-
+        let currentPathInZip = basePath.replace(/\\/g, "/");
         let normalizedTarget = target.replace(/\\/g, "/");
 
-        const allZipContents = await fetchZipContents(filePath);
-
-        let currentZipPath = normalizedBasePath;
-
         if (normalizedTarget === "..") {
-          currentZipPath = currentZipPath.substring(
+          currentPathInZip = currentPathInZip.substring(
             0,
-            currentZipPath.lastIndexOf("/")
+            currentPathInZip.lastIndexOf("/")
           );
-
-          if (currentZipPath === "") currentZipPath = "/";
+          if (currentPathInZip === "") currentPathInZip = "/";
         } else if (normalizedTarget !== "") {
-          currentZipPath = `${
-            currentZipPath === "/" ? "" : currentZipPath
+          currentPathInZip = `${
+            currentPathInZip === "/" ? "" : currentPathInZip
           }/${normalizedTarget}`;
         }
 
-        const items = [];
+        const contents = await fetchZipContents(
+          actualZipFilePath,
+          currentPathInZip
+        );
 
-        const seenFolders = new Set();
-
-        // Add ".." for navigating up
-
-        if (currentZipPath !== "/") {
-          items.push({
-            name: "..",
-
-            type: "parent",
-
-            fullPath:
-              currentZipPath.substring(0, currentZipPath.lastIndexOf("/")) ||
-              "/",
-          });
-        }
-
-        allZipContents.forEach((item) => {
-          const itemPath = item.name;
-
-          const isFolder = item.type === "folder";
-
-          // Determine if the item is a direct child of the currentZipPath
-
-          const effectiveCurrentZipPathForComparison =
-            currentZipPath === "/"
-              ? ""
-              : currentZipPath.startsWith("/")
-              ? currentZipPath.substring(1)
-              : currentZipPath;
-
-          if (itemPath.startsWith(effectiveCurrentZipPathForComparison)) {
-            let relativePath = itemPath.substring(
-              effectiveCurrentZipPathForComparison.length
-            );
-
-            if (relativePath.startsWith("/"))
-              relativePath = relativePath.substring(1);
-
-            const pathParts = relativePath.split("/").filter(Boolean);
-
-            if (pathParts.length === 1) {
-              // Direct child file or folder
-
-              if (isFolder) {
-                if (!seenFolders.has(pathParts[0])) {
-                  items.push({
-                    name: pathParts[0],
-
-                    type: "folder",
-
-                    fullPath: `${
-                      currentZipPath === "/" ? "" : currentZipPath
-                    }/${pathParts[0]}`, // Correct fullPath for folders
-                  });
-
-                  seenFolders.add(pathParts[0]);
-                }
-              } else {
-                items.push({
-                  name: pathParts[0],
-
-                  type: item.type, // Use the specific type from allZipContents
-
-                  uncompressedSize: item.uncompressedSize,
-
-                  fullPath: `${currentZipPath === "/" ? "" : currentZipPath}/${
-                    pathParts[0]
-                  }`, // Correct fullPath for files
-                });
-              }
-            } else if (pathParts.length > 1) {
-              // Nested item, so its top-level part is a folder
-
-              const topLevelFolder = pathParts[0];
-
-              if (!seenFolders.has(topLevelFolder)) {
-                items.push({
-                  name: topLevelFolder,
-
-                  type: "folder",
-
-                  fullPath: `${
-                    currentZipPath === "/" ? "" : currentZipPath
-                  }/${topLevelFolder}`,
-                });
-
-                seenFolders.add(topLevelFolder);
-              }
-            }
-          }
-        });
-
-        // Sort items: folders first, then files, all alphabetically.
-        items.sort((a, b) => {
-          if (a.name === "..") return -1;
-          if (b.name === "..") return 1;
-
-          if (a.type === "folder" && b.type !== "folder") return -1;
-          if (a.type !== "folder" && b.type === "folder") return 1;
-          return a.name.localeCompare(b.name);
-        });
-
-        return { path: currentZipPath, items };
+        return { path: currentPathInZip, items: contents.items };
       },
-      [filePath]
+      [actualZipFilePath]
     );
 
     return (
@@ -157,7 +58,7 @@ const ZipPreview = forwardRef(
         isVisible={isVisible}
         onClose={onClose} // For a preview, confirming just closes it
         onConfirm={() => {}}
-        initialPath="/" // Start at the root of the zip archive
+        initialPath={initialPathInZip} // Start at the root of the zip archive
         title={`Zip Archive: ${zipFileName}`}
         confirmButtonText={null} // Remove the redundant 'Close Preview' button
         filterItem={() => true} // All items are selectable for preview
