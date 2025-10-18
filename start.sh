@@ -28,7 +28,9 @@ then
 fi
 
 # Check for node_modules directories
-if [ ! -d "./node_modules" ] || [ ! -d "./packages/client/node_modules" ] || [ ! -d "./packages/server/node_modules" ]; then
+if [ ! -d "./node_modules" ] || \
+   [ ! -d "./packages/client/node_modules" ] || \
+   [ ! -d "./packages/server/node_modules" ]; then
     echo "Error: node_modules directories not found."
     echo "Please run 'npm install' to install dependencies."
     exit 1
