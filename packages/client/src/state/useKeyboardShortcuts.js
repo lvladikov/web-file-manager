@@ -458,7 +458,7 @@ export default function useKeyboardShortcuts(props) {
               item.type === "parent" ||
               item.type === "archive"
             ) {
-              handleNavigate(activePanel, panels[activePanel].path, item.name);
+              handleNavigate(activePanel, panels[activePanel].path, item.type === 'archive' ? `${item.name}/` : item.name);
             } else {
               handleOpenFile(panels[activePanel].path, item.name);
             }

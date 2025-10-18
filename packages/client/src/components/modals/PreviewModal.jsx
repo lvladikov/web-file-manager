@@ -35,7 +35,11 @@ import VideoPreview from "./preview-views/VideoPreview";
 import ZipPreview from "./preview-views/ZipPreview";
 import EditableTextPreview from "./preview-views/EditableTextPreview";
 import UnsavedChangesModal from "./UnsavedChangesModal";
-import { saveFileContent, fetchZipFileContent, fetchZipMediaStreamUrl } from "../../lib/api";
+import {
+  saveFileContent,
+  fetchZipFileContent,
+  fetchZipMediaStreamUrl,
+} from "../../lib/api";
 import Icon from "../ui/Icon";
 
 const PreviewInfo = ({ previewType }) => {
@@ -90,6 +94,7 @@ const PreviewModal = ({
   const [regexError, setRegexError] = useState("");
   const [videoHasError, setVideoHasError] = useState(false);
   const [coverArtUrl, setCoverArtUrl] = useState(null);
+  const fetchedCoverArt = useRef(null);
   const [unsavedChangesModalVisible, setUnsavedChangesModalVisible] =
     useState(false);
 
@@ -104,7 +109,7 @@ const PreviewModal = ({
   const [undoStack, setUndoStack] = useState([textContent]);
   const [redoStack, setRedoStack] = useState([]);
 
-  const zipPathMatch = item?.fullPath.match(/^(.*\.zip)(.*)$/);
+  const zipPathMatch = item?.fullPath.match(/^(.*?\.zip)(.*)$/);
   const zipFilePath = zipPathMatch ? zipPathMatch[1] : null;
   const filePathInZip = zipPathMatch
     ? zipPathMatch[2].startsWith("/")
@@ -121,13 +126,23 @@ const PreviewModal = ({
     if (!item) return "none";
     if (item.type === "archive") return "zip";
 
-    const zipPathMatch = item.fullPath.match(/^(.*\.zip)(.*)$/);
+    const zipPathMatch = item.fullPath.match(/^(.*?\.zip)(.*)$/);
     if (zipPathMatch) {
-      if (isPreviewableImage(item.name)) return "zipImage";
-      if (isPreviewableVideo(item.name)) return "zipVideo";
-      if (isPreviewableAudio(item.name)) return "zipAudio";
-      if (isPreviewablePdf(item.name)) return "zipPdf";
-      if (isPreviewableText(item.name)) return "zipText";
+      if (isPreviewableImage(item.name)) {
+        return "zipImage";
+      }
+      if (isPreviewableVideo(item.name)) {
+        return "zipVideo";
+      }
+      if (isPreviewableAudio(item.name)) {
+        return "zipAudio";
+      }
+      if (isPreviewablePdf(item.name)) {
+        return "zipPdf";
+      }
+      if (isPreviewableText(item.name)) {
+        return "zipText";
+      }
     }
 
     if (isPreviewablePdf(item.name)) return "pdf";
@@ -135,6 +150,7 @@ const PreviewModal = ({
     if (isPreviewableVideo(item.name)) return "video";
     if (isPreviewableAudio(item.name)) return "audio";
     if (isPreviewableText(item.name)) return "text";
+
     return "unsupported";
   };
 
@@ -184,20 +200,53 @@ const PreviewModal = ({
   ]);
 
   useEffect(() => {
-    if (isVisible && previewType === "audio" && item) {
+    if (
+      isVisible &&
+      (previewType === "audio" || previewType === "zipAudio") &&
+      item
+    ) {
+      if (fetchedCoverArt.current === item.fullPath) return;
+
       const fetchCoverArt = async () => {
+        fetchedCoverArt.current = item.fullPath;
         const { fullPath } = item;
+        setCoverArtUrl(null);
         try {
-          const res = await fetch(
-            `/api/audio-cover?path=${encodeURIComponent(fullPath)}`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            if (data.coverPath) {
-              const imageUrl = `/api/image-preview?path=${encodeURIComponent(
-                data.coverPath
-              )}`;
-              setCoverArtUrl(imageUrl);
+          if (previewType === "zipAudio") {
+            const zipPathMatch = fullPath.match(/^(.*?\.zip)(.*)$/);
+            if (zipPathMatch) {
+              const zipFilePath = zipPathMatch[1];
+              const filePathInZip = zipPathMatch[2].startsWith("/")
+                ? zipPathMatch[2].substring(1)
+                : zipPathMatch[2];
+              const res = await fetch(
+                `/api/zip-audio-cover?zipFilePath=${encodeURIComponent(
+                  zipFilePath
+                )}&audioFilePathInZip=${encodeURIComponent(filePathInZip)}`
+              );
+              if (res.ok) {
+                const data = await res.json();
+                if (data.coverPathInZip) {
+                  const imageUrl = fetchZipMediaStreamUrl(
+                    zipFilePath,
+                    data.coverPathInZip
+                  );
+                  setCoverArtUrl(imageUrl);
+                }
+              }
+            }
+          } else {
+            const res = await fetch(
+              `/api/audio-cover?path=${encodeURIComponent(fullPath)}`
+            );
+            if (res.ok) {
+              const data = await res.json();
+              if (data.coverPath) {
+                const imageUrl = `/api/image-preview?path=${encodeURIComponent(
+                  data.coverPath
+                )}`;
+                setCoverArtUrl(imageUrl);
+              }
             }
           }
         } catch (err) {
@@ -361,7 +410,7 @@ const PreviewModal = ({
       try {
         let text;
         if (previewType === "zipText") {
-          const zipPathMatch = fullPath.match(/^(.*\.zip)(.*)$/);
+          const zipPathMatch = fullPath.match(/^(.*?\.zip)(.*)$/);
           if (!zipPathMatch) {
             throw new Error("Invalid zip file path.");
           }
@@ -690,14 +739,17 @@ const PreviewModal = ({
               item={item}
               fullPath={fullPath}
               isFullscreen={isFullscreen}
-              fileUrl={previewType === "zipImage" ? zipMediaStreamUrl : undefined}
+              fileUrl={
+                previewType === "zipImage" ? zipMediaStreamUrl : undefined
+              }
             />
           )}
           {(previewType === "pdf" || previewType === "zipPdf") && (
             <PdfPreview
-              fileUrl={previewType === "zipPdf"
-                ? zipMediaStreamUrl
-                : `/api/media-stream?path=${encodeURIComponent(fullPath)}`
+              fileUrl={
+                previewType === "zipPdf"
+                  ? zipMediaStreamUrl
+                  : `/api/media-stream?path=${encodeURIComponent(fullPath)}`
               }
               isFullscreen={isFullscreen}
             />
@@ -710,7 +762,9 @@ const PreviewModal = ({
               videoRef={videoRef}
               videoHasError={videoHasError}
               handleVideoError={handleVideoError}
-              fileUrl={previewType === "zipVideo" ? zipMediaStreamUrl : undefined}
+              fileUrl={
+                previewType === "zipVideo" ? zipMediaStreamUrl : undefined
+              }
             />
           )}
           {(previewType === "audio" || previewType === "zipAudio") && (
@@ -721,7 +775,9 @@ const PreviewModal = ({
               fullPath={fullPath}
               autoLoadLyrics={autoLoadLyrics}
               onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
-              fileUrl={previewType === "zipAudio" ? zipMediaStreamUrl : undefined}
+              fileUrl={
+                previewType === "zipAudio" ? zipMediaStreamUrl : undefined
+              }
             />
           )}
           {(previewType === "text" || previewType === "zipText") &&

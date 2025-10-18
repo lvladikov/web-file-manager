@@ -381,7 +381,7 @@ const FilePanel = React.forwardRef(
         item.type === "archive"
       ) {
         // added archive here
-        onNavigate(item.name);
+        onNavigate(item.type === "archive" ? `${item.name}/` : item.name);
       } else {
         onOpenFile(panelData.path, item.name);
       }

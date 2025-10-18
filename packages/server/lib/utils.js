@@ -76,34 +76,44 @@ const getZipContents = async (zipFilePath) => {
 };
 
 const getFilesInZip = async (zipFilePath, directoryPath) => {
+  let tempDirs = [];
   let currentZipFile = null;
-  let tempDir = null;
-  let outerZip = null; // Declare outerZip here
 
   try {
-    // Check if directoryPath itself refers to a zip file within the main zipFilePath
-    outerZip = await yauzl.open(zipFilePath);
-    let innerZipEntry = null;
-    let normalizedDirectoryPath = directoryPath.startsWith("/")
-      ? directoryPath.substring(1)
-      : directoryPath;
+    let currentZipPath = zipFilePath;
+    let pathInsideZip = directoryPath.replace(/\\/g, "/").replace(/^\//, "");
 
-    if (normalizedDirectoryPath.endsWith("/")) {
-      normalizedDirectoryPath = normalizedDirectoryPath.slice(0, -1);
-    }
-
-    for await (const entry of outerZip) {
-      if (entry.filename === normalizedDirectoryPath) {
-        innerZipEntry = entry;
+    while (true) {
+      const zipEndIndex = pathInsideZip.toLowerCase().indexOf(".zip/");
+      if (zipEndIndex === -1) {
         break;
       }
-    }
 
-          if (innerZipEntry && getFileType(innerZipEntry.filename, false) === "archive") {
-            // It's a nested zip file, extract it to a temporary location and open it
-            tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"), { mode: 0o700 });
-            const tempInnerZipPath = path.join(tempDir, path.basename(innerZipEntry.filename));
-      const readStream = await outerZip.openReadStream(innerZipEntry);
+      const nestedZipPathInParent = pathInsideZip.substring(0, zipEndIndex + 4);
+      pathInsideZip = pathInsideZip.substring(zipEndIndex + 5);
+
+      const tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+      tempDirs.push(tempDir);
+      const tempInnerZipPath = path.join(
+        tempDir,
+        path.basename(nestedZipPathInParent)
+      );
+
+      const parentZip = await yauzl.open(currentZipPath);
+      let entryFound = null;
+      for await (const entry of parentZip) {
+        if (entry.filename === nestedZipPathInParent) {
+          entryFound = entry;
+          break;
+        }
+      }
+
+      if (!entryFound) {
+        await parentZip.close();
+        throw new Error(`Nested zip not found: ${nestedZipPathInParent}`);
+      }
+
+      const readStream = await parentZip.openReadStream(entryFound);
       const writeStream = fse.createWriteStream(tempInnerZipPath);
       await new Promise((resolve, reject) => {
         readStream.pipe(writeStream);
@@ -111,27 +121,20 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
         readStream.on("error", reject);
         writeStream.on("error", reject);
       });
-      // Close outerZip AFTER the readStream has finished piping
-      await outerZip.close();
-      outerZip = null; // Set to null so it's not closed again in finally
+      await parentZip.close();
 
-      currentZipFile = await yauzl.open(tempInnerZipPath);
-      normalizedDirectoryPath = ""; // We are now at the root of the inner zip
-    } else {
-      // Not a nested zip, or directoryPath is a regular folder within the zip
-      // Re-open the outerZip to get a fresh iterator for the main content listing
-      currentZipFile = await yauzl.open(zipFilePath);
-      outerZip = null; // Set to null so the original exhausted outerZip is not closed again
+      currentZipPath = tempInnerZipPath;
     }
 
-    const children = new Map(); // Use a Map to store unique children by name
+    currentZipFile = await yauzl.open(currentZipPath);
 
-    let normalizedDir = normalizedDirectoryPath;
+    const children = new Map();
+    let normalizedDir = pathInsideZip;
     if (normalizedDir.startsWith("/"))
       normalizedDir = normalizedDir.substring(1);
     if (normalizedDir.length > 0 && !normalizedDir.endsWith("/"))
       normalizedDir += "/";
-    if (normalizedDirectoryPath === "/") normalizedDir = "";
+    if (pathInsideZip === "/") normalizedDir = "";
 
     for await (const entry of currentZipFile) {
       if (!entry.filename.startsWith(normalizedDir)) continue;
@@ -147,19 +150,21 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
 
       if (childName && !children.has(childName)) {
         const isFolder = firstSlashIndex !== -1 || entry.filename.endsWith("/");
+        const fullPath =
+          zipFilePath +
+          "/" +
+          path.posix.join(directoryPath.replace(/^\//, ""), childName);
         children.set(childName, {
           name: childName,
           type: isFolder ? "folder" : getFileType(childName, false),
           size: isFolder ? null : entry.uncompressedSize,
           modified: entry.getLastMod().toLocaleString(),
-          fullPath: `${zipFilePath}/${normalizedDirectoryPath}${childName}`,
+          fullPath: fullPath,
         });
       }
     }
 
     const entries = Array.from(children.values());
-
-    // Always add '..' for navigation
     entries.unshift({
       name: "..",
       type: "parent",
@@ -172,11 +177,8 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
     if (currentZipFile) {
       await currentZipFile.close();
     }
-    if (outerZip) { // Close outerZip if it was never assigned to currentZipFile
-      await outerZip.close();
-    }
-    if (tempDir) {
-      await fse.remove(tempDir);
+    for (const dir of tempDirs) {
+      await fse.remove(dir);
     }
   }
 };
@@ -191,7 +193,6 @@ const getDirSizeWithProgress = async (dirPath, job) => {
     const itemPath = path.join(dirPath, item.name);
 
     if (item.isDirectory()) {
-      // Send progress update for the folder before recursing
       if (job.ws && job.ws.readyState === 1) {
         job.ws.send(
           JSON.stringify({
@@ -229,7 +230,8 @@ const performCopyCancellation = async (job) => {
   // This function now only signals the cancellation.
   // The running job's 'catch' block in websocket.js will handle sending the final message and closing the connection.
   if (job.status === "scanning" || job.status === "copying") {
-    job.status = "cancelled"; // Set the final status here.
+    // Set the final status here.
+    job.status = "cancelled";
     job.controller.abort();
 
     // Unblock the overwrite prompt if it's waiting for a response.
@@ -520,51 +522,181 @@ const getAllFiles = async (dirPath, basePath = dirPath) => {
 };
 
 const getFileContentFromZip = async (zipFilePath, filePathInZip) => {
-  let zipfile;
+  let tempDirs = [];
   try {
-    zipfile = await yauzl.open(zipFilePath);
+    let currentZipPath = zipFilePath;
+    let pathInsideZip = filePathInZip.replace(/\\/g, "/");
+
+    while (true) {
+      const zipEndIndex = pathInsideZip.toLowerCase().indexOf(".zip/");
+      if (zipEndIndex === -1) {
+        break;
+      }
+
+      const nestedZipPathInParent = pathInsideZip.substring(0, zipEndIndex + 4);
+      pathInsideZip = pathInsideZip.substring(zipEndIndex + 5);
+
+      const tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+      tempDirs.push(tempDir);
+      const tempInnerZipPath = path.join(
+        tempDir,
+        path.basename(nestedZipPathInParent)
+      );
+
+      const parentZip = await yauzl.open(currentZipPath);
+      let entryFound = null;
+      for await (const entry of parentZip) {
+        if (entry.filename === nestedZipPathInParent) {
+          entryFound = entry;
+          break;
+        }
+      }
+
+      if (!entryFound) {
+        await parentZip.close();
+        throw new Error(`Nested zip not found: ${nestedZipPathInParent}`);
+      }
+
+      const readStream = await parentZip.openReadStream(entryFound);
+      const writeStream = fse.createWriteStream(tempInnerZipPath);
+      await new Promise((resolve, reject) => {
+        readStream.pipe(writeStream);
+        readStream.on("end", resolve);
+        readStream.on("error", reject);
+        writeStream.on("error", reject);
+      });
+      await parentZip.close();
+
+      currentZipPath = tempInnerZipPath;
+    }
+
+    const zipfile = await yauzl.open(currentZipPath);
     for await (const entry of zipfile) {
-      if (entry.filename === filePathInZip) {
+      if (entry.filename === pathInsideZip) {
         const readStream = await entry.openReadStream();
         const chunks = [];
         for await (const chunk of readStream) {
           chunks.push(chunk);
         }
+        await zipfile.close();
         return Buffer.concat(chunks).toString("utf8");
       }
     }
-    throw new Error(`File not found in zip: ${filePathInZip}`);
+    await zipfile.close();
+    throw new Error(`File not found in zip: ${pathInsideZip}`);
   } finally {
-    if (zipfile) {
-      await zipfile.close();
+    for (const dir of tempDirs) {
+      await fse.remove(dir);
     }
   }
 };
 
 const getZipFileStream = async (zipFilePath, filePathInZip) => {
-  const zipfile = await yauzl.open(zipFilePath);
-  let entryFound = false;
+  let tempDirs = [];
+
+  const cleanup = async () => {
+    for (const dir of tempDirs) {
+      await fse.remove(dir);
+    }
+  };
+
   try {
+    let currentZipPath = zipFilePath;
+    let pathInsideZip = filePathInZip.replace(/\\/g, "/");
+
+    while (true) {
+      const zipEndIndex = pathInsideZip.toLowerCase().indexOf(".zip/");
+      if (zipEndIndex === -1) {
+        break;
+      }
+
+      const nestedZipPathInParent = pathInsideZip.substring(0, zipEndIndex + 4);
+      pathInsideZip = pathInsideZip.substring(zipEndIndex + 5);
+
+      const tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+      tempDirs.push(tempDir);
+      const tempInnerZipPath = path.join(
+        tempDir,
+        path.basename(nestedZipPathInParent)
+      );
+
+      const parentZip = await yauzl.open(currentZipPath);
+      let entryFound = null;
+      for await (const entry of parentZip) {
+        if (entry.filename === nestedZipPathInParent) {
+          entryFound = entry;
+          break;
+        }
+      }
+
+      if (!entryFound) {
+        await parentZip.close();
+        throw new Error(`Nested zip not found: ${nestedZipPathInParent}`);
+      }
+
+      const readStream = await parentZip.openReadStream(entryFound);
+      const writeStream = fse.createWriteStream(tempInnerZipPath);
+      await new Promise((resolve, reject) => {
+        readStream.pipe(writeStream);
+        readStream.on("end", resolve);
+        readStream.on("error", reject);
+        writeStream.on("error", reject);
+      });
+      await parentZip.close();
+
+      currentZipPath = tempInnerZipPath;
+    }
+
+    const zipfile = await yauzl.open(currentZipPath);
     for await (const entry of zipfile) {
-      if (entry.filename === filePathInZip) {
-        entryFound = true;
+      if (entry.filename === pathInsideZip) {
         const stream = await entry.openReadStream();
         stream.on("close", () => {
           zipfile.close();
+          cleanup();
         });
         stream.on("error", () => {
           zipfile.close();
+          cleanup();
         });
         return stream;
       }
     }
-    if (!entryFound) {
-      throw new Error(`File not found in zip: ${filePathInZip}`);
-    }
+
+    await zipfile.close();
+    await cleanup();
+    throw new Error(`File not found in zip: ${pathInsideZip}`);
   } catch (error) {
-    await zipfile.close(); // Ensure zipfile is closed on error
+    await cleanup();
     throw error;
   }
+};
+
+const findCoverInZip = async (zipFilePath, audioFilePathInZip) => {
+  const zipfile = await yauzl.open(zipFilePath);
+  const audioDirectory = path.posix.dirname(audioFilePathInZip);
+  const coverNames = [
+    "cover.jpg",
+    "cover.jpeg",
+    "cover.png",
+    "cover.gif",
+    "cover.webp",
+  ];
+
+  for await (const entry of zipfile) {
+    const entryDir = path.posix.dirname(entry.filename);
+    const entryName = path.basename(entry.filename);
+    if (
+      entryDir === audioDirectory &&
+      coverNames.includes(entryName.toLowerCase())
+    ) {
+      await zipfile.close();
+      return entry.filename;
+    }
+  }
+
+  await zipfile.close();
+  return null;
 };
 
 export {
@@ -581,4 +713,5 @@ export {
   getDirSizeWithScanProgress,
   copyWithProgress,
   getAllFiles,
+  findCoverInZip,
 };

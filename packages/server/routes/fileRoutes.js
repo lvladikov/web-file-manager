@@ -15,6 +15,7 @@ import {
   getFileContentFromZip,
   getZipFileStream,
   getMimeType,
+  findCoverInZip,
 } from "../lib/utils.js";
 
 export default function createFileRoutes(
@@ -89,6 +90,30 @@ export default function createFileRoutes(
     }
   });
 
+  router.get("/zip-audio-cover", async (req, res) => {
+    const { zipFilePath, audioFilePathInZip } = req.query;
+    if (!zipFilePath || !audioFilePathInZip) {
+      return res
+        .status(400)
+        .json({ message: "Zip file path and audio file path are required." });
+    }
+
+    try {
+      const coverPathInZip = await findCoverInZip(
+        zipFilePath,
+        audioFilePathInZip
+      );
+      if (coverPathInZip) {
+        res.json({ coverPathInZip });
+      } else {
+        res.status(404).json({ message: "Cover art not found in zip." });
+      }
+    } catch (error) {
+      console.error("Error finding cover art in zip:", error);
+      res.status(500).json({ message: "Error finding cover art in zip." });
+    }
+  });
+
   // Endpoint to get disk space information
   router.get("/disk-space", async (req, res) => {
     const targetPath = req.query.path || os.homedir();
@@ -142,7 +167,7 @@ export default function createFileRoutes(
       const target = req.query.target || "";
       let currentPath;
 
-      const zipPathInBasePath = basePath.match(/^(.*\.zip)(.*)$/);
+      const zipPathInBasePath = basePath.match(/^(.*?\.zip)(.*)$/);
 
       if (zipPathInBasePath) {
         const zipFile = zipPathInBasePath[1];
@@ -161,7 +186,7 @@ export default function createFileRoutes(
         currentPath = path.resolve(basePath, target);
       }
 
-      const finalZipMatch = currentPath.match(/^(.*\.zip)(.*)$/);
+      const finalZipMatch = currentPath.match(/^(.*?\.zip)(.*)$/);
 
       if (finalZipMatch) {
         const zipFilePath = finalZipMatch[1];

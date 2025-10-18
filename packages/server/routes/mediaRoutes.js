@@ -176,7 +176,7 @@ router.get("/track-info", async (req, res) => {
   let tempFilePath = null;
 
   try {
-    const zipPathMatch = filePath.match(/^(.*\.zip)(.*)$/);
+    const zipPathMatch = filePath.match(/^(.*?\.zip)(.*)$/);
 
     if (zipPathMatch) {
       const zipFilePath = zipPathMatch[1];
