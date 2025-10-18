@@ -39,6 +39,9 @@ This project is inspired by applications like Midnight Commander and Double Comm
 ├── misc/                            # Miscellaneous scripts and tools
 │   ├── create-corrupt-zip.js        # Utility for creating corrupt archives for testing
 │   └── README.md                    # Documentation for miscellaneous scripts
+├── start.sh                         # Start script for macOS and Linux
+├── start.bat                        # Start script for Windows (Command Prompt)
+├── start.ps1                        # Start script for Windows (PowerShell)
 └── README.md                        # Main project README
 
 ```
@@ -62,17 +65,60 @@ This project is inspired by applications like Midnight Commander and Double Comm
 `npm install`
 
 - Run the Application:
-  To start both the backend server and the frontend client in development mode, run this command from the root directory:
+  To start both the backend server and the frontend client in development mode, you can use one of the following methods.
 
-`npm run dev`
+  ### Using npm
 
-This command uses concurrently to:
+  Run this command from the root directory:
 
-- Start the Node.js server on http://localhost:3001 (with nodemon for auto-restarting).
+  `npm run dev`
 
-- Start the React development server on http://localhost:5173.
+  This command uses concurrently to:
 
-Your browser should automatically open to the React application.
+  - Start the Node.js server on http://localhost:3001 (with nodemon for auto-restarting).
+
+  - Start the React development server on http://localhost:5173.
+
+  Your browser should automatically open to the React application.
+
+  ### Using Start Scripts
+
+  Alternatively, you can use the provided start scripts which will check for Node.js, npm, and the required `node_modules` directories before starting the application.
+
+  - **For macOS and Linux:**
+
+    First, make the script executable:
+
+    ```bash
+    chmod +x ./start.sh
+    ```
+
+    Then run the script:
+
+    ```bash
+    ./start.sh
+    ```
+
+  - **For Windows (Command Prompt):**
+
+    ```batch
+    start.bat
+    ```
+
+  - **For Windows (PowerShell):**
+
+    You may need to change the execution policy to run the script.
+    You can do this by running the following command in PowerShell as an administrator:
+
+    ```powershell
+    Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+    ```
+
+    Then you can run the script:
+
+    ```powershell
+    .\start.ps1
+    ```
 
 ## How It Works
 
