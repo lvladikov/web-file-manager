@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, forwardRef } from "react";
+import React, { useCallback, useRef, forwardRef, useState } from "react";
 import { Info } from "lucide-react";
 import BrowserModal from "../BrowserModal";
 import { fetchZipContents } from "../../../lib/api";
@@ -17,6 +17,8 @@ const ZipPreview = forwardRef(
   ) => {
     const zipFileName = filePath.split("/").pop();
     const browserModalRef = useRef(null);
+    const [selection, setSelection] = useState(new Set());
+    const [currentZipItems, setCurrentZipItems] = useState([]);
 
     const zipPathMatch = matchZipPath(filePath);
     const actualZipFilePath = zipPathMatch ? zipPathMatch[1] : filePath;
@@ -53,20 +55,98 @@ const ZipPreview = forwardRef(
       [actualZipFilePath]
     );
 
+    const handleDecompressSelection = (target) => {
+      if (selection.size === 0) return;
+
+      const itemsToExtract = Array.from(selection)
+        .map((name) => {
+          const item = currentZipItems.find((i) => i.name === name);
+          if (!item) return null;
+
+          const pathInZip = item.fullPath.substring(
+            actualZipFilePath.length + 1
+          );
+          return pathInZip.endsWith("/") ? pathInZip.slice(0, -1) : pathInZip;
+        })
+        .filter(Boolean);
+
+      if (itemsToExtract.length === 0) return;
+
+      if (target === "active") {
+        onDecompressInActivePanel(itemsToExtract);
+      } else {
+        onDecompressToOtherPanel(itemsToExtract);
+      }
+      onClose();
+    };
+
+    const handleDecompressAll = (target) => {
+      if (target === "active") {
+        onDecompressInActivePanel(); // No args means all
+      } else {
+        onDecompressToOtherPanel(); // No args means all
+      }
+      onClose();
+    };
+
+    const CustomFooter = () => (
+      <>
+        <div className="grid grid-cols-2 gap-2 flex-grow">
+          <button
+            onClick={() => handleDecompressSelection("active")}
+            disabled={selection.size === 0}
+            className="bg-sky-600 hover:bg-sky-700 text-white py-2 px-4 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed"
+            title="Decompress only the selected items to the active panel"
+          >
+            Decompress Selection to Active
+          </button>
+          <button
+            onClick={() => handleDecompressSelection("other")}
+            disabled={selection.size === 0}
+            className="bg-sky-600 hover:bg-sky-700 text-white py-2 px-4 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed"
+            title="Decompress only the selected items to the other panel"
+          >
+            Decompress Selection to Other
+          </button>
+          <button
+            onClick={() => handleDecompressAll("active")}
+            className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg"
+            title="Decompress the entire archive to the active panel"
+          >
+            Decompress All to Active
+          </button>
+          <button
+            onClick={() => handleDecompressAll("other")}
+            className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg"
+            title="Decompress the entire archive to the other panel"
+          >
+            Decompress All to Other
+          </button>
+        </div>
+        <button
+          onClick={onClose}
+          className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg ml-4"
+        >
+          Cancel
+        </button>
+      </>
+    );
+
     return (
       <BrowserModal
         ref={browserModalRef}
         isVisible={isVisible}
-        onClose={onClose} // For a preview, confirming just closes it
+        onClose={onClose}
         onConfirm={() => {}}
-        initialPath={initialPathInZip} // Start at the root of the zip archive
+        initialPath={initialPathInZip}
         title={`Zip Archive: ${zipFileName}`}
-        confirmButtonText={null} // Remove the redundant 'Close Preview' button
-        filterItem={() => true} // All items are selectable for preview
+        confirmButtonText={null}
+        filterItem={() => true}
         fetchItems={fetchZipDirectory}
-        onDecompressInActivePanel={onDecompressInActivePanel}
-        onDecompressToOtherPanel={onDecompressToOtherPanel}
         isEmbedded={true}
+        onSelectionChange={setSelection}
+        onItemsLoad={setCurrentZipItems}
+        footer={<CustomFooter />}
       >
         <div className="flex items-start bg-gray-800 text-sm text-gray-400 flex-shrink-0">
           <Info className="w-5 h-5 mr-3 flex-shrink-0 text-sky-400" />

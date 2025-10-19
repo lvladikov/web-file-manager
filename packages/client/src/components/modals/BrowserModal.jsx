@@ -27,9 +27,10 @@ const BrowserModal = forwardRef(
       children,
       fetchItems,
       onFileDoubleClick,
-      onDecompressInActivePanel,
-      onDecompressToOtherPanel,
       isEmbedded,
+      footer,
+      onSelectionChange,
+      onItemsLoad,
     },
     ref
   ) => {
@@ -38,17 +39,23 @@ const BrowserModal = forwardRef(
     const [loading, setLoading] = useState(true);
     const [focusedItem, setFocusedItem] = useState(null);
     const [error, setError] = useState(null);
+    const [selectedItems, setSelectedItems] = useState(new Set());
+    const [selectionAnchor, setSelectionAnchor] = useState(null);
 
     const listRef = useRef(null);
     const confirmButtonRef = useRef(null);
     const cancelButtonRef = useRef(null);
-    const decompressActiveButtonRef = useRef(null);
-    const decompressOtherButtonRef = useRef(null);
     const pathRef = useRef(currentPath);
 
     useEffect(() => {
       pathRef.current = currentPath;
     }, [currentPath]);
+
+    useEffect(() => {
+      if (onSelectionChange) {
+        onSelectionChange(selectedItems);
+      }
+    }, [selectedItems, onSelectionChange]);
 
     const focusedItemRef = useRef(focusedItem);
     useEffect(() => {
@@ -67,8 +74,6 @@ const BrowserModal = forwardRef(
           confirmButtonText === "Copy Here" ||
           confirmButtonText === "Move Here";
 
-        // Handle case where CONFIRM button is clicked AND NO item is focused.
-        // This is the default action for path selection modals.
         if (!itemToConfirm) {
           if (isPathConfirmModal) {
             onConfirm(pathRef.current);
@@ -76,10 +81,6 @@ const BrowserModal = forwardRef(
           return;
         }
 
-        // Handle case where an item is double-clicked or the button is clicked with an item focused.
-
-        // If the item being confirmed is a folder that is the same as our current path,
-        // then confirm the current path, don't build a new one.
         if (
           itemToConfirm.type === "folder" &&
           itemToConfirm.fullPath === pathRef.current
@@ -88,7 +89,6 @@ const BrowserModal = forwardRef(
           return;
         }
 
-        // For sub-folders or files (like in ZipPreview), confirm the path to the item.
         const fullPath = buildFullPath(pathRef.current, itemToConfirm.name);
         onConfirm(fullPath);
       },
@@ -106,20 +106,59 @@ const BrowserModal = forwardRef(
             : await fetchDirectory(basePath, target);
           setCurrentPath(dirData.path);
           setItems(dirData.items);
+          if (onItemsLoad) {
+            onItemsLoad(dirData.items);
+          }
         } catch (err) {
           setError(err.message);
         } finally {
           setLoading(false);
         }
       },
-      [fetchItems]
+      [fetchItems, onItemsLoad]
     );
+
+    const handleItemClick = (item, e) => {
+      if (!filterItem(item)) return;
+
+      setFocusedItem(item);
+
+      const itemName = item.name;
+      if (isModKey(e)) {
+        const newSelection = new Set(selectedItems);
+        if (newSelection.has(itemName)) newSelection.delete(itemName);
+        else newSelection.add(itemName);
+        setSelectedItems(newSelection);
+        setSelectionAnchor(item);
+      } else if (e.shiftKey && selectionAnchor) {
+        const anchorIndex = items.findIndex(
+          (i) => i.name === selectionAnchor.name
+        );
+        const clickedIndex = items.findIndex((i) => i.name === itemName);
+
+        const start = Math.min(anchorIndex, clickedIndex);
+        const end = Math.max(anchorIndex, clickedIndex);
+
+        const newSelection = new Set(
+          items
+            .slice(start, end + 1)
+            .filter((i) => filterItem(i))
+            .map((i) => i.name)
+        );
+        setSelectedItems(newSelection);
+      } else {
+        setSelectedItems(new Set([itemName]));
+        setSelectionAnchor(item);
+      }
+    };
 
     useEffect(() => {
       if (isVisible) {
         const initialLoadPath = initialPath || "";
         setCurrentPath(initialLoadPath);
         handleNavigate(initialLoadPath, "");
+        setSelectedItems(new Set());
+        setSelectionAnchor(null);
         listRef.current?.focus();
       } else {
         setLoading(true);
@@ -132,8 +171,16 @@ const BrowserModal = forwardRef(
       if (!isVisible) return;
 
       const handleKeyDown = (e) => {
-        // Prevent metaKey+A (select all) and metaKey+D (bookmark)
-        if (isModKey(e) && (e.key === "a" || e.key === "d")) {
+        if (isModKey(e) && e.key === "a") {
+          e.preventDefault();
+          const allSelectable = items
+            .filter((i) => filterItem(i))
+            .map((i) => i.name);
+          setSelectedItems(new Set(allSelectable));
+          return;
+        }
+
+        if (isModKey(e) && e.key === "d") {
           e.preventDefault();
           return;
         }
@@ -146,8 +193,6 @@ const BrowserModal = forwardRef(
           e.preventDefault();
           const focusableElements = [
             listRef.current,
-            decompressActiveButtonRef.current,
-            decompressOtherButtonRef.current,
             confirmButtonRef.current,
             cancelButtonRef.current,
           ].filter(Boolean);
@@ -198,8 +243,6 @@ const BrowserModal = forwardRef(
                 localFocusedItem.type === "parent";
 
               if (isFolder) {
-                // If the focused item's full path is the same as the current path,
-                // we are already there. Treat as a confirmation instead of re-navigating.
                 if (localFocusedItem.fullPath === pathRef.current) {
                   handleConfirm();
                 } else {
@@ -211,16 +254,12 @@ const BrowserModal = forwardRef(
             } else {
               handleConfirm();
             }
-            // Exit handler immediately. Prevents shared focus logic at the end of the function
-            // from running on a navigation action.
             return;
           case "Backspace":
             const parentItem = items.find((item) => item.name === "..");
             if (parentItem) {
               handleNavigate(pathRef.current, "..");
             }
-            // Exit handler immediately. Prevents shared focus logic at the end of the function
-            // from running on a navigation action.
             return;
           default:
             preventDefault = false;
@@ -231,6 +270,24 @@ const BrowserModal = forwardRef(
           const newFocusedItem = items[newIndex];
           if (newFocusedItem) {
             setFocusedItem(newFocusedItem);
+
+            if (e.shiftKey && selectionAnchor) {
+              const anchorIndex = items.findIndex(
+                (i) => i.name === selectionAnchor.name
+              );
+              const start = Math.min(anchorIndex, newIndex);
+              const end = Math.max(anchorIndex, newIndex);
+              const newSelection = new Set(
+                items
+                  .slice(start, end + 1)
+                  .filter(filterItem)
+                  .map((i) => i.name)
+              );
+              setSelectedItems(newSelection);
+            } else {
+              setSelectedItems(new Set([newFocusedItem.name]));
+              setSelectionAnchor(newFocusedItem);
+            }
           }
         }
       };
@@ -245,6 +302,7 @@ const BrowserModal = forwardRef(
       handleConfirm,
       focusedItem,
       onClose,
+      selectionAnchor,
     ]);
 
     useEffect(() => {
@@ -263,15 +321,13 @@ const BrowserModal = forwardRef(
 
     if (!isVisible) return null;
 
-    // Determine if the button should be disabled
     const isPathConfirmModal =
       confirmButtonText === "Select Folder" ||
       confirmButtonText === "Copy Here" ||
       confirmButtonText === "Move Here";
 
     const isButtonDisabled =
-      !confirmButtonText || // Button is hidden
-      (!isPathConfirmModal && !focusedItem); // Button is present, requires item (e.g. AppBrowser), and no item is focused
+      !confirmButtonText || (!isPathConfirmModal && !focusedItem);
 
     const modalContent = (
       <div
@@ -317,6 +373,7 @@ const BrowserModal = forwardRef(
           {!loading &&
             items.map((item) => {
               const isSelectable = filterItem(item);
+              const isSelected = selectedItems.has(item.name);
               return (
                 <div
                   key={item.name}
@@ -324,13 +381,21 @@ const BrowserModal = forwardRef(
                   className={`flex items-center p-1.5 rounded select-none ${
                     !isSelectable ? "text-gray-500" : "cursor-pointer"
                   } ${
-                    focusedItem?.name === item.name
+                    isSelected
                       ? "bg-blue-600"
+                      : focusedItem?.name === item.name
+                      ? "bg-gray-600"
                       : isSelectable
                       ? "hover:bg-gray-700"
                       : ""
-                  }`}
-                  onClick={() => isSelectable && setFocusedItem(item)}
+                  }
+                  ${
+                    focusedItem?.name === item.name && !isSelected
+                      ? "ring-2 ring-gray-400 ring-inset"
+                      : ""
+                  }
+                  `}
+                  onClick={(e) => handleItemClick(item, e)}
                   onDoubleClick={() => {
                     const isFolder =
                       item.type === "folder" || item.type === "parent";
@@ -354,49 +419,29 @@ const BrowserModal = forwardRef(
             })}
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-4 flex-shrink-0">
-          {onDecompressInActivePanel && (
-            <button
-              ref={decompressActiveButtonRef}
-              onClick={() => {
-                onDecompressInActivePanel();
-                onClose();
-              }}
-              title="Decompress to active panel the entire archive (not individual items, the list you see is just for preview purposes)"
-              className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg w-full sm:w-auto text-center"
-            >
-              Decompress to active panel
-            </button>
-          )}
-          {onDecompressToOtherPanel && (
-            <button
-              ref={decompressOtherButtonRef}
-              onClick={() => {
-                onDecompressToOtherPanel();
-                onClose();
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg w-full sm:w-auto text-center"
-              title="Decompress to other panel the entire archive (not individual items, the list you see is just for preview purposes)"
-            >
-              Decompress to other panel
-            </button>
-          )}
-          <div className="hidden sm:block sm:flex-grow" />
-          <button
-            ref={cancelButtonRef}
-            onClick={onClose}
-            className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg w-full sm:w-auto text-center"
-          >
-            Cancel
-          </button>
-          {confirmButtonText && (
-            <button
-              ref={confirmButtonRef}
-              onClick={() => handleConfirm()}
-              disabled={isButtonDisabled}
-              className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-500 w-full sm:w-auto text-center"
-            >
-              {confirmButtonText}
-            </button>
+          {footer ? (
+            footer
+          ) : (
+            <>
+              <div className="hidden sm:block sm:flex-grow" />
+              <button
+                ref={cancelButtonRef}
+                onClick={onClose}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg w-full sm:w-auto text-center"
+              >
+                Cancel
+              </button>
+              {confirmButtonText && (
+                <button
+                  ref={confirmButtonRef}
+                  onClick={() => handleConfirm()}
+                  disabled={isButtonDisabled}
+                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-500 w-full sm:w-auto text-center"
+                >
+                  {confirmButtonText}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

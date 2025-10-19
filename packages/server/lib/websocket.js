@@ -2,7 +2,8 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import fse from "fs-extra";
 import { open } from "yauzl-promise";
-import { pipeline, Writable, Readable } from "stream";
+import { pipeline } from "stream/promises";
+import { Writable, Readable } from "stream";
 import watcher from "./watcher.js";
 import os from "os";
 import * as yauzl from "yauzl-promise";
@@ -110,7 +111,6 @@ export function initializeWebSocketServer(
 
         if (jobType === "copy" || jobType === "duplicate") {
           if (job.jobType === "zip-add") {
-            // HANDLE FS-to-ZIP COPY
             (async () => {
               let progressInterval;
               try {
@@ -220,7 +220,6 @@ export function initializeWebSocketServer(
               }
             })();
           } else if (job.jobType === "zip-extract") {
-            // HANDLE ZIP-to-FS COPY (EXTRACTION)
             (async () => {
               let progressInterval;
               try {
@@ -235,12 +234,8 @@ export function initializeWebSocketServer(
                 const zipFilePath = zipSourceMatch[1];
                 job.zipFilePath = zipFilePath;
 
-                const zipfile = await yauzl.open(zipFilePath);
+                let zipfile = await yauzl.open(zipFilePath);
 
-                const sourceBase = zipSourceMatch[2].substring(
-                  0,
-                  zipSourceMatch[2].lastIndexOf("/")
-                );
                 const entriesToExtract = [];
                 let totalUncompressedSize = 0;
 
@@ -322,7 +317,7 @@ export function initializeWebSocketServer(
               }
             })();
           } else {
-            // HANDLE FS-to-FS COPY (existing logic)
+            // HANDLE FS-to-FS COPY
             (async () => {
               const currentJobType = jobType;
               try {
@@ -405,12 +400,11 @@ export function initializeWebSocketServer(
         if (jobType === "size") {
           (async () => {
             try {
-              // First, calculate the total size without sending progress updates
               const totalSize = await getDirTotalSize(
                 job.folderPath,
                 job.controller.signal
               );
-              job.totalSize = totalSize; // Store total size in the job object
+              job.totalSize = totalSize;
 
               if (ws.readyState === 1) {
                 ws.send(
@@ -439,7 +433,6 @@ export function initializeWebSocketServer(
         }
 
         if (jobType === "compress") {
-          console.log(`[ws] Entering compress job block for job: ${jobId}`);
           (async () => {
             let progressInterval;
             try {
@@ -478,7 +471,7 @@ export function initializeWebSocketServer(
               progressInterval = setInterval(() => {
                 if (job.ws && job.ws.readyState === 1) {
                   const currentTime = Date.now();
-                  const timeElapsed = (currentTime - job.lastUpdateTime) / 1000; // in seconds
+                  const timeElapsed = (currentTime - job.lastUpdateTime) / 1000;
                   const bytesSinceLastUpdate =
                     job.compressedBytes - job.lastProcessedBytes;
                   const instantaneousSpeed =
@@ -522,14 +515,14 @@ export function initializeWebSocketServer(
                 await new Promise((resolve, reject) => {
                   job.currentFile = file.relativePath;
                   job.currentFileTotalSize = file.stats.size;
-                  job.currentFileBytesProcessed = 0; // Reset for the new file
+                  job.currentFileBytesProcessed = 0;
 
                   const stream = fse.createReadStream(file.fullPath);
                   stream.on("data", (chunk) => {
                     job.currentFileBytesProcessed += chunk.length;
                     job.compressedBytes += chunk.length;
                   });
-                  stream.on("error", reject); // Handle read stream errors
+                  stream.on("error", reject);
 
                   job.archive.append(stream, {
                     name: file.relativePath,
@@ -567,13 +560,16 @@ export function initializeWebSocketServer(
           (async () => {
             let zipfile;
             let progressInterval;
-            let tempNestedZipPath = null; // To store path of extracted nested zip
+            let tempNestedZipPath = null;
 
             try {
-              job.overwriteDecision = "prompt"; // Initialize
+              job.overwriteDecision = "prompt";
 
-              // Top-level folder check
-              if (await fse.pathExists(job.destination)) {
+              // Show overwrite prompt for the destination FOLDER only on FULL extraction.
+              if (
+                (await fse.pathExists(job.destination)) &&
+                !(job.itemsToExtract && job.itemsToExtract.length > 0)
+              ) {
                 if (ws.readyState === 1) {
                   ws.send(
                     JSON.stringify({
@@ -604,7 +600,6 @@ export function initializeWebSocketServer(
               let sourceToDecompress;
 
               if (job.isNestedZip) {
-                // Extract the nested zip to a temporary file first
                 const tempDir = fse.mkdtempSync(
                   path.join(os.tmpdir(), "nested-decompress-"),
                   { mode: 0o700 }
@@ -613,7 +608,6 @@ export function initializeWebSocketServer(
                   tempDir,
                   path.basename(job.filePathInZip)
                 );
-
                 const readStream = await getZipFileStream(
                   job.zipFilePath,
                   job.filePathInZip
@@ -631,18 +625,37 @@ export function initializeWebSocketServer(
               }
 
               zipfile = await open(sourceToDecompress);
-              job.zipfile = zipfile;
-              job.currentWriteStream = null;
 
               let totalUncompressedSize = 0;
               let totalFiles = 0;
-              for await (const entry of zipfile) {
-                totalUncompressedSize += entry.uncompressedSize;
-                if (!entry.filename.endsWith("/")) {
-                  totalFiles++;
+              const entriesToExtractNames = [];
+
+              if (job.itemsToExtract && job.itemsToExtract.length > 0) {
+                for await (const entry of zipfile) {
+                  const shouldExtract = job.itemsToExtract.some(
+                    (selectedItem) =>
+                      entry.filename === selectedItem ||
+                      entry.filename.startsWith(selectedItem + "/")
+                  );
+                  if (shouldExtract) {
+                    entriesToExtractNames.push(entry.filename);
+                    totalUncompressedSize += entry.uncompressedSize;
+                    if (!entry.filename.endsWith("/")) {
+                      totalFiles++;
+                    }
+                  }
+                }
+              } else {
+                for await (const entry of zipfile) {
+                  entriesToExtractNames.push(entry.filename);
+                  totalUncompressedSize += entry.uncompressedSize;
+                  if (!entry.filename.endsWith("/")) {
+                    totalFiles++;
+                  }
                 }
               }
-              // Re-open the zipfile to reset the entry stream for actual decompression
+
+              await zipfile.close();
               zipfile = await open(sourceToDecompress);
               job.zipfile = zipfile;
 
@@ -692,9 +705,14 @@ export function initializeWebSocketServer(
                 }
               }, 250);
 
+              const entriesToExtractSet = new Set(entriesToExtractNames);
               for await (const entry of zipfile) {
+                if (!entriesToExtractSet.has(entry.filename)) {
+                  continue;
+                }
+
                 if (job.status === "cancelled") {
-                  break; // Exit loop if cancelled
+                  break;
                 }
 
                 job.currentFile = entry.filename;
@@ -703,7 +721,6 @@ export function initializeWebSocketServer(
 
                 const destPath = path.join(job.destination, entry.filename);
 
-                // OVERWRITE LOGIC START
                 if (await fse.pathExists(destPath)) {
                   let decision = job.overwriteDecision;
                   const needsPrompt = ["prompt", "overwrite", "skip"].includes(
@@ -712,7 +729,7 @@ export function initializeWebSocketServer(
 
                   if (needsPrompt) {
                     if (job.ws && job.ws.readyState === 1) {
-                      job.ws.send(
+                      ws.send(
                         JSON.stringify({
                           type: "overwrite_prompt",
                           file: entry.filename,
@@ -734,7 +751,7 @@ export function initializeWebSocketServer(
                       case "skip_all":
                         return true;
                       case "if_newer":
-                        return true; // For decompression, if_newer is effectively a skip
+                        return true;
                       case "size_differs": {
                         if (entry.filename.endsWith("/")) return false;
                         const destStats = fse.statSync(destPath);
@@ -760,36 +777,23 @@ export function initializeWebSocketServer(
                     }
                     if (job.overwriteDecision === "skip")
                       job.overwriteDecision = "prompt";
-                    continue; // Skip to next entry
+                    continue;
                   }
-
-                  if (decision === "overwrite") {
+                  if (decision === "overwrite")
                     job.overwriteDecision = "prompt";
-                  }
                 }
-                // OVERWRITE LOGIC END
 
                 if (entry.filename.endsWith("/")) {
-                  fse.mkdirpSync(destPath);
-                  // Set modification time for directories
+                  await fse.mkdirp(destPath);
                   let mtime;
                   try {
                     mtime = entry.getLastMod();
                     if (isNaN(mtime.getTime())) {
-                      // If getLastMod() returns an invalid date, use current date as fallback
-                      console.warn(
-                        `[ws:${jobId}] Invalid modification date for ${entry.filename}. Using current date.`
-                      );
                       mtime = new Date();
                     }
                   } catch (dateError) {
-                    console.error(
-                      `[ws:${jobId}] Error getting modification date for ${entry.filename}:`,
-                      dateError
-                    );
                     mtime = new Date();
                   }
-
                   fse.utimes(destPath, mtime, mtime, (err) => {
                     if (err)
                       console.error(
@@ -799,103 +803,44 @@ export function initializeWebSocketServer(
                   });
                   processedBytes += entry.uncompressedSize;
                 } else {
-                  processedFiles++; // Increment processed files for actual files
-                  try {
-                    const readStream = await entry.openReadStream();
-                    job.currentReadStream = readStream;
+                  await fse.mkdirp(path.dirname(destPath));
+                  const readStream = await entry.openReadStream();
+                  const writeStream = fse.createWriteStream(destPath);
 
-                    fse.mkdirpSync(path.dirname(destPath));
-                    const writeStream = fse.createWriteStream(destPath);
-                    job.currentWriteStream = writeStream;
+                  readStream.on("data", (chunk) => {
+                    processedBytes += chunk.length;
+                    job.currentFileBytesProcessed += chunk.length;
+                  });
 
-                    readStream.on("data", (chunk) => {
-                      processedBytes += chunk.length;
-                      job.currentFileBytesProcessed += chunk.length;
-                    });
-
-                    readStream.on("error", (readErr) => {
-                      console.error(
-                        `[ws:${jobId}] Read stream error for ${entry.filename}:`,
-                        readErr
-                      );
-                    });
-
-                    await new Promise((resolve, reject) => {
-                      readStream.on("error", reject);
-                      writeStream.on("error", reject);
-                      writeStream.on("close", async () => {
-                        // Set modification time for files after writing
-                        if (job.status !== "cancelled") {
-                          let mtime;
-                          try {
-                            mtime = entry.getLastMod();
-                            if (isNaN(mtime.getTime())) {
-                              // If getLastMod() returns an invalid date, use current date as fallback
-                              console.warn(
-                                `[ws:${jobId}] Invalid modification date for ${entry.filename}. Using current date.`
-                              );
-                              mtime = new Date();
-                            }
-                          } catch (dateError) {
-                            console.error(
-                              `[ws:${jobId}] Error getting modification date for ${entry.filename}:`,
-                              dateError
-                            );
-                            mtime = new Date();
-                          }
-
-                          fse.utimes(destPath, mtime, mtime, (err) => {
-                            if (err)
-                              console.error(
-                                `[ws:${jobId}] Error setting mtime for file ${destPath}:`,
-                                err
-                              );
-                          });
+                  await new Promise((resolve, reject) => {
+                    writeStream.on("close", async () => {
+                      if (job.status !== "cancelled") {
+                        let mtime;
+                        try {
+                          mtime = entry.getLastMod();
+                          if (isNaN(mtime.getTime())) mtime = new Date();
+                        } catch (dateError) {
+                          mtime = new Date();
                         }
-                        if (job.status === "cancelled") {
-                          console.log(
-                            `[ws:${jobId}] Write stream closed for cancelled file. Cleaning up: ${destPath}`
-                          );
-                          try {
-                            if (await fse.pathExists(destPath)) {
-                              await fse.remove(destPath);
-                              console.log(
-                                `[ws:${jobId}] Successfully cleaned up partial file.`
-                              );
-                            }
-                          } catch (cleanupError) {
+                        fse.utimes(destPath, mtime, mtime, (err) => {
+                          if (err)
                             console.error(
-                              `[ws:${jobId}] Error during cleanup of partial file:`,
-                              cleanupError
+                              `[ws:${jobId}] Error setting mtime for file ${destPath}:`,
+                              err
                             );
-                          }
-                        }
-                        resolve();
-                      });
-
-                      // Handle cancellation
-                      job.controller.signal.onabort = () => {
-                        readStream.destroy();
-                        writeStream.destroy();
-                        reject(new Error("Decompression cancelled"));
-                      };
-
-                      readStream.pipe(writeStream);
+                        });
+                      }
+                      resolve();
                     });
-                  } catch (streamError) {
-                    if (streamError.message === "Decompression cancelled") {
-                      console.log(
-                        `[ws:${jobId}] Decompression of entry ${entry.filename} cancelled.`
-                      );
-                      // Do not re-throw or log as an error, just resolve to continue loop or break.
-                    } else {
-                      console.error(
-                        `[ws:${jobId}] Error processing entry ${entry.filename}:`,
-                        streamError
-                      );
-                      // Handle other errors, perhaps send a failed status to client
-                    }
-                  }
+                    writeStream.on("error", reject);
+                    readStream.on("error", reject);
+                    pipeline(readStream, writeStream, {
+                      signal: job.controller.signal,
+                    }).catch(reject);
+                  });
+                }
+                if (!entry.filename.endsWith("/")) {
+                  processedFiles++;
                 }
               }
 
@@ -932,11 +877,11 @@ export function initializeWebSocketServer(
               }
             } finally {
               clearInterval(progressInterval);
-              if (zipfile) {
-                zipfile.close();
+              if (job.zipfile) {
+                await job.zipfile.close();
               }
               if (tempNestedZipPath) {
-                await fse.remove(path.dirname(tempNestedZipPath)); // Remove the temporary directory
+                await fse.remove(path.dirname(tempNestedZipPath));
               }
             }
           })();
@@ -956,7 +901,6 @@ export function initializeWebSocketServer(
               if (jobComplete || ws.readyState !== 1) return;
               jobComplete = true;
 
-              // Fallback: if ZIP couldn\'t even start, ensure at least one failed file entry
               if (failedFiles.length === 0 && generalError) {
                 failedFiles.push({
                   fileName: currentFile || "unknown",
@@ -996,7 +940,6 @@ export function initializeWebSocketServer(
                   readStream.pipe(nullStream);
                 });
               } catch (err) {
-                // Provide most detailed message available
                 const message =
                   err.message ||
                   err.code ||
@@ -1044,7 +987,6 @@ export function initializeWebSocketServer(
               console.error(`[ws:${jobId}] Archive test error:`, err);
               generalError = err.message || String(err);
 
-              // Only add current file if not already in failedFiles
               if (
                 currentFile &&
                 !failedFiles.some((f) => f.fileName === currentFile)
@@ -1075,9 +1017,7 @@ export function initializeWebSocketServer(
             let count = 0;
 
             const getPathsRecursive = async (dir) => {
-              if (visited.has(dir)) {
-                return;
-              }
+              if (visited.has(dir)) return;
               visited.add(dir);
 
               try {
@@ -1115,11 +1055,7 @@ export function initializeWebSocketServer(
                 count++;
                 if (ws.readyState === 1) {
                   ws.send(
-                    JSON.stringify({
-                      type: "progress",
-                      path: fullPath,
-                      count,
-                    })
+                    JSON.stringify({ type: "progress", path: fullPath, count })
                   );
                 }
                 if (job.includeSubfolders && item.type === "folder") {
@@ -1155,7 +1091,6 @@ export function initializeWebSocketServer(
           console.log(`[ws] Client disconnected for ${jobType} job: ${jobId}`);
           if (job.ws === ws) job.ws = null;
 
-          // If a compress job is still running and the client disconnects, mark it as cancelled
           if (
             jobType === "compress" &&
             job.status !== "completed" &&
@@ -1163,9 +1098,8 @@ export function initializeWebSocketServer(
           ) {
             job.status = "cancelled";
             if (job.archive) {
-              job.archive.destroy(); // Destroy the archiver stream, which also destroys its piped destination
+              job.archive.destroy();
             }
-            // Delete the partial archive immediately upon cancellation
             if (await fse.pathExists(job.outputPath)) {
               await fse.remove(job.outputPath);
             }
@@ -1177,8 +1111,6 @@ export function initializeWebSocketServer(
             job.status !== "failed"
           ) {
             job.status = "cancelled";
-            // The zipfile.close() is handled in the finally block of the job itself.
-            // No need to close it here again, as it might be in progress.
           }
         });
 
@@ -1190,7 +1122,6 @@ export function initializeWebSocketServer(
         ws.close();
       }
     } else {
-      // GENERAL-PURPOSE WEBSOCKET CONNECTION FOR FILE WATCHING
       console.log("[ws] Client connected for file watching.");
       watchingClients.set(ws, new Set());
 
@@ -1203,7 +1134,6 @@ export function initializeWebSocketServer(
               if (watchedPaths && data.path && !watchedPaths.has(data.path)) {
                 watcher.watch(data.path);
                 watchedPaths.add(data.path);
-                // console.log(`[ws] Watching path: ${data.path}`); //Uncomment for debugging
               }
               break;
             }
@@ -1212,7 +1142,6 @@ export function initializeWebSocketServer(
               if (watchedPaths && data.path && watchedPaths.has(data.path)) {
                 watcher.unwatch(data.path);
                 watchedPaths.delete(data.path);
-                // console.log(`[ws] Unwatching path: ${data.path}`); //Uncomment for debugging
               }
               break;
             }

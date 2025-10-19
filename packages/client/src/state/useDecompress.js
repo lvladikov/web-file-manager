@@ -48,6 +48,7 @@ const useDecompress = ({
       }
 
       const archiveItem = queueRef.current.shift();
+      const itemsToExtract = archiveItem.itemsToExtract;
       const sourcePanelId = activePanel;
       const sourcePath = panels[sourcePanelId].path;
 
@@ -64,12 +65,21 @@ const useDecompress = ({
       let errorMessage = "";
 
       const source = { path: sourcePath, name: archiveItem.name };
-      const subfolderName = archiveItem.name.replace(/\.[^/.]+$/, "");
       const baseDestinationPath = panels[targetPanelId].path;
-      const destinationPath = buildFullPath(baseDestinationPath, subfolderName);
+
+      const destinationPath = itemsToExtract
+        ? baseDestinationPath
+        : buildFullPath(
+            baseDestinationPath,
+            archiveItem.name.replace(/\.[^/.]+$/, "")
+          );
 
       try {
-        const { jobId } = await decompressFiles(source, destinationPath);
+        const { jobId } = await decompressFiles(
+          source,
+          destinationPath,
+          itemsToExtract
+        );
         setDecompressProgress((prev) => ({ ...prev, jobId }));
 
         const ws = new WebSocket(
@@ -154,7 +164,7 @@ const useDecompress = ({
   );
 
   const handleDecompress = useCallback(
-    async (targetPanelId) => {
+    async (targetPanelId, itemsToExtract = null) => {
       const sourcePanelId = activePanel;
       const itemsToConsider = filter[sourcePanelId].pattern
         ? filteredItems[sourcePanelId]
@@ -171,7 +181,15 @@ const useDecompress = ({
         return;
       }
 
-      queueRef.current = [...archivesToDecompress];
+      if (itemsToExtract) {
+        const singleArchive = archivesToDecompress[0];
+        if (singleArchive) {
+          singleArchive.itemsToExtract = itemsToExtract;
+          queueRef.current = [singleArchive];
+        }
+      } else {
+        queueRef.current = [...archivesToDecompress];
+      }
 
       setDecompressProgress((prev) => ({
         ...prev,
@@ -181,7 +199,7 @@ const useDecompress = ({
         totalBytes: 0,
         processedBytes: 0,
         error: null,
-        totalArchives: archivesToDecompress.length,
+        totalArchives: queueRef.current.length,
         processedArchives: 0,
         currentArchiveName: "",
         targetPanelId: targetPanelId,
@@ -213,14 +231,20 @@ const useDecompress = ({
     setDecompressProgress((prev) => ({ ...prev, isVisible: false }));
   };
 
-  const handleDecompressInActivePanel = useCallback(() => {
-    handleDecompress(activePanel);
-  }, [handleDecompress, activePanel]);
+  const handleDecompressInActivePanel = useCallback(
+    (itemsToExtract = null) => {
+      handleDecompress(activePanel, itemsToExtract);
+    },
+    [handleDecompress, activePanel]
+  );
 
-  const handleDecompressToOtherPanel = useCallback(() => {
-    const otherPanelId = activePanel === "left" ? "right" : "left";
-    handleDecompress(otherPanelId);
-  }, [handleDecompress, activePanel]);
+  const handleDecompressToOtherPanel = useCallback(
+    (itemsToExtract = null) => {
+      const otherPanelId = activePanel === "left" ? "right" : "left";
+      handleDecompress(otherPanelId, itemsToExtract);
+    },
+    [handleDecompress, activePanel]
+  );
 
   return {
     decompressProgress,

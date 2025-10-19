@@ -267,11 +267,11 @@ const compressFiles = async (sources, destination, sourceDirectory) => {
   return response.json();
 };
 
-const decompressFiles = async (source, destination) => {
+const decompressFiles = async (source, destination, itemsToExtract = null) => {
   const response = await fetch("/api/decompress", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source, destination }),
+    body: JSON.stringify({ source, destination, itemsToExtract }),
   });
   if (!response.ok) {
     const data = await response.json();
