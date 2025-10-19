@@ -976,8 +976,80 @@ const createFolderInZip = async (
   } finally {
     await zipfile.close();
   }
+};
 
-  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+const getSummaryFromZip = async (zipFilePath, pathInZip) => {
+  let fileCount = 0;
+  let folderCount = 0;
+  // The path for a folder inside a zip may or may not have a trailing slash.
+  // To count its contents, we need to match everything that starts with `folderName/`.
+  const dirPrefix = pathInZip.endsWith("/") ? pathInZip : `${pathInZip}/`;
+
+  const zipfile = await yauzl.open(zipFilePath);
+  try {
+    for await (const entry of zipfile) {
+      // We only want to count items *inside* the folder, not the folder itself.
+      if (
+        entry.filename.startsWith(dirPrefix) &&
+        entry.filename !== dirPrefix
+      ) {
+        if (entry.filename.endsWith("/")) {
+          folderCount++;
+        } else {
+          fileCount++;
+        }
+      }
+    }
+  } finally {
+    await zipfile.close();
+  }
+  return { files: fileCount, folders: folderCount };
+};
+
+const deleteFromZip = async (zipFilePath, pathsInZip) => {
+  const pathsToDelete = Array.isArray(pathsInZip) ? pathsInZip : [pathsInZip];
+
+  const tempZipPath = zipFilePath + ".tmp";
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", {
+    zlib: { level: 9 },
+  });
+  archive.pipe(output);
+
+  const zipfile = await yauzl.open(zipFilePath);
+  try {
+    for await (const entry of zipfile) {
+      const shouldDelete = pathsToDelete.some((pathToDelete) => {
+        // A folder path from client won't have a trailing slash, but its entry in the zip does.
+        const pathToDeleteAsFolder = pathToDelete.endsWith("/")
+          ? pathToDelete
+          : `${pathToDelete}/`;
+
+        // Delete if it's an exact match (for a file) or starts with the folder path
+        return (
+          entry.filename === pathToDelete ||
+          entry.filename.startsWith(pathToDeleteAsFolder)
+        );
+      });
+
+      if (!shouldDelete) {
+        const stream = await entry.openReadStream();
+        archive.append(stream, { name: entry.filename });
+      }
+    }
+    await archive.finalize();
+    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+  } catch (error) {
+    // Ensure temp file is removed on error
+    await fse
+      .remove(tempZipPath)
+      .catch((err) =>
+        console.error(`Failed to remove temp zip: ${err.message}`)
+      );
+    throw error;
+  } finally {
+    await zipfile.close();
+  }
 };
 
 export {
@@ -999,4 +1071,6 @@ export {
   updateFileInZip,
   createFileInZip,
   createFolderInZip,
+  getSummaryFromZip,
+  deleteFromZip,
 };

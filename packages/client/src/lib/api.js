@@ -22,15 +22,17 @@ const createNewFolder = async (newFolderPath) => {
   }
 };
 
-const deleteItem = async (targetPath) => {
+const deleteItem = async (targetPaths) => {
   const response = await fetch("/api/delete", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: targetPath }),
+    body: JSON.stringify({
+      paths: Array.isArray(targetPaths) ? targetPaths : [targetPaths],
+    }),
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.message || "Failed to delete item.");
+    throw new Error(data.message || "Failed to delete item(s).");
   }
   return response.json();
 };
@@ -81,7 +83,9 @@ const fetchFiles = async (path) => {
 };
 
 const fetchFileInfo = async (filePath) => {
-  const response = await fetch(`/api/file-info?filePath=${encodeURIComponent(filePath)}`);
+  const response = await fetch(
+    `/api/file-info?filePath=${encodeURIComponent(filePath)}`
+  );
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.message || "An unknown server error occurred.");

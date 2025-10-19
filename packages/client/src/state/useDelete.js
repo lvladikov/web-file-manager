@@ -81,7 +81,8 @@ export default function useDelete({
   const confirmDeletion = useCallback(async () => {
     if (deleteTargets.length === 0) return;
     try {
-      await Promise.all(deleteTargets.map((item) => deleteItem(item.fullPath)));
+      const pathsToDelete = deleteTargets.map((item) => item.fullPath);
+      await deleteItem(pathsToDelete);
       // Refresh both panels
       const otherPanelId = activePanel === "left" ? "right" : "left";
       await handleNavigate(activePanel, panels[activePanel].path, "");

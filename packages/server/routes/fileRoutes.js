@@ -20,6 +20,8 @@ import {
   updateFileInZip,
   createFileInZip,
   createFolderInZip,
+  deleteFromZip,
+  getSummaryFromZip,
 } from "../lib/utils.js";
 
 export default function createFileRoutes(
@@ -389,6 +391,16 @@ export default function createFileRoutes(
     }
 
     try {
+      const zipPathMatch = matchZipPath(targetPath);
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const pathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+        const summary = await getSummaryFromZip(zipFilePath, pathInZip);
+        return res.json(summary);
+      }
+
       if (!(await fse.pathExists(targetPath))) {
         return res.status(404).json({ message: "Path does not exist." });
       }
@@ -425,23 +437,55 @@ export default function createFileRoutes(
 
   // Endpoint for actual deletion
   router.post("/delete", async (req, res) => {
-    const { path: targetPath } = req.body;
-    if (!targetPath) {
-      return res.status(400).json({ message: "Path is required." });
+    const { paths: targetPaths } = req.body;
+    if (
+      !targetPaths ||
+      !Array.isArray(targetPaths) ||
+      targetPaths.length === 0
+    ) {
+      return res.status(400).json({ message: "Path(s) are required." });
     }
 
     try {
-      if (!(await fse.pathExists(targetPath))) {
-        return res.status(200).json({ message: "Item already deleted." });
-      }
+      const groupedPaths = targetPaths.reduce((acc, targetPath) => {
+        const zipPathMatch = matchZipPath(targetPath);
+        if (zipPathMatch) {
+          const zipFilePath = zipPathMatch[1];
+          const pathInZip = zipPathMatch[2].startsWith("/")
+            ? zipPathMatch[2].substring(1)
+            : zipPathMatch[2];
+          if (!acc[zipFilePath]) {
+            acc[zipFilePath] = { isZip: true, paths: [] };
+          }
+          acc[zipFilePath].paths.push(pathInZip);
+        } else {
+          const fsKey = "filesystem";
+          if (!acc[fsKey]) {
+            acc[fsKey] = { isZip: false, paths: [] };
+          }
+          acc[fsKey].paths.push(targetPath);
+        }
+        return acc;
+      }, {});
 
-      await fse.remove(targetPath);
-      res.status(200).json({ message: "Item deleted successfully." });
+      for (const containerPath in groupedPaths) {
+        const group = groupedPaths[containerPath];
+        if (group.isZip) {
+          await deleteFromZip(containerPath, group.paths);
+        } else {
+          for (const fsPath of group.paths) {
+            if (await fse.pathExists(fsPath)) {
+              await fse.remove(fsPath);
+            }
+          }
+        }
+      }
+      res.status(200).json({ message: "Items deleted successfully." });
     } catch (error) {
-      console.error("Error deleting item:", error);
+      console.error("Error deleting items:", error);
       res
         .status(500)
-        .json({ message: `Failed to delete item: ${error.message}` });
+        .json({ message: `Failed to delete items: ${error.message}` });
     }
   });
 
