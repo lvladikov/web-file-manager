@@ -220,7 +220,7 @@ const PreviewModal = ({
                 ? zipPathMatch[2].substring(1)
                 : zipPathMatch[2];
               const res = await fetch(
-                `/api/zip-audio-cover?zipFilePath=${encodeURIComponent(
+                `/api/zip/audio-cover?zipFilePath=${encodeURIComponent(
                   zipFilePath
                 )}&audioFilePathInZip=${encodeURIComponent(filePathInZip)}`
               );

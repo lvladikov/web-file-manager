@@ -308,7 +308,7 @@ const cancelArchiveTest = async (jobId) => {
 
 const fetchZipContents = async (filePath, directoryPath = "/") => {
   const response = await fetch(
-    `/api/zip-contents?filePath=${encodeURIComponent(
+    `/api/zip/contents?filePath=${encodeURIComponent(
       filePath
     )}&directoryPath=${encodeURIComponent(directoryPath)}`
   );
@@ -321,7 +321,7 @@ const fetchZipContents = async (filePath, directoryPath = "/") => {
 
 const fetchZipFileContent = async (zipFilePath, filePathInZip) => {
   const response = await fetch(
-    `/api/zip-file-content?zipFilePath=${encodeURIComponent(
+    `/api/zip/file-content?zipFilePath=${encodeURIComponent(
       zipFilePath
     )}&filePathInZip=${encodeURIComponent(filePathInZip)}`
   );
@@ -333,7 +333,7 @@ const fetchZipFileContent = async (zipFilePath, filePathInZip) => {
 };
 
 const fetchZipMediaStreamUrl = (zipFilePath, filePathInZip) => {
-  return `/api/zip-media-stream?zipFilePath=${encodeURIComponent(
+  return `/api/zip/media-stream?zipFilePath=${encodeURIComponent(
     zipFilePath
   )}&filePathInZip=${encodeURIComponent(filePathInZip)}`;
 };

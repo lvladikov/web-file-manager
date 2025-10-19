@@ -30,7 +30,7 @@ export default function createFileRoutes(
   const router = express.Router();
 
   // Endpoint to get contents of a zip file
-  router.get("/zip-contents", async (req, res) => {
+  router.get("/zip/contents", async (req, res) => {
     const { filePath, directoryPath = "/" } = req.query;
     if (!filePath) {
       return res.status(400).json({ message: "Zip file path is required." });
@@ -46,7 +46,7 @@ export default function createFileRoutes(
   });
 
   // Endpoint to get content of a specific file within a zip
-  router.get("/zip-file-content", async (req, res) => {
+  router.get("/zip/file-content", async (req, res) => {
     const { zipFilePath, filePathInZip } = req.query;
     if (!zipFilePath || !filePathInZip) {
       return res
@@ -68,7 +68,7 @@ export default function createFileRoutes(
   });
 
   // Endpoint to stream media content from a zip file
-  router.get("/zip-media-stream", async (req, res) => {
+  router.get("/zip/media-stream", async (req, res) => {
     const { zipFilePath, filePathInZip } = req.query;
     if (!zipFilePath || !filePathInZip) {
       return res
@@ -90,7 +90,7 @@ export default function createFileRoutes(
     }
   });
 
-  router.get("/zip-audio-cover", async (req, res) => {
+  router.get("/zip/audio-cover", async (req, res) => {
     const { zipFilePath, audioFilePathInZip } = req.query;
     if (!zipFilePath || !audioFilePathInZip) {
       return res
