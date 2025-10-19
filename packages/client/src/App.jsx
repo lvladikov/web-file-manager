@@ -408,6 +408,7 @@ export default function App() {
         setZipUpdateProgressModal={setZipUpdateProgressModal}
         onRefreshPanel={handleRefreshPanel}
         activePanel={activePanel}
+        zipUpdateProgressModal={zipUpdateProgressModal}
       />
       <ProgressModal
         {...copyProgress}

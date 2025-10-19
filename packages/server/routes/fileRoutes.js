@@ -560,11 +560,9 @@ export default function createFileRoutes(
         );
       } else {
         if (await fse.pathExists(newFolderPath)) {
-          return res
-            .status(409)
-            .json({
-              message: "A file or folder with that name already exists.",
-            });
+          return res.status(409).json({
+            message: "A file or folder with that name already exists.",
+          });
         }
         await fse.mkdir(newFolderPath);
       }
@@ -872,15 +870,37 @@ export default function createFileRoutes(
     try {
       const zipPathMatch = matchZipPath(filePath);
       if (zipPathMatch) {
-        const zipFilePath = zipPathMatch[1];
-        const filePathInZip = zipPathMatch[2].startsWith("/")
-          ? zipPathMatch[2].substring(1)
-          : zipPathMatch[2];
-        await updateFileInZip(zipFilePath, filePathInZip, content);
+        const jobId = crypto.randomUUID();
+        const abortController = new AbortController();
+        activeZipOperations.set(jobId, abortController);
+
+        try {
+          const zipFilePath = zipPathMatch[1];
+          const filePathInZip = zipPathMatch[2].startsWith("/")
+            ? zipPathMatch[2].substring(1)
+            : zipPathMatch[2];
+          await updateFileInZip(
+            zipFilePath,
+            filePathInZip,
+            content,
+            abortController.signal
+          );
+          res.status(200).json({ message: "File saved successfully.", jobId });
+        } catch (error) {
+          if (abortController.signal.aborted) {
+            return res.status(400).json({ message: "Zip update cancelled." });
+          }
+          console.error("Error saving file in zip:", error);
+          res
+            .status(500)
+            .json({ message: `Failed to save file in zip: ${error.message}` });
+        } finally {
+          activeZipOperations.delete(jobId);
+        }
       } else {
         await fse.writeFile(filePath, content);
+        res.status(200).json({ message: "File saved successfully." });
       }
-      res.status(200).json({ message: "File saved successfully." });
     } catch (error) {
       console.error("Error saving file:", error);
       res
@@ -934,7 +954,7 @@ export default function createFileRoutes(
   });
 
   // Endpoint to cancel a zip operation
-  router.post("/zip-operation/cancel", (req, res) => {
+  router.post("/zip/operation/cancel", (req, res) => {
     const { jobId } = req.body;
     if (!jobId || !activeZipOperations.has(jobId)) {
       return res.status(404).json({ message: "Zip operation job not found." });

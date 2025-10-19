@@ -360,6 +360,19 @@ const saveFileContent = async (path, content) => {
   return response.json();
 };
 
+const cancelZipOperation = async (jobId) => {
+  const response = await fetch("/api/zip/operation/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId }),
+  });
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "Failed to cancel zip operation.");
+  }
+  return response.json();
+};
+
 const startDuplicateItems = async (items) => {
   const response = await fetch("/api/duplicate", {
     method: "POST",
@@ -422,4 +435,5 @@ export {
   startDuplicateItems,
   cancelDuplicate,
   fetchFileInfo,
+  cancelZipOperation,
 };

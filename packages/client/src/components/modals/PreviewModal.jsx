@@ -41,6 +41,7 @@ import {
   fetchZipFileContent,
   fetchZipMediaStreamUrl,
   fetchFileInfo,
+  cancelZipOperation,
 } from "../../lib/api";
 import Icon from "../ui/Icon";
 
@@ -81,6 +82,7 @@ const PreviewModal = ({
   setZipUpdateProgressModal,
   onRefreshPanel,
   activePanel,
+  zipUpdateProgressModal,
 }) => {
   const previewContainerRef = useRef(null);
   const videoRef = useRef(null);
@@ -516,6 +518,13 @@ const PreviewModal = ({
     }
   }, [redoStack]);
 
+  const handleCancelZipUpdate = useCallback(() => {
+    if (zipUpdateProgressModal.jobId) {
+      cancelZipOperation(zipUpdateProgressModal.jobId);
+    }
+    setZipUpdateProgressModal({ isVisible: false });
+  }, [zipUpdateProgressModal.jobId, setZipUpdateProgressModal]);
+
   const handleSave = async () => {
     const zipPathMatch = matchZipPath(item.fullPath);
     try {
@@ -529,9 +538,17 @@ const PreviewModal = ({
             ? zipPathMatch[2].substring(1)
             : zipPathMatch[2],
           originalZipSize,
+          onCancel: handleCancelZipUpdate,
         });
       }
-      await saveFileContent(item.fullPath, editedContent);
+      const saveResponse = await saveFileContent(item.fullPath, editedContent);
+      if (zipPathMatch && saveResponse.jobId) {
+        setZipUpdateProgressModal((prev) => ({ ...prev, jobId: saveResponse.jobId }));
+      } else if (zipPathMatch && !saveResponse.jobId) {
+        // If it's a zip update but no jobId is returned (e.g., for non-text files),
+        // ensure the modal is closed after save.
+        setZipUpdateProgressModal({ isVisible: false });
+      }
       setShowSuccessMessage(true);
       setSaveError("");
       setTextContent(editedContent);

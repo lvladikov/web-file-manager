@@ -28,6 +28,9 @@ const activeDuplicateJobs = new Map();
 // In-memory store for active copy paths jobs
 const activeCopyPathsJobs = new Map();
 
+// In-memory store for active zip operations
+const activeZipOperations = new Map();
+
 // Initialize the WebSocket server
 initializeWebSocketServer(
   server,
@@ -37,7 +40,8 @@ initializeWebSocketServer(
   activeDecompressJobs,
   activeArchiveTestJobs,
   activeDuplicateJobs,
-  activeCopyPathsJobs
+  activeCopyPathsJobs,
+  activeZipOperations
 );
 
 const port = 3001;
@@ -53,7 +57,8 @@ initializeRoutes(
   activeDecompressJobs,
   activeArchiveTestJobs,
   activeDuplicateJobs,
-  activeCopyPathsJobs
+  activeCopyPathsJobs,
+  activeZipOperations
 );
 
 server.listen(port, () => {
