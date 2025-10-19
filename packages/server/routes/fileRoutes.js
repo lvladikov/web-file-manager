@@ -491,7 +491,7 @@ export default function createFileRoutes(
 
   // Endpoint to initiate copy
   router.post("/copy", async (req, res) => {
-    const { sources, destination } = req.body;
+    const { sources, destination, isMove } = req.body;
     if (!sources || sources.length === 0 || !destination) {
       return res
         .status(400)
@@ -500,6 +500,8 @@ export default function createFileRoutes(
 
     try {
       const jobId = crypto.randomUUID();
+      const zipDestMatch = matchZipPath(destination);
+
       const job = {
         id: jobId,
         status: "pending",
@@ -507,12 +509,15 @@ export default function createFileRoutes(
         controller: new AbortController(),
         destination,
         sources,
+        isMove: isMove || false,
         overwriteDecision: "prompt",
         resolveOverwrite: null,
+        // Differentiate job type based on destination
+        jobType: zipDestMatch ? "zip-add" : "copy",
       };
+
       activeCopyJobs.set(jobId, job);
 
-      // Immediately respond with the jobId. The work will be triggered by the WebSocket connection.
       res.status(202).json({ jobId });
     } catch (error) {
       console.error("Error initiating copy:", error);

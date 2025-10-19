@@ -42,6 +42,7 @@ export default function useCopy({
   wsRef,
   overwritePrompt,
   setOverwritePrompt,
+  setSelections,
 }) {
   const [copyProgress, setCopyProgress] = useState({
     isVisible: false,
@@ -68,6 +69,7 @@ export default function useCopy({
       handleNavigate,
       setError,
       panelRefs,
+      setSelections,
     };
   });
 
@@ -250,8 +252,14 @@ export default function useCopy({
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
-      const { activePanel, panels, handleNavigate, setError, panelRefs } =
-        latestProps.current;
+      const {
+        activePanel,
+        panels,
+        handleNavigate,
+        setError,
+        panelRefs,
+        setSelections,
+      } = latestProps.current;
       const data = JSON.parse(event.data);
 
       switch (data.type) {
@@ -272,6 +280,9 @@ export default function useCopy({
         case "progress":
           setCopyProgress((prev) => ({
             ...prev,
+            currentFile: data.currentFile
+              ? truncatePath(data.currentFile, 60)
+              : prev.currentFile,
             copied: data.copied,
             currentFileBytesProcessed: data.currentFileBytesProcessed,
             currentFileSize: data.currentFileSize,
@@ -295,6 +306,7 @@ export default function useCopy({
               );
             });
           }
+          setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
         // Fallthrough intended
         case "cancelled":
         case "error": {

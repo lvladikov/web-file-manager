@@ -268,10 +268,10 @@ export default function appState() {
     panelRefs,
     handleCancelRename: rename.handleCancelRename,
     handleCancelNewFolder: newFolder.handleCancelNewFolder,
-    handleCancelNewFile: newFile.handleCancelNewFile,
     wsRef,
     overwritePrompt,
     setOverwritePrompt,
+    setSelections,
   });
   const del = useDelete({
     activePanel,

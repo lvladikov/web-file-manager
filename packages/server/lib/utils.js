@@ -1069,6 +1069,85 @@ const renameInZip = async (zipFilePath, oldPathInZip, newPathInZip) => {
   }
 };
 
+const addFilesToZip = async (zipFilePath, sourcePaths, pathInZip, job) => {
+  const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", {
+    zlib: { level: 9 },
+  });
+
+  const { signal } = job.controller;
+  archive.pipe(output);
+
+  const archiveFinishedPromise = new Promise((resolve, reject) => {
+    output.on("close", resolve);
+    archive.on("error", reject);
+    output.on("error", reject);
+  });
+
+  const newEntryNames = new Set(
+    sourcePaths.map((sourcePath) =>
+      path.posix.join(pathInZip, path.basename(sourcePath))
+    )
+  );
+
+  let zipfile;
+  try {
+    if (await fse.pathExists(zipFilePath)) {
+      zipfile = await yauzl.open(zipFilePath);
+      for await (const entry of zipfile) {
+        if (signal.aborted) throw new Error("Zip add cancelled.");
+        if (!newEntryNames.has(entry.filename)) {
+          const stream = await entry.openReadStream();
+          archive.append(stream, { name: entry.filename });
+        }
+      }
+    }
+
+    for (const sourcePath of sourcePaths) {
+      if (signal.aborted) throw new Error("Zip add cancelled.");
+
+      const stats = await fse.stat(sourcePath);
+      if (stats.isDirectory()) {
+        console.log(
+          `[ws:${job.id}] Skipping directory ${sourcePath}, not yet supported for zip-add.`
+        );
+        continue;
+      }
+      const fileName = path.basename(sourcePath);
+      const entryName = path.posix.join(pathInZip, fileName);
+
+      job.currentFile = sourcePath;
+      job.currentFileTotalSize = stats.size;
+      job.currentFileBytesProcessed = 0;
+
+      const sourceStream = fse.createReadStream(sourcePath);
+      sourceStream.on("data", (chunk) => {
+        job.copied += chunk.length;
+        job.currentFileBytesProcessed += chunk.length;
+      });
+
+      archive.append(sourceStream, { name: entryName, stats });
+
+      await new Promise((resolve, reject) => {
+        sourceStream.on("end", resolve);
+        sourceStream.on("error", reject);
+      });
+    }
+
+    await archive.finalize();
+    await archiveFinishedPromise;
+
+    if (signal.aborted) throw new Error("Zip add cancelled.");
+    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+  } catch (error) {
+    await fse.remove(tempZipPath).catch(() => {});
+    throw error;
+  } finally {
+    if (zipfile) await zipfile.close();
+  }
+};
+
 export {
   getFileType,
   getFilesInZip,
@@ -1090,4 +1169,5 @@ export {
   getSummaryFromZip,
   deleteFromZip,
   renameInZip,
+  addFilesToZip,
 };
