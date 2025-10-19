@@ -74,8 +74,6 @@ const EditableTextPreview = ({
   useEffect(() => {
     if (editorRef.current) {
       editorRef.current.focus();
-      // Only set range on mount for an immediate focus, the second useEffect will fix the position after content loads
-      editorRef.current.setSelectionRange(0, 0);
     }
     // Cleanup function to reset flag when component unmounts (closing modal)
     return () => {
@@ -96,17 +94,24 @@ const EditableTextPreview = ({
 
   // Set Cursor/Scroll when editedContent is asynchronously loaded (runs after fetch)
   useEffect(() => {
-    // Check if content is available (not initial "Loading...") AND we haven't done this yet
-    if (
-      editorRef.current &&
-      editedContent.length > 0 &&
-      !initialCursorSet.current
-    ) {
-      // Set cursor to the very start of the file
-      editorRef.current.setSelectionRange(0, 0);
-      // Explicitly scroll the textarea to the top
-      editorRef.current.scrollTop = 0;
-      initialCursorSet.current = true;
+    if (editedContent === "Loading...") {
+      initialCursorSet.current = false;
+      return;
+    }
+
+    // Check if content is available (not "Loading...") AND we haven't done this yet
+    if (editorRef.current && !initialCursorSet.current) {
+      // Use a timeout to ensure the browser has had time to render the content
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.focus();
+          // Set cursor to the very start of the file
+          editorRef.current.setSelectionRange(0, 0);
+          // Explicitly scroll the textarea to the top
+          editorRef.current.scrollTop = 0;
+          initialCursorSet.current = true;
+        }
+      }, 0);
     }
   }, [editedContent]); // Dependency ensures it runs when the fetched content first arrives.
 
