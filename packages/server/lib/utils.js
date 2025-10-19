@@ -1151,6 +1151,48 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
 };
 
 const extractFilesFromZip = async (job) => {
+  const getCommonBasePath = (entriesToExtract) => {
+    if (entriesToExtract.length === 0) {
+      return "";
+    }
+
+    // Extract just the filenames for common path calculation
+    const filenames = entriesToExtract.map(e => e.filename);
+
+    // If there's only one item, the base path to strip is its parent directory
+    if (filenames.length === 1) {
+      const singleFilename = filenames[0];
+      return singleFilename.endsWith('/') ? path.dirname(singleFilename.slice(0, -1)) : path.dirname(singleFilename);
+    }
+
+    let commonPrefix = filenames[0];
+
+    for (let i = 1; i < filenames.length; i++) {
+      const currentFilename = filenames[i];
+      while (!currentFilename.startsWith(commonPrefix)) {
+        const lastSlash = commonPrefix.lastIndexOf('/');
+        if (lastSlash === -1) {
+          commonPrefix = ''; // No common prefix
+          break;
+        }
+        commonPrefix = commonPrefix.substring(0, lastSlash);
+      }
+      if (commonPrefix === '') {
+        break;
+      }
+    }
+
+    // Ensure commonPrefix ends with a slash if it's not empty
+    if (commonPrefix !== '' && !commonPrefix.endsWith('/')) {
+      commonPrefix += '/';
+    }
+
+    return commonPrefix;
+  };
+
+  // Calculate the common base path to strip from all selected entries
+  const commonBasePathToStrip = getCommonBasePath(job.entriesToExtract);
+
   const { signal } = job.controller;
   const zipfile = await yauzl.open(job.zipFilePath);
   job.zipfile = zipfile;
@@ -1169,7 +1211,13 @@ const extractFilesFromZip = async (job) => {
     job.currentFileTotalSize = entry.uncompressedSize;
     job.currentFileBytesProcessed = 0;
 
-    const destPath = path.join(job.destination, entry.filename);
+    let relativeEntryPath = entry.filename;
+
+    if (commonBasePathToStrip !== "" && entry.filename.startsWith(commonBasePathToStrip)) {
+      relativeEntryPath = path.relative(commonBasePathToStrip, entry.filename);
+    }
+
+    const destPath = path.join(job.destination, relativeEntryPath);
 
     if (entry.filename.endsWith("/")) {
       await fse.mkdir(destPath, { recursive: true });
