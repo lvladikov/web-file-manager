@@ -2,6 +2,7 @@ import React, { useCallback, useRef, forwardRef } from "react";
 import { Info } from "lucide-react";
 import BrowserModal from "../BrowserModal";
 import { fetchZipContents } from "../../../lib/api";
+import { matchZipPath } from "../../../lib/utils";
 
 const ZipPreview = forwardRef(
   (
@@ -17,7 +18,7 @@ const ZipPreview = forwardRef(
     const zipFileName = filePath.split("/").pop();
     const browserModalRef = useRef(null);
 
-    const zipPathMatch = filePath.match(/^(.*?\.zip)(.*)$/);
+    const zipPathMatch = matchZipPath(filePath);
     const actualZipFilePath = zipPathMatch ? zipPathMatch[1] : filePath;
     const initialPathInZip = zipPathMatch
       ? zipPathMatch[2].startsWith("/")

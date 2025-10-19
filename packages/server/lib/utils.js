@@ -699,6 +699,13 @@ const findCoverInZip = async (zipFilePath, audioFilePathInZip) => {
   return null;
 };
 
+const matchZipPath = (path) => {
+  if (!path) {
+    return null;
+  }
+  return path.match(/^(.*?\.zip)(.*)$/);
+};
+
 export {
   getFileType,
   getZipContents,
@@ -714,4 +721,5 @@ export {
   copyWithProgress,
   getAllFiles,
   findCoverInZip,
+  matchZipPath,
 };

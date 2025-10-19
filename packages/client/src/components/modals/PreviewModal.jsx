@@ -24,6 +24,7 @@ import {
   isMac,
   metaKey,
   isModKey,
+  matchZipPath,
 } from "../../lib/utils";
 
 import AudioPreview from "./preview-views/AudioPreview";
@@ -109,7 +110,7 @@ const PreviewModal = ({
   const [undoStack, setUndoStack] = useState([textContent]);
   const [redoStack, setRedoStack] = useState([]);
 
-  const zipPathMatch = item?.fullPath.match(/^(.*?\.zip)(.*)$/);
+  const zipPathMatch = matchZipPath(item?.fullPath);
   const zipFilePath = zipPathMatch ? zipPathMatch[1] : null;
   const filePathInZip = zipPathMatch
     ? zipPathMatch[2].startsWith("/")
@@ -126,7 +127,7 @@ const PreviewModal = ({
     if (!item) return "none";
     if (item.type === "archive") return "zip";
 
-    const zipPathMatch = item.fullPath.match(/^(.*?\.zip)(.*)$/);
+    const zipPathMatch = matchZipPath(item.fullPath);
     if (zipPathMatch) {
       if (isPreviewableImage(item.name)) {
         return "zipImage";
@@ -213,7 +214,7 @@ const PreviewModal = ({
         setCoverArtUrl(null);
         try {
           if (previewType === "zipAudio") {
-            const zipPathMatch = fullPath.match(/^(.*?\.zip)(.*)$/);
+            const zipPathMatch = matchZipPath(fullPath);
             if (zipPathMatch) {
               const zipFilePath = zipPathMatch[1];
               const filePathInZip = zipPathMatch[2].startsWith("/")
@@ -410,7 +411,7 @@ const PreviewModal = ({
       try {
         let text;
         if (previewType === "zipText") {
-          const zipPathMatch = fullPath.match(/^(.*?\.zip)(.*)$/);
+          const zipPathMatch = matchZipPath(fullPath);
           if (!zipPathMatch) {
             throw new Error("Invalid zip file path.");
           }

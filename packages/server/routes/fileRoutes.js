@@ -6,17 +6,7 @@ import os from "os";
 import crypto from "crypto";
 import checkDiskSpace from "check-disk-space";
 import archiver from "archiver";
-import {
-  performCopyCancellation,
-  getDirTotalSize,
-  getZipContents,
-  getFileType,
-  getFilesInZip,
-  getFileContentFromZip,
-  getZipFileStream,
-  getMimeType,
-  findCoverInZip,
-} from "../lib/utils.js";
+import { performCopyCancellation, getDirTotalSize, getZipContents, getFileType, getFilesInZip, getFileContentFromZip, getZipFileStream, getMimeType, findCoverInZip, matchZipPath, } from "../lib/utils.js";
 
 export default function createFileRoutes(
   activeCopyJobs,
@@ -167,7 +157,7 @@ export default function createFileRoutes(
       const target = req.query.target || "";
       let currentPath;
 
-      const zipPathInBasePath = basePath.match(/^(.*?\.zip)(.*)$/);
+      const zipPathInBasePath = matchZipPath(basePath);
 
       if (zipPathInBasePath) {
         const zipFile = zipPathInBasePath[1];
@@ -186,7 +176,7 @@ export default function createFileRoutes(
         currentPath = path.resolve(basePath, target);
       }
 
-      const finalZipMatch = currentPath.match(/^(.*?\.zip)(.*)$/);
+      const finalZipMatch = matchZipPath(currentPath);
 
       if (finalZipMatch) {
         const zipFilePath = finalZipMatch[1];
@@ -288,7 +278,7 @@ export default function createFileRoutes(
     if (!filePath)
       return res.status(400).json({ error: "File path is required" });
 
-    const zipPathMatch = filePath.match(/^(.*?\.zip)(.*)$/);
+    const zipPathMatch = matchZipPath(filePath);
 
     if (zipPathMatch) {
       const zipFilePath = zipPathMatch[1];
@@ -679,7 +669,7 @@ export default function createFileRoutes(
         .json({ message: "Invalid source archive path provided." });
     }
 
-    const zipPathMatch = fullSourcePath.match(/^(.*?\.zip)(.*)$/);
+    const zipPathMatch = matchZipPath(fullSourcePath);
 
     if (zipPathMatch) {
       zipFilePath = zipPathMatch[1];

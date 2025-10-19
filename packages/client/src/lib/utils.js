@@ -318,6 +318,13 @@ const itemClassName =
 const separatorClassName = "border-t border-gray-600 mx-2 my-1";
 const submenuTriggerClassName = `${itemClassName} font-bold text-sky-400`;
 
+const matchZipPath = (path) => {
+  if (!path) {
+    return null;
+  }
+  return path.match(/^(.*?\.zip)(.*)$/);
+};
+
 export {
   buildFullPath,
   formatBytes,
@@ -341,4 +348,5 @@ export {
   itemClassName,
   separatorClassName,
   submenuTriggerClassName,
+  matchZipPath,
 };

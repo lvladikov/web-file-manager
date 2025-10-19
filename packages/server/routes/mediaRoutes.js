@@ -3,7 +3,7 @@ import fse from "fs-extra";
 import path from "path";
 import { spawn } from "child_process";
 import { parseFile } from "music-metadata";
-import { getMimeType, getZipFileStream } from "../lib/utils.js";
+import { getMimeType, getZipFileStream, matchZipPath } from "../lib/utils.js";
 import os from "os";
 
 const router = express.Router();
@@ -176,7 +176,7 @@ router.get("/track-info", async (req, res) => {
   let tempFilePath = null;
 
   try {
-    const zipPathMatch = filePath.match(/^(.*?\.zip)(.*)$/);
+    const zipPathMatch = matchZipPath(filePath);
 
     if (zipPathMatch) {
       const zipFilePath = zipPathMatch[1];
