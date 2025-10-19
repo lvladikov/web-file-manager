@@ -28,6 +28,7 @@ import CompressionProgressModal from "./components/modals/CompressionProgressMod
 import DecompressionProgressModal from "./components/modals/DecompressionProgressModal";
 import ArchiveTestIntegrityProgressModal from "./components/modals/ArchiveTestIntegrityProgressModal";
 import CopyPathsProgressModal from "./components/modals/CopyPathsProgressModal";
+import ZipUpdateProgressModal from "./components/modals/ZipUpdateProgressModal";
 
 export default function App() {
   const {
@@ -150,6 +151,8 @@ export default function App() {
     copyAbsolutePaths,
     copyRelativePaths,
     copyPathsModal,
+    zipUpdateProgressModal,
+    setZipUpdateProgressModal,
   } = appState();
   const mainRef = useRef(null);
 
@@ -402,6 +405,7 @@ export default function App() {
         onDecompressInActivePanel={handleDecompressInActivePanel}
         onDecompressToOtherPanel={handleDecompressToOtherPanel}
         startInEditMode={previewModal.isEditing}
+        setZipUpdateProgressModal={setZipUpdateProgressModal}
       />
       <ProgressModal
         {...copyProgress}
@@ -492,6 +496,11 @@ export default function App() {
         count={copyPathsModal.count}
         mode={copyPathsModal.mode}
         onCancel={copyPathsModal.onCancel}
+      />
+      <ZipUpdateProgressModal
+        isVisible={zipUpdateProgressModal.isVisible}
+        filePathInZip={zipUpdateProgressModal.filePathInZip}
+        zipFilePath={zipUpdateProgressModal.zipFilePath}
       />
 
       <main

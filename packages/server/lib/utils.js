@@ -1,9 +1,9 @@
+import os from "os";
 import fse from "fs-extra";
 import path from "path";
 import crypto from "crypto";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
-import os from "os";
 import archiver from "archiver";
 
 const getFileType = (filename, isDirectory) => {

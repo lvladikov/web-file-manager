@@ -77,6 +77,7 @@ const PreviewModal = ({
   onDecompressInActivePanel,
   onDecompressToOtherPanel,
   startInEditMode,
+  setZipUpdateProgressModal,
 }) => {
   const previewContainerRef = useRef(null);
   const videoRef = useRef(null);
@@ -501,7 +502,11 @@ const PreviewModal = ({
   }, [redoStack]);
 
   const handleSave = async () => {
+    const zipPathMatch = matchZipPath(item.fullPath);
     try {
+      if (zipPathMatch) {
+        setZipUpdateProgressModal({ isVisible: true, zipFilePath: zipPathMatch[1], filePathInZip: zipPathMatch[2].startsWith("/") ? zipPathMatch[2].substring(1) : zipPathMatch[2] });
+      }
       await saveFileContent(item.fullPath, editedContent);
       setShowSuccessMessage(true);
       setSaveError("");
@@ -510,6 +515,10 @@ const PreviewModal = ({
       setRedoStack([]);
     } catch (error) {
       setSaveError(error.message);
+    } finally {
+      if (zipPathMatch) {
+        setZipUpdateProgressModal({ isVisible: false });
+      }
     }
   };
 

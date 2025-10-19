@@ -40,6 +40,12 @@ export default function useModals() {
     mode: "clipboard",
   });
 
+  const [zipUpdateProgressModal, setZipUpdateProgressModal] = useState({
+    isVisible: false,
+    filePathInZip: "",
+    zipFilePath: "",
+  });
+
   return {
     previewModal,
     setPreviewModal,
@@ -55,5 +61,7 @@ export default function useModals() {
     setDestinationBrowserModal,
     copyPathsModal,
     setCopyPathsModal,
+    zipUpdateProgressModal,
+    setZipUpdateProgressModal,
   };
 }
