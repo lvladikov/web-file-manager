@@ -20,6 +20,7 @@ import "prismjs/components/prism-ini";
 import "prismjs/components/prism-python";
 import "prismjs/components/prism-ignore";
 import "prismjs/components/prism-properties";
+import { LoaderCircle, FileWarning } from "lucide-react";
 
 const EditableTextPreview = ({
   item,
@@ -30,6 +31,7 @@ const EditableTextPreview = ({
   isFindReplaceVisible,
   showLineNumbers,
   editSearchClearRef,
+  textError,
 }) => {
   const [highlightedCode, setHighlightedCode] = useState("");
   const editorRef = useRef(null);
@@ -317,6 +319,24 @@ const EditableTextPreview = ({
     outline: "none",
     overflow: "auto",
   };
+
+  if (editedContent === "Loading...") {
+    return (
+      <div className="flex items-center justify-start h-full text-gray-300 p-4">
+        <LoaderCircle className="w-10 h-10 animate-spin text-sky-400 mr-3" />
+        <p>Loading text...</p>
+      </div>
+    );
+  }
+
+  if (textError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-900 text-red-400">
+        <FileWarning className="w-12 h-12 mb-3" />
+        <p>Error loading file: {textError}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-gray-900">

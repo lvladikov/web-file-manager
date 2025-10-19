@@ -79,7 +79,6 @@ const PreviewModal = ({
   onDecompressToOtherPanel,
   startInEditMode,
   setZipUpdateProgressModal,
-  setZipReadProgressModal,
   onRefreshPanel,
   activePanel,
 }) => {
@@ -103,10 +102,10 @@ const PreviewModal = ({
   const fetchedCoverArt = useRef(null);
   const [unsavedChangesModalVisible, setUnsavedChangesModalVisible] =
     useState(false);
-  const lastSavedItemRef = useRef(null);
-
   const zipPreviewRef = useRef(null);
   const editSearchClearRef = useRef(null);
+  const lastSavedItemRef = useRef(null);
+  const [prefetchedZipMediaUrl, setPrefetchedZipMediaUrl] = useState(null);
 
   const [codeLines, setCodeLines] = useState([]);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
@@ -182,6 +181,7 @@ const PreviewModal = ({
     setSearchTerm("");
     setVideoHasError(false);
     setCoverArtUrl(null);
+    setPrefetchedZipMediaUrl(null);
     handleClearViewModeSearch();
   }, [item, handleClearViewModeSearch]);
 
@@ -265,7 +265,11 @@ const PreviewModal = ({
   }, [isVisible, item, previewType]);
 
   useEffect(() => {
-    if (previewType !== "text" || !textContent || textError) {
+    if (
+      (previewType !== "text" && previewType !== "zipText") ||
+      !textContent ||
+      textError
+    ) {
       const errorLines = textError
         ? [`<span class="text-red-400">${textError}</span>`]
         : textContent.split("\n");
@@ -347,7 +351,7 @@ const PreviewModal = ({
       }
 
       if (isModKey(e) && e.key === "f") {
-        if (previewType === "text") {
+        if (previewType === "text" || previewType === "zipText") {
           e.preventDefault();
           if (isEditing) {
             setIsFindReplaceVisible((prev) => {
@@ -400,13 +404,11 @@ const PreviewModal = ({
       document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
-
-
   useEffect(() => {
     if (
-      (previewType !== "text" && previewType !== "zipText") ||
       !isVisible ||
-      !item
+      !item ||
+      !(previewType === "text" || previewType.startsWith("zip"))
     ) {
       return;
     }
@@ -418,13 +420,14 @@ const PreviewModal = ({
       return;
     }
 
-    const fetchTextContent = async () => {
+    const fetchContent = async () => {
       setTextContent("Loading...");
+      setEditedContent("Loading...");
       setTextError("");
       const { fullPath } = item;
 
       try {
-        let text;
+        let content;
         if (previewType === "zipText") {
           const zipPathMatch = matchZipPath(fullPath);
           if (!zipPathMatch) {
@@ -435,51 +438,41 @@ const PreviewModal = ({
             ? zipPathMatch[2].substring(1)
             : zipPathMatch[2];
 
-          const zipFileInfo = await fetchFileInfo(zipFilePath);
-          const originalZipSize = zipFileInfo.size || 0;
-
-          setZipReadProgressModal({ isVisible: true, zipFilePath, filePathInZip, originalZipSize });
-          text = await fetchZipFileContent(zipFilePath, filePathInZip);
-        } else {
+          content = await fetchZipFileContent(zipFilePath, filePathInZip);
+          setPrefetchedZipMediaUrl(null); // Clear for text files
+        } else if (previewType === "text") {
           const res = await fetch(
             `/api/text-content?path=${encodeURIComponent(fullPath)}`
           );
           if (!res.ok)
             throw new Error(`Failed to load file content (${res.status})`);
-          text = await res.text();
+          content = await res.text();
+        } else {
+          // For other zip preview types (image, audio, video, pdf), generate the media stream URL
+          const zipPathMatch = matchZipPath(fullPath);
+          if (!zipPathMatch) {
+            throw new Error("Invalid zip file path.");
+          }
+          const zipFilePath = zipPathMatch[1];
+          const filePathInZip = zipPathMatch[2].startsWith("/")
+            ? zipPathMatch[2].substring(1)
+            : zipPathMatch[2];
+          const url = fetchZipMediaStreamUrl(zipFilePath, filePathInZip);
+          setPrefetchedZipMediaUrl(url);
+          content = ""; // Placeholder, actual content handled by preview components
         }
-        setTextContent(text);
-        setEditedContent(text);
-        setUndoStack([text]);
+        setTextContent(content);
+        setEditedContent(content);
+        setUndoStack([content]);
         setRedoStack([]);
       } catch (err) {
         setTextError(err.message);
       } finally {
-        setZipReadProgressModal({ isVisible: false, zipFilePath: "", filePathInZip: "" });
       }
     };
 
-    fetchTextContent();
-  }, [isVisible, item, previewType]);
-
-  useEffect(() => {
-    const activeMediaElement =
-      previewType === "video"
-        ? videoRef.current
-        : previewType === "audio"
-        ? audioRef.current
-        : null;
-
-    if (activeMediaElement) {
-      if (isVisible && !videoHasError) {
-        activeMediaElement
-          .play()
-          .catch((e) => console.error("Autoplay was prevented.", e));
-      } else {
-        activeMediaElement.pause();
-      }
-    }
-  }, [isVisible, item, previewType, videoHasError]);
+    fetchContent();
+  }, [isVisible, item, previewType, lastSavedItemRef]);
 
   const handleFullscreen = () => {
     const target = previewContainerRef.current;
@@ -529,8 +522,14 @@ const PreviewModal = ({
       if (zipPathMatch) {
         const zipFileInfo = await fetchFileInfo(zipFilePath);
         const originalZipSize = zipFileInfo.size || 0;
-        console.log("ZipUpdateProgressModal originalZipSize:", originalZipSize);
-        setZipUpdateProgressModal({ isVisible: true, zipFilePath: zipPathMatch[1], filePathInZip: zipPathMatch[2].startsWith("/") ? zipPathMatch[2].substring(1) : zipPathMatch[2], originalZipSize });
+        setZipUpdateProgressModal({
+          isVisible: true,
+          zipFilePath: zipPathMatch[1],
+          filePathInZip: zipPathMatch[2].startsWith("/")
+            ? zipPathMatch[2].substring(1)
+            : zipPathMatch[2],
+          originalZipSize,
+        });
       }
       await saveFileContent(item.fullPath, editedContent);
       setShowSuccessMessage(true);
@@ -538,9 +537,9 @@ const PreviewModal = ({
       setTextContent(editedContent);
       setUndoStack([editedContent]);
       setRedoStack([]);
+      lastSavedItemRef.current = item;
       if (zipPathMatch) {
         onRefreshPanel(activePanel); // Refresh the panel to show updated content
-        lastSavedItemRef.current = item; // Store the item that was just saved
       }
     } catch (error) {
       setSaveError(error.message);
@@ -595,6 +594,8 @@ const PreviewModal = ({
         className={`bg-gray-900 border border-gray-600 rounded-lg shadow-lg flex flex-col ${
           isFullscreen
             ? "w-full h-full p-0 border-none rounded-none"
+            : previewType === "text" || previewType === "zipText"
+            ? "w-full max-w-[50vw] max-h-[90vh] min-h-[30vh]"
             : previewType === "zip"
             ? "w-full max-w-4xl h-[80vh]"
             : "max-w-[90vw] max-h-[90vh]"
@@ -611,10 +612,42 @@ const PreviewModal = ({
                 <span>{fileTypeInfo.displayName}</span>
               </div>
             )}
+            {(previewType === "text" || previewType === "zipText") &&
+              isEditing && (
+                <>
+                  <button
+                    className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                    onClick={handleSave}
+                    disabled={
+                      editedContent === textContent ||
+                      editedContent === "Loading..."
+                    }
+                    title={`Save (${metaKey}+S)`}
+                  >
+                    <Save className="w-6 h-6" />
+                  </button>
+                  <button
+                    className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                    onClick={handleUndo}
+                    disabled={undoStack.length <= 1}
+                    title={`Undo (${metaKey}+Z)`}
+                  >
+                    <Undo className="w-6 h-6" />
+                  </button>
+                  <button
+                    className="p-1 text-gray-300 hover:text-white disabled:opacity-50"
+                    onClick={handleRedo}
+                    disabled={redoStack.length === 0}
+                    title={`Redo (${metaKey}+Shift+Z)`}
+                  >
+                    <Redo className="w-6 h-6" />
+                  </button>
+                </>
+              )}
           </div>
 
           <div className="flex items-center space-x-3">
-            {previewType === "text" && (
+            {(previewType === "text" || previewType === "zipText") && (
               <>
                 <button
                   className={`p-1 rounded-full ${
@@ -672,7 +705,10 @@ const PreviewModal = ({
             )}
             {(previewType === "image" ||
               previewType === "video" ||
-              previewType === "text") && (
+              previewType === "text" ||
+              previewType === "zipImage" ||
+              previewType === "zipVideo" ||
+              previewType === "zipText") && (
               <button
                 className="p-1 text-gray-300 hover:text-white"
                 onClick={handleFullscreen}
@@ -779,15 +815,16 @@ const PreviewModal = ({
               fullPath={fullPath}
               isFullscreen={isFullscreen}
               fileUrl={
-                previewType === "zipImage" ? zipMediaStreamUrl : undefined
+                previewType === "zipImage" ? prefetchedZipMediaUrl : undefined
               }
+              previewType={previewType}
             />
           )}
           {(previewType === "pdf" || previewType === "zipPdf") && (
             <PdfPreview
               fileUrl={
                 previewType === "zipPdf"
-                  ? zipMediaStreamUrl
+                  ? prefetchedZipMediaUrl
                   : `/api/media-stream?path=${encodeURIComponent(fullPath)}`
               }
               isFullscreen={isFullscreen}
@@ -802,8 +839,9 @@ const PreviewModal = ({
               videoHasError={videoHasError}
               handleVideoError={handleVideoError}
               fileUrl={
-                previewType === "zipVideo" ? zipMediaStreamUrl : undefined
+                previewType === "zipVideo" ? prefetchedZipMediaUrl : undefined
               }
+              isVisible={isVisible}
             />
           )}
           {(previewType === "audio" || previewType === "zipAudio") && (
@@ -815,8 +853,9 @@ const PreviewModal = ({
               autoLoadLyrics={autoLoadLyrics}
               onToggleAutoLoadLyrics={onToggleAutoLoadLyrics}
               fileUrl={
-                previewType === "zipAudio" ? zipMediaStreamUrl : undefined
+                previewType === "zipAudio" ? prefetchedZipMediaUrl : undefined
               }
+              isVisible={isVisible}
             />
           )}
           {(previewType === "text" || previewType === "zipText") &&
@@ -830,6 +869,7 @@ const PreviewModal = ({
                 isFindReplaceVisible={isFindReplaceVisible}
                 showLineNumbers={showLineNumbers}
                 editSearchClearRef={editSearchClearRef}
+                textError={textError}
               />
             ) : (
               <TextPreview

@@ -674,30 +674,90 @@ const getZipFileStream = async (zipFilePath, filePathInZip) => {
 };
 
 const findCoverInZip = async (zipFilePath, audioFilePathInZip) => {
-  const zipfile = await yauzl.open(zipFilePath);
-  const audioDirectory = path.posix.dirname(audioFilePathInZip);
-  const coverNames = [
-    "cover.jpg",
-    "cover.jpeg",
-    "cover.png",
-    "cover.gif",
-    "cover.webp",
-  ];
-
-  for await (const entry of zipfile) {
-    const entryDir = path.posix.dirname(entry.filename);
-    const entryName = path.basename(entry.filename);
-    if (
-      entryDir === audioDirectory &&
-      coverNames.includes(entryName.toLowerCase())
-    ) {
-      await zipfile.close();
-      return entry.filename;
+  let tempDirs = [];
+  const cleanup = async () => {
+    for (const dir of tempDirs) {
+      await fse.remove(dir);
     }
-  }
+  };
 
-  await zipfile.close();
-  return null;
+  try {
+    let currentZipPath = zipFilePath;
+    let pathInsideZip = audioFilePathInZip.replace(/\\/g, "/");
+
+    while (true) {
+      const zipEndIndex = pathInsideZip.toLowerCase().indexOf(".zip/");
+      if (zipEndIndex === -1) {
+        break;
+      }
+
+      const nestedZipPathInParent = pathInsideZip.substring(0, zipEndIndex + 4);
+      pathInsideZip = pathInsideZip.substring(zipEndIndex + 5);
+
+      const tempDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+      tempDirs.push(tempDir);
+      const tempInnerZipPath = path.join(
+        tempDir,
+        path.basename(nestedZipPathInParent)
+      );
+
+      const parentZip = await yauzl.open(currentZipPath);
+      let entryFound = null;
+      for await (const entry of parentZip) {
+        if (entry.filename === nestedZipPathInParent) {
+          entryFound = entry;
+          break;
+        }
+      }
+
+      if (!entryFound) {
+        await parentZip.close();
+        throw new Error(`Nested zip not found: ${nestedZipPathInParent}`);
+      }
+
+      const readStream = await parentZip.openReadStream(entryFound);
+      const writeStream = fse.createWriteStream(tempInnerZipPath);
+      await new Promise((resolve, reject) => {
+        readStream.pipe(writeStream);
+        readStream.on("end", resolve);
+        readStream.on("error", reject);
+        writeStream.on("error", reject);
+      });
+      await parentZip.close();
+
+      currentZipPath = tempInnerZipPath;
+    }
+
+    const zipfile = await yauzl.open(currentZipPath);
+    const audioDirectory = path.posix.dirname(pathInsideZip);
+    const coverNames = [
+      "cover.jpg",
+      "cover.jpeg",
+      "cover.png",
+      "cover.gif",
+      "cover.webp",
+    ];
+
+    for await (const entry of zipfile) {
+      const entryDir = path.posix.dirname(entry.filename).toLowerCase();
+      const entryName = path.basename(entry.filename);
+      if (
+        entryDir === audioDirectory.toLowerCase() &&
+        coverNames.includes(entryName.toLowerCase())
+      ) {
+        await zipfile.close();
+        await cleanup();
+        return entry.filename;
+      }
+    }
+
+    await zipfile.close();
+    await cleanup();
+    return null;
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
 };
 
 const matchZipPath = (path) => {
@@ -707,73 +767,160 @@ const matchZipPath = (path) => {
   return path.match(/^(.*?\.zip)(.*)$/);
 };
 
-const updateFileInZip = async (zipFilePath, filePathInZip, content) => {
+const updateFileInZip = async (
+  zipFilePath,
+  filePathInZip,
+  content,
+  signal = null
+) => {
   const tempZipPath = zipFilePath + ".tmp";
   const output = fse.createWriteStream(tempZipPath);
   const archive = archiver("zip", {
     zlib: { level: 9 },
   });
 
-  archive.pipe(output);
+  // Pipe archive to output stream
+  const archivePromise = signal
+    ? pipeline(archive, output, { signal })
+    : pipeline(archive, output);
+
+  // Handle cancellation for cleanup
+  if (signal) {
+    signal.addEventListener("abort", () => {
+      fse.remove(tempZipPath); // Clean up partial temp file
+    });
+  }
 
   const zipfile = await yauzl.open(zipFilePath);
-  for await (const entry of zipfile) {
-    if (entry.filename !== filePathInZip) {
+  try {
+    for await (const entry of zipfile) {
+      if (signal && signal.aborted) {
+        throw new Error("Zip update cancelled.");
+      }
+      if (entry.filename !== filePathInZip) {
+        const stream = await entry.openReadStream();
+        archive.append(stream, { name: entry.filename });
+      }
+    }
+
+    archive.append(content, { name: filePathInZip });
+    archive.finalize(); // Finalize without awaiting here, let pipeline handle the end
+
+    await archivePromise; // Await the pipeline, which will reject on abort
+  } catch (error) {
+    if (signal && signal.aborted) {
+      await fse.remove(tempZipPath);
+      throw new Error("Zip update cancelled.");
+    }
+    await fse.remove(tempZipPath);
+    throw error;
+  } finally {
+    await zipfile.close();
+  }
+
+  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+};
+
+const createFileInZip = async (
+  zipFilePath,
+  newFilePathInZip,
+  signal = null
+) => {
+  const tempZipPath = zipFilePath + ".tmp";
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", {
+    zlib: { level: 9 },
+  });
+
+  // Pipe archive to output stream
+  const archivePromise = signal
+    ? pipeline(archive, output, { signal })
+    : pipeline(archive, output);
+
+  // Handle cancellation for cleanup
+  if (signal) {
+    signal.addEventListener("abort", () => {
+      fse.remove(tempZipPath); // Clean up partial temp file
+    });
+  }
+
+  const zipfile = await yauzl.open(zipFilePath);
+  try {
+    for await (const entry of zipfile) {
+      if (signal && signal.aborted) {
+        throw new Error("Zip creation cancelled.");
+      }
       const stream = await entry.openReadStream();
       archive.append(stream, { name: entry.filename });
     }
+
+    archive.append("", { name: newFilePathInZip });
+
+    archive.finalize(); // Finalize without awaiting here, let pipeline handle the end
+
+    await archivePromise; // Await the pipeline, which will reject on abort
+  } catch (error) {
+    if (signal && signal.aborted) {
+      await fse.remove(tempZipPath);
+      throw new Error("Zip creation cancelled.");
+    }
+    await fse.remove(tempZipPath);
+    throw error;
+  } finally {
+    await zipfile.close();
   }
-
-  archive.append(content, { name: filePathInZip });
-
-  await archive.finalize();
-  await zipfile.close();
 
   await fse.move(tempZipPath, zipFilePath, { overwrite: true });
 };
 
-const createFileInZip = async (zipFilePath, newFilePathInZip) => {
+const createFolderInZip = async (
+  zipFilePath,
+  newFolderPathInZip,
+  signal = null
+) => {
   const tempZipPath = zipFilePath + ".tmp";
   const output = fse.createWriteStream(tempZipPath);
   const archive = archiver("zip", {
     zlib: { level: 9 },
   });
 
-  archive.pipe(output);
+  // Pipe archive to output stream
+  const archivePromise = signal
+    ? pipeline(archive, output, { signal })
+    : pipeline(archive, output);
 
-  const zipfile = await yauzl.open(zipFilePath);
-  for await (const entry of zipfile) {
-    const stream = await entry.openReadStream();
-    archive.append(stream, { name: entry.filename });
+  // Handle cancellation for cleanup
+  if (signal) {
+    signal.addEventListener("abort", () => {
+      fse.remove(tempZipPath); // Clean up partial temp file
+    });
   }
 
-  archive.append("", { name: newFilePathInZip });
-
-  await archive.finalize();
-  await zipfile.close();
-
-  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
-};
-
-const createFolderInZip = async (zipFilePath, newFolderPathInZip) => {
-  const tempZipPath = zipFilePath + ".tmp";
-  const output = fse.createWriteStream(tempZipPath);
-  const archive = archiver("zip", {
-    zlib: { level: 9 },
-  });
-
-  archive.pipe(output);
-
   const zipfile = await yauzl.open(zipFilePath);
-  for await (const entry of zipfile) {
-    const stream = await entry.openReadStream();
-    archive.append(stream, { name: entry.filename });
+  try {
+    for await (const entry of zipfile) {
+      if (signal && signal.aborted) {
+        throw new Error("Zip creation cancelled.");
+      }
+      const stream = await entry.openReadStream();
+      archive.append(stream, { name: entry.filename });
+    }
+
+    archive.append(null, { name: newFolderPathInZip + "/" });
+
+    archive.finalize(); // Finalize without awaiting here, let pipeline handle the end
+
+    await archivePromise; // Await the pipeline, which will reject on abort
+  } catch (error) {
+    if (signal && signal.aborted) {
+      await fse.remove(tempZipPath);
+      throw new Error("Zip creation cancelled.");
+    }
+    await fse.remove(tempZipPath);
+    throw error;
+  } finally {
+    await zipfile.close();
   }
-
-  archive.append(null, { name: newFolderPathInZip + "/" });
-
-  await archive.finalize();
-  await zipfile.close();
 
   await fse.move(tempZipPath, zipFilePath, { overwrite: true });
 };

@@ -3,7 +3,7 @@ import { LoaderCircle } from "lucide-react";
 import { formatBytes } from "../../lib/utils";
 
 const ZipUpdateProgressModal = (zipUpdateProgressModal) => {
-  const { isVisible, filePathInZip, zipFilePath, originalZipSize } =
+  const { isVisible, filePathInZip, zipFilePath, originalZipSize, onCancel } =
     zipUpdateProgressModal;
   if (!isVisible) return null;
 
@@ -30,6 +30,14 @@ const ZipUpdateProgressModal = (zipUpdateProgressModal) => {
           Please wait while the zip file is being updated. The larger the
           original archive, the longer this process may take.
         </p>
+        <div className="flex justify-end mt-4">
+          <button
+            onClick={onCancel}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg flex items-center"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );

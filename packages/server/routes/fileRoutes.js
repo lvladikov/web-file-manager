@@ -6,7 +6,21 @@ import os from "os";
 import crypto from "crypto";
 import checkDiskSpace from "check-disk-space";
 import archiver from "archiver";
-import { performCopyCancellation, getDirTotalSize, getZipContents, getFileType, getFilesInZip, getFileContentFromZip, getZipFileStream, getMimeType, findCoverInZip, matchZipPath, updateFileInZip, createFileInZip, createFolderInZip, } from "../lib/utils.js";
+import {
+  performCopyCancellation,
+  getDirTotalSize,
+  getZipContents,
+  getFileType,
+  getFilesInZip,
+  getFileContentFromZip,
+  getZipFileStream,
+  getMimeType,
+  findCoverInZip,
+  matchZipPath,
+  updateFileInZip,
+  createFileInZip,
+  createFolderInZip,
+} from "../lib/utils.js";
 
 export default function createFileRoutes(
   activeCopyJobs,
@@ -15,7 +29,8 @@ export default function createFileRoutes(
   activeDecompressJobs,
   activeArchiveTestJobs,
   activeDuplicateJobs,
-  activeCopyPathsJobs
+  activeCopyPathsJobs,
+  activeZipOperations
 ) {
   const router = express.Router();
 
@@ -152,14 +167,15 @@ export default function createFileRoutes(
 
   // Endpoint to list files
   router.get("/files", async (req, res) => {
+    let isZipOperation = false;
     try {
       const basePath = req.query.path || os.homedir();
       const target = req.query.target || "";
       let currentPath;
-
       const zipPathInBasePath = matchZipPath(basePath);
 
       if (zipPathInBasePath) {
+        isZipOperation = true;
         const zipFile = zipPathInBasePath[1];
         const internal = zipPathInBasePath[2] || "/";
 
@@ -179,6 +195,7 @@ export default function createFileRoutes(
       const finalZipMatch = matchZipPath(currentPath);
 
       if (finalZipMatch) {
+        isZipOperation = true;
         const zipFilePath = finalZipMatch[1];
         const pathInZip = finalZipMatch[2] || "/";
 
@@ -265,7 +282,13 @@ export default function createFileRoutes(
         });
       else {
         console.error("Error reading directory:", error);
-        res.status(500).json({ message: "Error reading directory contents." });
+        if (isZipOperation) {
+          res.status(500).json({ message: "Error reading archive contents." });
+        } else {
+          res
+            .status(500)
+            .json({ message: "Error reading directory contents." });
+        }
       }
     }
   });
@@ -519,6 +542,10 @@ export default function createFileRoutes(
         .json({ message: "A path for the new folder is required." });
     }
 
+    const jobId = crypto.randomUUID();
+    const abortController = new AbortController();
+    activeZipOperations.set(jobId, abortController);
+
     try {
       const zipPathMatch = matchZipPath(newFolderPath);
       if (zipPathMatch) {
@@ -526,21 +553,29 @@ export default function createFileRoutes(
         const filePathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
-        await createFolderInZip(zipFilePath, filePathInZip);
+        await createFolderInZip(
+          zipFilePath,
+          filePathInZip,
+          abortController.signal
+        );
       } else {
         if (await fse.pathExists(newFolderPath)) {
           return res
             .status(409)
-            .json({ message: "A file or folder with that name already exists." });
+            .json({
+              message: "A file or folder with that name already exists.",
+            });
         }
         await fse.mkdir(newFolderPath);
       }
-      res.status(201).json({ message: "Folder created successfully." });
+      res.status(201).json({ message: "Folder created successfully.", jobId });
     } catch (error) {
       console.error("New folder error:", error);
       res
         .status(500)
         .json({ message: `Failed to create folder: ${error.message}` });
+    } finally {
+      activeZipOperations.delete(jobId);
     }
   });
 
@@ -553,6 +588,10 @@ export default function createFileRoutes(
         .json({ message: "A path for the new file is required." });
     }
 
+    const jobId = crypto.randomUUID();
+    const abortController = new AbortController();
+    activeZipOperations.set(jobId, abortController);
+
     try {
       const zipPathMatch = matchZipPath(newFilePath);
       if (zipPathMatch) {
@@ -560,7 +599,11 @@ export default function createFileRoutes(
         const filePathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
-        await createFileInZip(zipFilePath, filePathInZip);
+        await createFileInZip(
+          zipFilePath,
+          filePathInZip,
+          abortController.signal
+        );
       } else {
         if (await fse.pathExists(newFilePath)) {
           return res
@@ -569,12 +612,14 @@ export default function createFileRoutes(
         }
         await fse.createFile(newFilePath);
       }
-      res.status(201).json({ message: "File created successfully." });
+      res.status(201).json({ message: "File created successfully.", jobId });
     } catch (error) {
       console.error("New file error:", error);
       res
         .status(500)
         .json({ message: `Failed to create file: ${error.message}` });
+    } finally {
+      activeZipOperations.delete(jobId);
     }
   });
 
@@ -875,11 +920,31 @@ export default function createFileRoutes(
     }
     try {
       const stats = await fse.stat(filePath);
-      res.json({ size: stats.size, isFile: stats.isFile(), isDirectory: stats.isDirectory() });
+      res.json({
+        size: stats.size,
+        isFile: stats.isFile(),
+        isDirectory: stats.isDirectory(),
+      });
     } catch (error) {
       console.error("Error fetching file info:", error);
-      res.status(500).json({ message: `Failed to get file info: ${error.message}` });
+      res
+        .status(500)
+        .json({ message: `Failed to get file info: ${error.message}` });
     }
+  });
+
+  // Endpoint to cancel a zip operation
+  router.post("/zip-operation/cancel", (req, res) => {
+    const { jobId } = req.body;
+    if (!jobId || !activeZipOperations.has(jobId)) {
+      return res.status(404).json({ message: "Zip operation job not found." });
+    }
+    const abortController = activeZipOperations.get(jobId);
+    abortController.abort();
+    activeZipOperations.delete(jobId); // Clean up the job
+    res
+      .status(200)
+      .json({ message: "Zip operation cancellation request received." });
   });
 
   return router;

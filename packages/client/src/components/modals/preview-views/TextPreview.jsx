@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { LoaderCircle, FileWarning } from "lucide-react";
 
 // syntax highlighting imports
 import Prism from "prismjs";
@@ -32,6 +33,11 @@ const TextPreview = ({
   setCodeLines,
 }) => {
   useEffect(() => {
+    if (textContent === "Loading..." || textError) {
+      setCodeLines([]); // Clear code lines when loading or error
+      return;
+    }
+
     const grammar = Prism.languages[language] || Prism.languages.plaintext;
     let fullHighlightedHtml;
 
@@ -74,6 +80,24 @@ const TextPreview = ({
     language,
     setCodeLines,
   ]);
+
+  if (textContent === "Loading...") {
+    return (
+      <div className="flex items-center justify-start h-full text-gray-300 p-4">
+        <LoaderCircle className="w-10 h-10 animate-spin text-sky-400 mr-3" />
+        <p>Loading text...</p>
+      </div>
+    );
+  }
+
+  if (textError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-800 text-red-400">
+        <FileWarning className="w-12 h-12 mb-3" />
+        <p>Error loading file: {textError}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-800 text-gray-300 font-mono text-sm p-4 h-full overflow-auto">

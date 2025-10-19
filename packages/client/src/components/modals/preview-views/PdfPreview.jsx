@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { LoaderCircle, FileWarning } from "lucide-react";
 
 // Configure the PDF.js worker to use the local file copied by our Vite plugin.
 pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
@@ -12,10 +12,27 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasPdfError, setHasPdfError] = useState(false);
 
   const onDocumentLoadSuccess = ({ numPages: nextNumPages }) => {
     setNumPages(nextNumPages);
+    setIsLoading(false);
+    setHasPdfError(false);
   };
+
+  const onDocumentLoadError = (error) => {
+    console.error("Error loading PDF:", error);
+    setHasPdfError(true);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    setHasPdfError(false);
+    setNumPages(null);
+    setPageNumber(1);
+  }, [fileUrl]);
 
   const goToPrevPage = useCallback(
     () => setPageNumber((prev) => Math.max(prev - 1, 1)),
@@ -108,34 +125,50 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
 
       {/* PDF display */}
       <div
-        className="flex-grow flex justify-center items-center overflow-auto bg-gray-900"
+        className="flex-grow flex justify-center items-center overflow-auto bg-gray-900 relative"
         style={{ padding: "1rem" }}
       >
-        <Document
-          file={fileUrl}
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={console.error}
-          loading={<p className="text-gray-400 p-4">Loading PDF...</p>}
-          className="flex justify-center"
-        >
-          {numPages && (
-            <Page
-              pageNumber={pageNumber}
-              renderAnnotationLayer={false}
-              renderTextLayer={false}
-              width={
-                containerWidth
-                  ? Math.min(
-                      isFullscreen
-                        ? containerWidth * 0.98
-                        : containerWidth * 0.95,
-                      2400
-                    )
-                  : undefined
-              }
-            />
-          )}
-        </Document>
+        {isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 bg-opacity-75">
+            <LoaderCircle className="w-10 h-10 animate-spin text-sky-400 mb-3" />
+            <p className="text-gray-300">Loading PDF...</p>
+          </div>
+        )}
+
+        {hasPdfError && !isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 bg-opacity-75 z-10 text-red-400">
+            <FileWarning className="w-12 h-12 mb-2" />
+            <p>Failed to load PDF.</p>
+          </div>
+        )}
+
+        {!hasPdfError && (
+          <Document
+            file={fileUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={onDocumentLoadError}
+            loading={null} // Handled by our custom loading state
+            className="flex justify-center"
+          >
+            {numPages && (
+              <Page
+                pageNumber={pageNumber}
+                renderAnnotationLayer={false}
+                renderTextLayer={false}
+                width={
+                  containerWidth
+                    ? Math.min(
+                        isFullscreen
+                          ? containerWidth * 0.98
+                          : containerWidth * 0.95,
+                        2400
+                      )
+                    : undefined
+                }
+              />
+            )}
+          </Document>
+        )}
       </div>
     </div>
   );
