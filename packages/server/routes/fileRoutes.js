@@ -281,15 +281,79 @@ export default function createFileRoutes(
   });
 
   // Endpoint to open a file
+
   router.post("/open-file", async (req, res) => {
     const { filePath, appName } = req.body;
+
     if (!filePath)
       return res.status(400).json({ error: "File path is required" });
-    try {
-      await open(filePath, appName ? { app: { name: appName } } : {});
-      res.status(200).json({ message: "File opened successfully" });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+
+    const zipPathMatch = filePath.match(/^(.*?\.zip)(.*)$/);
+
+    if (zipPathMatch) {
+      const zipFilePath = zipPathMatch[1];
+
+      const filePathInZip = zipPathMatch[2].startsWith("/")
+        ? zipPathMatch[2].substring(1)
+        : zipPathMatch[2];
+
+      if (!filePathInZip) {
+        return res
+
+          .status(400)
+
+          .json({ error: "Cannot open a directory in a zip" });
+      }
+
+      try {
+        const stream = await getZipFileStream(zipFilePath, filePathInZip);
+
+        const tempDir = os.tmpdir();
+
+        const tempFilePath = path.join(tempDir, path.basename(filePathInZip));
+
+        const writer = fse.createWriteStream(tempFilePath);
+
+        stream.pipe(writer);
+
+        writer.on("finish", async () => {
+          try {
+            await open(tempFilePath, appName ? { app: { name: appName } } : {});
+
+            res.status(200).json({ message: "File opened successfully" });
+
+            // Add a delay before deleting the temporary file to give the
+
+            // application enough time to open it.
+
+            setTimeout(() => {
+              fse.unlink(tempFilePath, (err) => {
+                if (err) console.error(`Error deleting temp file: ${err}`);
+              });
+            }, 2000);
+          } catch (error) {
+            res.status(500).json({ error: error.message });
+          }
+        });
+
+        writer.on("error", (error) => {
+          res
+
+            .status(500)
+
+            .json({ error: `Error writing temp file: ${error.message}` });
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    } else {
+      try {
+        await open(filePath, appName ? { app: { name: appName } } : {});
+
+        res.status(200).json({ message: "File opened successfully" });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
     }
   });
 
