@@ -126,14 +126,29 @@ export function initializeWebSocketServer(
                   : zipDestMatch[2];
 
                 let totalNewBytes = 0;
+                const filesToProcess = [];
                 for (const sourcePath of sources) {
                   if (job.controller.signal.aborted)
                     throw new Error("Scan cancelled");
                   const stats = await fse.stat(sourcePath);
-                  if (!stats.isDirectory()) {
+                  if (stats.isDirectory()) {
+                    const basePath = path.dirname(sourcePath);
+                    const nestedFiles = await getAllFiles(sourcePath, basePath);
+                    for (const file of nestedFiles) {
+                      filesToProcess.push(file);
+                      totalNewBytes += file.stats.size;
+                    }
+                  } else {
+                    const relativePath = path.basename(sourcePath);
+                    filesToProcess.push({
+                      fullPath: sourcePath,
+                      relativePath,
+                      stats,
+                    });
                     totalNewBytes += stats.size;
                   }
                 }
+                job.filesToProcess = filesToProcess;
 
                 job.total = totalNewBytes;
                 job.copied = 0;
@@ -177,12 +192,7 @@ export function initializeWebSocketServer(
                   }
                 }, 250);
 
-                await addFilesToZip(
-                  zipFilePath,
-                  sources.filter((s) => !fse.statSync(s).isDirectory()),
-                  pathInZip,
-                  job
-                );
+                await addFilesToZip(zipFilePath, pathInZip, job);
 
                 if (job.isMove) {
                   for (const source of job.sources) {

@@ -1069,7 +1069,7 @@ const renameInZip = async (zipFilePath, oldPathInZip, newPathInZip) => {
   }
 };
 
-const addFilesToZip = async (zipFilePath, sourcePaths, pathInZip, job) => {
+const addFilesToZip = async (zipFilePath, pathInZip, job) => {
   const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
   const output = fse.createWriteStream(tempZipPath);
   const archive = archiver("zip", {
@@ -1085,11 +1085,15 @@ const addFilesToZip = async (zipFilePath, sourcePaths, pathInZip, job) => {
     output.on("error", reject);
   });
 
-  const newEntryNames = new Set(
-    sourcePaths.map((sourcePath) =>
-      path.posix.join(pathInZip, path.basename(sourcePath))
+  const newFileEntryNames = new Set(
+    job.filesToProcess.map((file) =>
+      path.posix.join(pathInZip, file.relativePath)
     )
   );
+  const newDirEntryNames = new Set(
+    (job.emptyDirsToAdd || []).map((dir) => path.posix.join(pathInZip, dir))
+  );
+  const allNewEntryNames = new Set([...newFileEntryNames, ...newDirEntryNames]);
 
   let zipfile;
   try {
@@ -1097,31 +1101,29 @@ const addFilesToZip = async (zipFilePath, sourcePaths, pathInZip, job) => {
       zipfile = await yauzl.open(zipFilePath);
       for await (const entry of zipfile) {
         if (signal.aborted) throw new Error("Zip add cancelled.");
-        if (!newEntryNames.has(entry.filename)) {
+        if (!allNewEntryNames.has(entry.filename)) {
           const stream = await entry.openReadStream();
           archive.append(stream, { name: entry.filename });
         }
       }
     }
 
-    for (const sourcePath of sourcePaths) {
+    for (const dir of job.emptyDirsToAdd || []) {
+      const entryName = path.posix.join(pathInZip, dir);
+      archive.append(null, { name: entryName });
+    }
+
+    for (const file of job.filesToProcess) {
       if (signal.aborted) throw new Error("Zip add cancelled.");
 
-      const stats = await fse.stat(sourcePath);
-      if (stats.isDirectory()) {
-        console.log(
-          `[ws:${job.id}] Skipping directory ${sourcePath}, not yet supported for zip-add.`
-        );
-        continue;
-      }
-      const fileName = path.basename(sourcePath);
-      const entryName = path.posix.join(pathInZip, fileName);
+      const { fullPath, relativePath, stats } = file;
+      const entryName = path.posix.join(pathInZip, relativePath);
 
-      job.currentFile = sourcePath;
+      job.currentFile = fullPath;
       job.currentFileTotalSize = stats.size;
       job.currentFileBytesProcessed = 0;
 
-      const sourceStream = fse.createReadStream(sourcePath);
+      const sourceStream = fse.createReadStream(fullPath);
       sourceStream.on("data", (chunk) => {
         job.copied += chunk.length;
         job.currentFileBytesProcessed += chunk.length;
