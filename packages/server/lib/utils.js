@@ -1026,6 +1026,49 @@ const deleteFromZip = async (zipFilePath, pathsInZip) => {
   }
 };
 
+const renameInZip = async (zipFilePath, oldPathInZip, newPathInZip) => {
+  const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", {
+    zlib: { level: 9 },
+  });
+  archive.pipe(output);
+
+  const zipfile = await yauzl.open(zipFilePath);
+
+  // A path for a folder inside a zip might be 'folder' but its entry is 'folder/'
+  const oldPathAsFolderPrefix = `${oldPathInZip}/`;
+  const newPathAsFolderPrefix = `${newPathInZip}/`;
+
+  try {
+    for await (const entry of zipfile) {
+      let entryNameToWrite = entry.filename;
+
+      if (entry.filename.startsWith(oldPathAsFolderPrefix)) {
+        // This is a folder rename, affecting all contents
+        entryNameToWrite = entry.filename.replace(
+          oldPathAsFolderPrefix,
+          newPathAsFolderPrefix
+        );
+      } else if (entry.filename === oldPathInZip) {
+        // This is a file rename
+        entryNameToWrite = newPathInZip;
+      }
+
+      const stream = await entry.openReadStream();
+      archive.append(stream, { name: entryNameToWrite });
+    }
+
+    await archive.finalize();
+    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+  } catch (error) {
+    await fse.remove(tempZipPath).catch(() => {});
+    throw error;
+  } finally {
+    await zipfile.close();
+  }
+};
+
 export {
   getFileType,
   getFilesInZip,
@@ -1046,4 +1089,5 @@ export {
   createFolderInZip,
   getSummaryFromZip,
   deleteFromZip,
+  renameInZip,
 };

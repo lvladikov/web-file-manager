@@ -21,6 +21,7 @@ import {
   createFolderInZip,
   deleteFromZip,
   getSummaryFromZip,
+  renameInZip,
 } from "../lib/utils.js";
 
 export default function createFileRoutes(
@@ -882,16 +883,30 @@ export default function createFileRoutes(
         .json({ message: "The new name contains invalid characters." });
     }
 
-    const newPath = path.join(path.dirname(oldPath), newName);
-
     try {
-      if (await fse.pathExists(newPath)) {
-        return res
-          .status(409)
-          .json({ message: "A file with that name already exists." });
+      const zipPathMatch = matchZipPath(oldPath);
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const oldPathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+        const newPathInZip = path.posix.join(
+          path.posix.dirname(oldPathInZip),
+          newName
+        );
+
+        await renameInZip(zipFilePath, oldPathInZip, newPathInZip);
+        res.status(200).json({ message: "Item renamed successfully." });
+      } else {
+        const newPath = path.join(path.dirname(oldPath), newName);
+        if (await fse.pathExists(newPath)) {
+          return res
+            .status(409)
+            .json({ message: "A file with that name already exists." });
+        }
+        await fse.rename(oldPath, newPath);
+        res.status(200).json({ message: "Item renamed successfully." });
       }
-      await fse.rename(oldPath, newPath);
-      res.status(200).json({ message: "Item renamed successfully." });
     } catch (error) {
       console.error("Rename error:", error);
       if (error.code === "ENOENT") {
