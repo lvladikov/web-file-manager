@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
 import os from "os";
+import archiver from "archiver";
 
 const getFileType = (filename, isDirectory) => {
   if (isDirectory) return "folder";
@@ -706,6 +707,77 @@ const matchZipPath = (path) => {
   return path.match(/^(.*?\.zip)(.*)$/);
 };
 
+const updateFileInZip = async (zipFilePath, filePathInZip, content) => {
+  const tempZipPath = zipFilePath + ".tmp";
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", {
+    zlib: { level: 9 },
+  });
+
+  archive.pipe(output);
+
+  const zipfile = await yauzl.open(zipFilePath);
+  for await (const entry of zipfile) {
+    if (entry.filename !== filePathInZip) {
+      const stream = await entry.openReadStream();
+      archive.append(stream, { name: entry.filename });
+    }
+  }
+
+  archive.append(content, { name: filePathInZip });
+
+  await archive.finalize();
+  await zipfile.close();
+
+  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+};
+
+const createFileInZip = async (zipFilePath, newFilePathInZip) => {
+  const tempZipPath = zipFilePath + ".tmp";
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", {
+    zlib: { level: 9 },
+  });
+
+  archive.pipe(output);
+
+  const zipfile = await yauzl.open(zipFilePath);
+  for await (const entry of zipfile) {
+    const stream = await entry.openReadStream();
+    archive.append(stream, { name: entry.filename });
+  }
+
+  archive.append("", { name: newFilePathInZip });
+
+  await archive.finalize();
+  await zipfile.close();
+
+  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+};
+
+const createFolderInZip = async (zipFilePath, newFolderPathInZip) => {
+  const tempZipPath = zipFilePath + ".tmp";
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", {
+    zlib: { level: 9 },
+  });
+
+  archive.pipe(output);
+
+  const zipfile = await yauzl.open(zipFilePath);
+  for await (const entry of zipfile) {
+    const stream = await entry.openReadStream();
+    archive.append(stream, { name: entry.filename });
+  }
+
+  archive.append(null, { name: newFolderPathInZip + "/" });
+
+  await archive.finalize();
+  await zipfile.close();
+
+  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+};
+
 export {
   getFileType,
   getZipContents,
@@ -722,4 +794,7 @@ export {
   getAllFiles,
   findCoverInZip,
   matchZipPath,
+  updateFileInZip,
+  createFileInZip,
+  createFolderInZip,
 };

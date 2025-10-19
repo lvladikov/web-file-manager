@@ -6,7 +6,7 @@ import os from "os";
 import crypto from "crypto";
 import checkDiskSpace from "check-disk-space";
 import archiver from "archiver";
-import { performCopyCancellation, getDirTotalSize, getZipContents, getFileType, getFilesInZip, getFileContentFromZip, getZipFileStream, getMimeType, findCoverInZip, matchZipPath, } from "../lib/utils.js";
+import { performCopyCancellation, getDirTotalSize, getZipContents, getFileType, getFilesInZip, getFileContentFromZip, getZipFileStream, getMimeType, findCoverInZip, matchZipPath, updateFileInZip, createFileInZip, createFolderInZip, } from "../lib/utils.js";
 
 export default function createFileRoutes(
   activeCopyJobs,
@@ -520,12 +520,21 @@ export default function createFileRoutes(
     }
 
     try {
-      if (await fse.pathExists(newFolderPath)) {
-        return res
-          .status(409)
-          .json({ message: "A file or folder with that name already exists." });
+      const zipPathMatch = matchZipPath(newFolderPath);
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const filePathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+        await createFolderInZip(zipFilePath, filePathInZip);
+      } else {
+        if (await fse.pathExists(newFolderPath)) {
+          return res
+            .status(409)
+            .json({ message: "A file or folder with that name already exists." });
+        }
+        await fse.mkdir(newFolderPath);
       }
-      await fse.mkdir(newFolderPath);
       res.status(201).json({ message: "Folder created successfully." });
     } catch (error) {
       console.error("New folder error:", error);
@@ -545,12 +554,21 @@ export default function createFileRoutes(
     }
 
     try {
-      if (await fse.pathExists(newFilePath)) {
-        return res
-          .status(409)
-          .json({ message: "A file with that name already exists." });
+      const zipPathMatch = matchZipPath(newFilePath);
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const filePathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+        await createFileInZip(zipFilePath, filePathInZip);
+      } else {
+        if (await fse.pathExists(newFilePath)) {
+          return res
+            .status(409)
+            .json({ message: "A file with that name already exists." });
+        }
+        await fse.createFile(newFilePath);
       }
-      await fse.createFile(newFilePath);
       res.status(201).json({ message: "File created successfully." });
     } catch (error) {
       console.error("New file error:", error);
@@ -807,7 +825,16 @@ export default function createFileRoutes(
     }
 
     try {
-      await fse.writeFile(filePath, content);
+      const zipPathMatch = matchZipPath(filePath);
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const filePathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+        await updateFileInZip(zipFilePath, filePathInZip, content);
+      } else {
+        await fse.writeFile(filePath, content);
+      }
       res.status(200).json({ message: "File saved successfully." });
     } catch (error) {
       console.error("Error saving file:", error);
