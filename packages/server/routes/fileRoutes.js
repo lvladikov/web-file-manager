@@ -501,6 +501,14 @@ export default function createFileRoutes(
     try {
       const jobId = crypto.randomUUID();
       const zipDestMatch = matchZipPath(destination);
+      const zipSourceMatch = matchZipPath(sources[0]);
+
+      let jobType = "copy";
+      if (zipDestMatch) {
+        jobType = "zip-add";
+      } else if (zipSourceMatch) {
+        jobType = "zip-extract";
+      }
 
       const job = {
         id: jobId,
@@ -512,8 +520,7 @@ export default function createFileRoutes(
         isMove: isMove || false,
         overwriteDecision: "prompt",
         resolveOverwrite: null,
-        // Differentiate job type based on destination
-        jobType: zipDestMatch ? "zip-add" : "copy",
+        jobType,
       };
 
       activeCopyJobs.set(jobId, job);

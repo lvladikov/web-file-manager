@@ -5,6 +5,7 @@ import { open } from "yauzl-promise";
 import { pipeline, Writable, Readable } from "stream";
 import watcher from "./watcher.js";
 import os from "os";
+import * as yauzl from "yauzl-promise";
 
 // A Writable stream that does nothing, used to consume read streams for integrity testing
 class NullWritable extends Writable {
@@ -23,6 +24,7 @@ import {
   getZipFileStream,
   addFilesToZip,
   matchZipPath,
+  extractFilesFromZip,
 } from "./utils.js";
 
 // Keep track of clients that are watching for file changes
@@ -214,6 +216,108 @@ export function initializeWebSocketServer(
                 }
               } finally {
                 clearInterval(progressInterval);
+                setTimeout(() => activeCopyJobs.delete(jobId), 5000);
+              }
+            })();
+          } else if (job.jobType === "zip-extract") {
+            // HANDLE ZIP-to-FS COPY (EXTRACTION)
+            (async () => {
+              let progressInterval;
+              try {
+                job.status = "scanning";
+                ws.send(JSON.stringify({ type: "scan_start" }));
+
+                const { sources, destination } = job;
+                const zipSourceMatch = matchZipPath(sources[0]);
+                if (!zipSourceMatch)
+                  throw new Error("Invalid ZIP source path.");
+
+                const zipFilePath = zipSourceMatch[1];
+                job.zipFilePath = zipFilePath;
+
+                const zipfile = await yauzl.open(zipFilePath);
+
+                const sourceBase = zipSourceMatch[2].substring(
+                  0,
+                  zipSourceMatch[2].lastIndexOf("/")
+                );
+                const entriesToExtract = [];
+                let totalUncompressedSize = 0;
+
+                for await (const entry of zipfile) {
+                  for (const source of sources) {
+                    const inZipPath = matchZipPath(source)[2].substring(1);
+                    if (
+                      entry.filename === inZipPath ||
+                      entry.filename.startsWith(inZipPath + "/")
+                    ) {
+                      entriesToExtract.push(entry);
+                      totalUncompressedSize += entry.uncompressedSize;
+                      break;
+                    }
+                  }
+                }
+                await zipfile.close();
+
+                job.entriesToExtract = entriesToExtract;
+                job.total = totalUncompressedSize;
+                job.copied = 0;
+                job.status = "copying";
+                job.lastProcessedBytes = 0;
+                job.lastUpdateTime = Date.now();
+
+                ws.send(
+                  JSON.stringify({ type: "scan_complete", total: job.total })
+                );
+
+                progressInterval = setInterval(() => {
+                  if (ws.readyState === 1) {
+                    const currentTime = Date.now();
+                    const timeElapsed =
+                      (currentTime - job.lastUpdateTime) / 1000;
+                    const bytesSinceLastUpdate =
+                      job.copied - job.lastProcessedBytes;
+                    const instantaneousSpeed =
+                      timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+
+                    ws.send(
+                      JSON.stringify({
+                        type: "progress",
+                        copied: job.copied,
+                        total: job.total,
+                        currentFile: job.currentFile,
+                        currentFileBytesProcessed:
+                          job.currentFileBytesProcessed,
+                        currentFileSize: job.currentFileTotalSize,
+                        instantaneousSpeed,
+                      })
+                    );
+
+                    job.lastProcessedBytes = job.copied;
+                    job.lastUpdateTime = currentTime;
+                  }
+                }, 250);
+
+                await extractFilesFromZip(job);
+
+                job.status = "completed";
+                ws.send(JSON.stringify({ type: "complete" }));
+                ws.close(1000, "Job Completed");
+              } catch (error) {
+                if (job.status !== "cancelled") job.status = "failed";
+                console.error(
+                  `Zip extract job ${jobId} failed:`,
+                  error.message
+                );
+                if (ws.readyState === 1) {
+                  const type =
+                    job.status === "cancelled" ? "cancelled" : "error";
+                  ws.send(JSON.stringify({ type, message: error.message }));
+                  ws.close(1000, `Job finished with status: ${type}`);
+                }
+              } finally {
+                clearInterval(progressInterval);
+                if (job.zipfile) await job.zipfile.close();
                 setTimeout(() => activeCopyJobs.delete(jobId), 5000);
               }
             })();

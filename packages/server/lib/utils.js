@@ -1150,6 +1150,45 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
   }
 };
 
+const extractFilesFromZip = async (job) => {
+  const { signal } = job.controller;
+  const zipfile = await yauzl.open(job.zipFilePath);
+  job.zipfile = zipfile;
+
+  for await (const entry of zipfile) {
+    if (signal.aborted) throw new Error("Zip extract cancelled.");
+
+    const isEntrySelected = job.entriesToExtract.some(
+      (e) =>
+        e.filename === entry.filename ||
+        entry.filename.startsWith(e.filename + "/")
+    );
+    if (!isEntrySelected) continue;
+
+    job.currentFile = entry.filename;
+    job.currentFileTotalSize = entry.uncompressedSize;
+    job.currentFileBytesProcessed = 0;
+
+    const destPath = path.join(job.destination, entry.filename);
+
+    if (entry.filename.endsWith("/")) {
+      await fse.mkdirp(destPath);
+      job.copied += entry.uncompressedSize;
+    } else {
+      await fse.mkdirp(path.dirname(destPath));
+      const readStream = await entry.openReadStream();
+      const writeStream = fse.createWriteStream(destPath);
+
+      readStream.on("data", (chunk) => {
+        job.copied += chunk.length;
+        job.currentFileBytesProcessed += chunk.length;
+      });
+
+      await pipeline(readStream, writeStream, { signal });
+    }
+  }
+};
+
 export {
   getFileType,
   getFilesInZip,
@@ -1172,4 +1211,5 @@ export {
   deleteFromZip,
   renameInZip,
   addFilesToZip,
+  extractFilesFromZip,
 };
