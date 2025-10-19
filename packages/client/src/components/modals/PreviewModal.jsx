@@ -40,6 +40,7 @@ import {
   saveFileContent,
   fetchZipFileContent,
   fetchZipMediaStreamUrl,
+  fetchFileInfo,
 } from "../../lib/api";
 import Icon from "../ui/Icon";
 
@@ -78,6 +79,9 @@ const PreviewModal = ({
   onDecompressToOtherPanel,
   startInEditMode,
   setZipUpdateProgressModal,
+  setZipReadProgressModal,
+  onRefreshPanel,
+  activePanel,
 }) => {
   const previewContainerRef = useRef(null);
   const videoRef = useRef(null);
@@ -99,6 +103,7 @@ const PreviewModal = ({
   const fetchedCoverArt = useRef(null);
   const [unsavedChangesModalVisible, setUnsavedChangesModalVisible] =
     useState(false);
+  const lastSavedItemRef = useRef(null);
 
   const zipPreviewRef = useRef(null);
   const editSearchClearRef = useRef(null);
@@ -395,6 +400,8 @@ const PreviewModal = ({
       document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
+
+
   useEffect(() => {
     if (
       (previewType !== "text" && previewType !== "zipText") ||
@@ -404,7 +411,14 @@ const PreviewModal = ({
       return;
     }
 
-    const fetchText = async () => {
+    // If the current item is the same as the last saved item, it means the content is already up-to-date.
+    // Prevent re-fetching and clear the ref.
+    if (lastSavedItemRef.current === item) {
+      lastSavedItemRef.current = null;
+      return;
+    }
+
+    const fetchTextContent = async () => {
       setTextContent("Loading...");
       setTextError("");
       const { fullPath } = item;
@@ -420,6 +434,11 @@ const PreviewModal = ({
           const filePathInZip = zipPathMatch[2].startsWith("/")
             ? zipPathMatch[2].substring(1)
             : zipPathMatch[2];
+
+          const zipFileInfo = await fetchFileInfo(zipFilePath);
+          const originalZipSize = zipFileInfo.size || 0;
+
+          setZipReadProgressModal({ isVisible: true, zipFilePath, filePathInZip, originalZipSize });
           text = await fetchZipFileContent(zipFilePath, filePathInZip);
         } else {
           const res = await fetch(
@@ -435,9 +454,12 @@ const PreviewModal = ({
         setRedoStack([]);
       } catch (err) {
         setTextError(err.message);
+      } finally {
+        setZipReadProgressModal({ isVisible: false, zipFilePath: "", filePathInZip: "" });
       }
     };
-    fetchText();
+
+    fetchTextContent();
   }, [isVisible, item, previewType]);
 
   useEffect(() => {
@@ -505,7 +527,10 @@ const PreviewModal = ({
     const zipPathMatch = matchZipPath(item.fullPath);
     try {
       if (zipPathMatch) {
-        setZipUpdateProgressModal({ isVisible: true, zipFilePath: zipPathMatch[1], filePathInZip: zipPathMatch[2].startsWith("/") ? zipPathMatch[2].substring(1) : zipPathMatch[2] });
+        const zipFileInfo = await fetchFileInfo(zipFilePath);
+        const originalZipSize = zipFileInfo.size || 0;
+        console.log("ZipUpdateProgressModal originalZipSize:", originalZipSize);
+        setZipUpdateProgressModal({ isVisible: true, zipFilePath: zipPathMatch[1], filePathInZip: zipPathMatch[2].startsWith("/") ? zipPathMatch[2].substring(1) : zipPathMatch[2], originalZipSize });
       }
       await saveFileContent(item.fullPath, editedContent);
       setShowSuccessMessage(true);
@@ -513,6 +538,10 @@ const PreviewModal = ({
       setTextContent(editedContent);
       setUndoStack([editedContent]);
       setRedoStack([]);
+      if (zipPathMatch) {
+        onRefreshPanel(activePanel); // Refresh the panel to show updated content
+        lastSavedItemRef.current = item; // Store the item that was just saved
+      }
     } catch (error) {
       setSaveError(error.message);
     } finally {

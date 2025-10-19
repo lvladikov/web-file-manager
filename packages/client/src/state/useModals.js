@@ -44,6 +44,14 @@ export default function useModals() {
     isVisible: false,
     filePathInZip: "",
     zipFilePath: "",
+    originalZipSize: 0,
+  });
+
+  const [zipReadProgressModal, setZipReadProgressModal] = useState({
+    isVisible: false,
+    filePathInZip: "",
+    zipFilePath: "",
+    originalZipSize: 0,
   });
 
   return {
@@ -63,5 +71,7 @@ export default function useModals() {
     setCopyPathsModal,
     zipUpdateProgressModal,
     setZipUpdateProgressModal,
+    zipReadProgressModal,
+    setZipReadProgressModal,
   };
 }

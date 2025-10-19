@@ -1,7 +1,10 @@
 import React from "react";
 import { LoaderCircle } from "lucide-react";
+import { formatBytes } from "../../lib/utils";
 
-const ZipUpdateProgressModal = ({ isVisible, filePathInZip, zipFilePath }) => {
+const ZipUpdateProgressModal = (zipUpdateProgressModal) => {
+  const { isVisible, filePathInZip, zipFilePath, originalZipSize } =
+    zipUpdateProgressModal;
   if (!isVisible) return null;
 
   return (
@@ -11,9 +14,22 @@ const ZipUpdateProgressModal = ({ isVisible, filePathInZip, zipFilePath }) => {
           <LoaderCircle className="w-6 h-6 mr-2 animate-spin text-sky-400" />
           Updating Zip Archive...
         </h2>
-        <p className="text-gray-400 mb-2">File: <span className="text-sky-300">{filePathInZip}</span></p>
-        <p className="text-gray-400 mb-4">Archive: <span className="text-sky-300">{zipFilePath}</span></p>
-        <p className="text-gray-400">Please wait while the zip file is being updated. This may take a moment for large archives.</p>
+        <p className="text-gray-400 mb-2">
+          File: <span className="text-sky-300">{filePathInZip}</span>
+        </p>
+        <p className="text-gray-400 mb-2">
+          Archive: <span className="text-sky-300">{zipFilePath}</span>
+        </p>
+        {originalZipSize > 0 && (
+          <p className="text-gray-400 mb-4">
+            Original Size:{" "}
+            <span className="text-sky-300">{formatBytes(originalZipSize)}</span>
+          </p>
+        )}
+        <p className="text-gray-400">
+          Please wait while the zip file is being updated. The larger the
+          original archive, the longer this process may take.
+        </p>
       </div>
     </div>
   );

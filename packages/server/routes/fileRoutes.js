@@ -867,5 +867,20 @@ export default function createFileRoutes(
     res.status(202).json({ jobId });
   });
 
+  // Endpoint to get file information (e.g., size)
+  router.get("/file-info", async (req, res) => {
+    const { filePath } = req.query;
+    if (!filePath) {
+      return res.status(400).json({ message: "File path is required." });
+    }
+    try {
+      const stats = await fse.stat(filePath);
+      res.json({ size: stats.size, isFile: stats.isFile(), isDirectory: stats.isDirectory() });
+    } catch (error) {
+      console.error("Error fetching file info:", error);
+      res.status(500).json({ message: `Failed to get file info: ${error.message}` });
+    }
+  });
+
   return router;
 }

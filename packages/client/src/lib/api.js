@@ -80,6 +80,15 @@ const fetchFiles = async (path) => {
   return response.json();
 };
 
+const fetchFileInfo = async (filePath) => {
+  const response = await fetch(`/api/file-info?filePath=${encodeURIComponent(filePath)}`);
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || "An unknown server error occurred.");
+  }
+  return response.json();
+};
+
 const openFile = async (filePath, appName) => {
   const response = await fetch("/api/open-file", {
     method: "POST",
@@ -412,4 +421,5 @@ export {
   saveFileContent,
   startDuplicateItems,
   cancelDuplicate,
+  fetchFileInfo,
 };
