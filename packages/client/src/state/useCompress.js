@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { buildFullPath, basename } from "../lib/utils";
-import { compressFiles } from "../lib/api";
+import { compressFiles, cancelZipOperation } from "../lib/api";
 
 const useCompress = ({
   activePanel,
@@ -29,10 +29,17 @@ const useCompress = ({
     error: null,
   });
 
-  const handleCancelCompress = () => {
+  const handleCancelCompress = async () => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
+    }
+    if (compressProgress.jobId) {
+      try {
+        await cancelZipOperation(compressProgress.jobId);
+      } catch (error) {
+        console.error("Failed to cancel zip operation on server:", error);
+      }
     }
     setCompressProgress({
       isVisible: false,

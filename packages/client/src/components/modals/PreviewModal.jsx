@@ -107,6 +107,7 @@ const PreviewModal = ({
   const zipPreviewRef = useRef(null);
   const editSearchClearRef = useRef(null);
   const lastSavedItemRef = useRef(null);
+  const saveAbortControllerRef = useRef(null);
   const [prefetchedZipMediaUrl, setPrefetchedZipMediaUrl] = useState(null);
 
   const [codeLines, setCodeLines] = useState([]);
@@ -518,37 +519,64 @@ const PreviewModal = ({
     }
   }, [redoStack]);
 
-  const handleCancelZipUpdate = useCallback(() => {
-    if (zipUpdateProgressModal.jobId) {
-      cancelZipOperation(zipUpdateProgressModal.jobId);
-    }
-    setZipUpdateProgressModal({ isVisible: false });
-  }, [zipUpdateProgressModal.jobId, setZipUpdateProgressModal]);
+  const handleCancelZipUpdate = useCallback(
+    (jobIdToCancel) => {
+      if (saveAbortControllerRef.current) {
+        saveAbortControllerRef.current.abort();
+      }
+      if (jobIdToCancel) {
+        cancelZipOperation(jobIdToCancel);
+      }
+      setZipUpdateProgressModal({ isVisible: false });
+    },
+    [setZipUpdateProgressModal]
+  );
 
   const handleSave = async () => {
     const zipPathMatch = matchZipPath(item.fullPath);
+    let saveResponse;
+    const abortController = new AbortController();
+    saveAbortControllerRef.current = abortController;
+
     try {
       if (zipPathMatch) {
         const zipFileInfo = await fetchFileInfo(zipFilePath);
         const originalZipSize = zipFileInfo.size || 0;
+
+        const clientJobId = crypto.randomUUID(); // Generate jobId on client
+
         setZipUpdateProgressModal({
           isVisible: true,
+          jobId: clientJobId, // Pass client-generated jobId immediately
           zipFilePath: zipPathMatch[1],
           filePathInZip: zipPathMatch[2].startsWith("/")
             ? zipPathMatch[2].substring(1)
             : zipPathMatch[2],
           originalZipSize,
-          onCancel: handleCancelZipUpdate,
+          onCancel: () => handleCancelZipUpdate(clientJobId), // Pass jobId to handler
         });
+
+        saveResponse = await saveFileContent(
+          item.fullPath,
+          editedContent,
+          abortController.signal,
+          clientJobId
+        );
+
+        if (saveResponse.jobId) {
+          setZipUpdateProgressModal((prev) => ({
+            ...prev,
+            jobId: saveResponse.jobId,
+          }));
+        }
+      } else {
+        saveResponse = await saveFileContent(
+          item.fullPath,
+          editedContent,
+          abortController.signal
+        );
       }
-      const saveResponse = await saveFileContent(item.fullPath, editedContent);
-      if (zipPathMatch && saveResponse.jobId) {
-        setZipUpdateProgressModal((prev) => ({ ...prev, jobId: saveResponse.jobId }));
-      } else if (zipPathMatch && !saveResponse.jobId) {
-        // If it's a zip update but no jobId is returned (e.g., for non-text files),
-        // ensure the modal is closed after save.
-        setZipUpdateProgressModal({ isVisible: false });
-      }
+
       setShowSuccessMessage(true);
       setSaveError("");
       setTextContent(editedContent);
@@ -556,14 +584,19 @@ const PreviewModal = ({
       setRedoStack([]);
       lastSavedItemRef.current = item;
       if (zipPathMatch) {
-        onRefreshPanel(activePanel); // Refresh the panel to show updated content
+        onRefreshPanel(activePanel);
       }
     } catch (error) {
-      setSaveError(error.message);
-    } finally {
-      if (zipPathMatch) {
-        setZipUpdateProgressModal({ isVisible: false });
+      if (error.name === "AbortError") {
+        setSaveError("Save operation cancelled.");
+      } else {
+        console.error("[Client] handleSave: Caught error:", error);
+        setSaveError(error.message);
       }
+    } finally {
+      saveAbortControllerRef.current = null; // Clear the ref
+      // Always attempt to close the modal using a functional update to ensure latest state
+      setZipUpdateProgressModal((prev) => ({ ...prev, isVisible: false }));
     }
   };
 

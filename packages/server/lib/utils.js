@@ -779,6 +779,8 @@ const updateFileInZip = async (
     zlib: { level: 9 },
   });
 
+  const activeZipStreams = [];
+
   // Pipe archive to output stream
   const archivePromise = signal
     ? pipeline(archive, output, { signal })
@@ -786,9 +788,14 @@ const updateFileInZip = async (
 
   // Handle cancellation for cleanup
   if (signal) {
-    signal.addEventListener("abort", () => {
-      fse.remove(tempZipPath); // Clean up partial temp file
-    });
+    signal.addEventListener(
+      "abort",
+      () => {
+        fse.remove(tempZipPath); // Clean up partial temp file
+        activeZipStreams.forEach((s) => s.destroy()); // Destroy all active streams
+      },
+      { once: true }
+    );
   }
 
   const zipfile = await yauzl.open(zipFilePath);
@@ -799,26 +806,38 @@ const updateFileInZip = async (
       }
       if (entry.filename !== filePathInZip) {
         const stream = await entry.openReadStream();
+        activeZipStreams.push(stream);
         archive.append(stream, { name: entry.filename });
       }
     }
 
     archive.append(content, { name: filePathInZip });
-    archive.finalize(); // Finalize without awaiting here, let pipeline handle the end
+    if (signal && signal.aborted) {
+      throw new Error("Zip update cancelled.");
+    }
+    archive.finalize();
 
-    await archivePromise; // Await the pipeline, which will reject on abort
+    await archivePromise;
+    if (signal && signal.aborted) {
+      await fse.remove(tempZipPath);
+      throw new Error("Zip update cancelled.");
+    }
+    // Only move if the archive creation was successful and not aborted
+    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
   } catch (error) {
     if (signal && signal.aborted) {
       await fse.remove(tempZipPath);
       throw new Error("Zip update cancelled.");
     }
+    console.error(
+      `[Server] updateFileInZip: Caught unexpected error for ${filePathInZip}:`,
+      error
+    );
     await fse.remove(tempZipPath);
     throw error;
   } finally {
     await zipfile.close();
   }
-
-  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
 };
 
 const createFileInZip = async (
@@ -832,6 +851,8 @@ const createFileInZip = async (
     zlib: { level: 9 },
   });
 
+  const activeZipStreams = [];
+
   // Pipe archive to output stream
   const archivePromise = signal
     ? pipeline(archive, output, { signal })
@@ -839,9 +860,14 @@ const createFileInZip = async (
 
   // Handle cancellation for cleanup
   if (signal) {
-    signal.addEventListener("abort", () => {
-      fse.remove(tempZipPath); // Clean up partial temp file
-    });
+    signal.addEventListener(
+      "abort",
+      () => {
+        fse.remove(tempZipPath); // Clean up partial temp file
+        activeZipStreams.forEach((s) => s.destroy()); // Destroy all active streams
+      },
+      { once: true }
+    );
   }
 
   const zipfile = await yauzl.open(zipFilePath);
@@ -851,26 +877,36 @@ const createFileInZip = async (
         throw new Error("Zip creation cancelled.");
       }
       const stream = await entry.openReadStream();
+      activeZipStreams.push(stream);
       archive.append(stream, { name: entry.filename });
     }
 
     archive.append("", { name: newFilePathInZip });
-
-    archive.finalize(); // Finalize without awaiting here, let pipeline handle the end
+    if (signal && signal.aborted) {
+      throw new Error("Zip creation cancelled.");
+    }
+    archive.finalize();
 
     await archivePromise; // Await the pipeline, which will reject on abort
+    if (signal && signal.aborted) {
+      await fse.remove(tempZipPath);
+      throw new Error("Zip creation cancelled.");
+    }
+    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
   } catch (error) {
     if (signal && signal.aborted) {
       await fse.remove(tempZipPath);
       throw new Error("Zip creation cancelled.");
     }
+    console.error(
+      `[Server] createFileInZip: Caught unexpected error for ${newFilePathInZip}:`,
+      error
+    );
     await fse.remove(tempZipPath);
     throw error;
   } finally {
     await zipfile.close();
   }
-
-  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
 };
 
 const createFolderInZip = async (
@@ -884,6 +920,8 @@ const createFolderInZip = async (
     zlib: { level: 9 },
   });
 
+  const activeZipStreams = [];
+
   // Pipe archive to output stream
   const archivePromise = signal
     ? pipeline(archive, output, { signal })
@@ -891,9 +929,14 @@ const createFolderInZip = async (
 
   // Handle cancellation for cleanup
   if (signal) {
-    signal.addEventListener("abort", () => {
-      fse.remove(tempZipPath); // Clean up partial temp file
-    });
+    signal.addEventListener(
+      "abort",
+      () => {
+        fse.remove(tempZipPath); // Clean up partial temp file
+        activeZipStreams.forEach((s) => s.destroy()); // Destroy all active streams
+      },
+      { once: true }
+    );
   }
 
   const zipfile = await yauzl.open(zipFilePath);
@@ -903,19 +946,31 @@ const createFolderInZip = async (
         throw new Error("Zip creation cancelled.");
       }
       const stream = await entry.openReadStream();
+      activeZipStreams.push(stream);
       archive.append(stream, { name: entry.filename });
     }
 
     archive.append(null, { name: newFolderPathInZip + "/" });
-
-    archive.finalize(); // Finalize without awaiting here, let pipeline handle the end
+    if (signal && signal.aborted) {
+      throw new Error("Zip creation cancelled.");
+    }
+    archive.finalize();
 
     await archivePromise; // Await the pipeline, which will reject on abort
+    if (signal && signal.aborted) {
+      await fse.remove(tempZipPath);
+      throw new Error("Zip creation cancelled.");
+    }
+    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
   } catch (error) {
     if (signal && signal.aborted) {
       await fse.remove(tempZipPath);
       throw new Error("Zip creation cancelled.");
     }
+    console.error(
+      `[Server] createFolderInZip: Caught unexpected error for ${newFolderPathInZip}:`,
+      error
+    );
     await fse.remove(tempZipPath);
     throw error;
   } finally {

@@ -860,8 +860,9 @@ export default function createFileRoutes(
 
   // Endpoint to save file content
   router.post("/save-file", async (req, res) => {
-    const { path: filePath, content } = req.body;
+    const { path: filePath, content, jobId } = req.body;
     if (!filePath || content === undefined) {
+      console.log(`[Server] /save-file: Invalid request for ${filePath}`);
       return res
         .status(400)
         .json({ message: "File path and content are required." });
@@ -870,9 +871,10 @@ export default function createFileRoutes(
     try {
       const zipPathMatch = matchZipPath(filePath);
       if (zipPathMatch) {
-        const jobId = crypto.randomUUID();
+        // Use client-provided jobId or generate if not provided (should always be provided now)
+        const currentJobId = jobId || crypto.randomUUID();
         const abortController = new AbortController();
-        activeZipOperations.set(jobId, abortController);
+        activeZipOperations.set(currentJobId, abortController);
 
         try {
           const zipFilePath = zipPathMatch[1];
@@ -885,24 +887,32 @@ export default function createFileRoutes(
             content,
             abortController.signal
           );
-          res.status(200).json({ message: "File saved successfully.", jobId });
+          res
+            .status(200)
+            .json({ message: "File saved successfully.", jobId: currentJobId });
         } catch (error) {
           if (abortController.signal.aborted) {
             return res.status(400).json({ message: "Zip update cancelled." });
           }
-          console.error("Error saving file in zip:", error);
+          console.error("[Server] Error saving file in zip:", error);
           res
             .status(500)
             .json({ message: `Failed to save file in zip: ${error.message}` });
         } finally {
-          activeZipOperations.delete(jobId);
+          // Only delete the jobId if the operation was not aborted
+          if (!abortController.signal.aborted) {
+            activeZipOperations.delete(currentJobId);
+          }
         }
       } else {
         await fse.writeFile(filePath, content);
+        console.log(
+          `[Server] /save-file: Non-zip file saved successfully: ${filePath}`
+        );
         res.status(200).json({ message: "File saved successfully." });
       }
     } catch (error) {
-      console.error("Error saving file:", error);
+      console.error("[Server] Error saving file:", error);
       res
         .status(500)
         .json({ message: `Failed to save file: ${error.message}` });

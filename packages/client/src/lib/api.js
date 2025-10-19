@@ -347,11 +347,12 @@ const fetchZipMediaStreamUrl = (zipFilePath, filePathInZip) => {
   )}&filePathInZip=${encodeURIComponent(filePathInZip)}`;
 };
 
-const saveFileContent = async (path, content) => {
+const saveFileContent = async (path, content, signal = null, jobId = null) => {
   const response = await fetch("/api/save-file", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path, content }),
+    body: JSON.stringify({ path, content, jobId }),
+    signal,
   });
   if (!response.ok) {
     const data = await response.json();
