@@ -50,32 +50,6 @@ const getFileType = (filename, isDirectory) => {
   return "file";
 };
 
-const getZipContents = async (zipFilePath) => {
-  const entries = [];
-  let zipfile;
-  try {
-    zipfile = await yauzl.open(zipFilePath);
-    for await (const entry of zipfile) {
-      const isDirectory = entry.filename.endsWith("/");
-      const type = getFileType(entry.filename, isDirectory);
-
-      entries.push({
-        name: entry.filename,
-        type: type,
-        uncompressedSize: entry.uncompressedSize,
-      });
-    }
-  } catch (error) {
-    console.error(`Error processing zip file ${zipFilePath}:`, error);
-    throw error; // Re-throw the error to be caught by the caller
-  } finally {
-    if (zipfile) {
-      await zipfile.close();
-    }
-  }
-  return entries;
-};
-
 const getFilesInZip = async (zipFilePath, directoryPath) => {
   let tempDirs = [];
   let currentZipFile = null;
@@ -1054,7 +1028,6 @@ const deleteFromZip = async (zipFilePath, pathsInZip) => {
 
 export {
   getFileType,
-  getZipContents,
   getFilesInZip,
   getFileContentFromZip,
   getZipFileStream,

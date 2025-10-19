@@ -9,7 +9,6 @@ import archiver from "archiver";
 import {
   performCopyCancellation,
   getDirTotalSize,
-  getZipContents,
   getFileType,
   getFilesInZip,
   getFileContentFromZip,
