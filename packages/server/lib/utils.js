@@ -1172,7 +1172,9 @@ const extractFilesFromZip = async (job) => {
     const destPath = path.join(job.destination, entry.filename);
 
     if (entry.filename.endsWith("/")) {
-      await fse.mkdirp(destPath);
+      await fse.mkdir(destPath, { recursive: true });
+      const modDate = entry.getLastMod();
+      await fse.utimes(destPath, modDate, modDate);
       job.copied += entry.uncompressedSize;
     } else {
       await fse.mkdirp(path.dirname(destPath));
@@ -1184,7 +1186,9 @@ const extractFilesFromZip = async (job) => {
         job.currentFileBytesProcessed += chunk.length;
       });
 
-      await pipeline(readStream, writeStream, { signal });
+      await pipeline(readStream, writeStream);
+      const modDate = entry.getLastMod();
+      await fse.utimes(destPath, modDate, modDate);
     }
   }
 };
