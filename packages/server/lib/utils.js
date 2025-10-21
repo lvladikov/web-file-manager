@@ -721,7 +721,16 @@ const findCoverInZip = async (zipFilePath, audioFilePathInZip) => {
       ) {
         await zipfile.close();
         await cleanup();
-        return entry.filename;
+
+        if (
+          entryDir.toLowerCase() === audioDirectory.toLowerCase() &&
+          coverNames.includes(entryName.toLowerCase())
+        ) {
+          await zipfile.close();
+          await cleanup();
+          const audioDirInOuterZip = path.posix.dirname(audioFilePathInZip);
+          return path.posix.join(audioDirInOuterZip, entryName);
+        }
       }
     }
 
@@ -1165,12 +1174,14 @@ const extractFilesFromZip = async (job) => {
     }
 
     // Extract just the filenames for common path calculation
-    const filenames = entriesToExtract.map(e => e.filename);
+    const filenames = entriesToExtract.map((e) => e.filename);
 
     // If there's only one item, the base path to strip is its parent directory
     if (filenames.length === 1) {
       const singleFilename = filenames[0];
-      return singleFilename.endsWith('/') ? path.dirname(singleFilename.slice(0, -1)) : path.dirname(singleFilename);
+      return singleFilename.endsWith("/")
+        ? path.dirname(singleFilename.slice(0, -1))
+        : path.dirname(singleFilename);
     }
 
     let commonPrefix = filenames[0];
@@ -1178,21 +1189,21 @@ const extractFilesFromZip = async (job) => {
     for (let i = 1; i < filenames.length; i++) {
       const currentFilename = filenames[i];
       while (!currentFilename.startsWith(commonPrefix)) {
-        const lastSlash = commonPrefix.lastIndexOf('/');
+        const lastSlash = commonPrefix.lastIndexOf("/");
         if (lastSlash === -1) {
-          commonPrefix = ''; // No common prefix
+          commonPrefix = ""; // No common prefix
           break;
         }
         commonPrefix = commonPrefix.substring(0, lastSlash);
       }
-      if (commonPrefix === '') {
+      if (commonPrefix === "") {
         break;
       }
     }
 
     // Ensure commonPrefix ends with a slash if it's not empty
-    if (commonPrefix !== '' && !commonPrefix.endsWith('/')) {
-      commonPrefix += '/';
+    if (commonPrefix !== "" && !commonPrefix.endsWith("/")) {
+      commonPrefix += "/";
     }
 
     return commonPrefix;
@@ -1221,7 +1232,10 @@ const extractFilesFromZip = async (job) => {
 
     let relativeEntryPath = entry.filename;
 
-    if (commonBasePathToStrip !== "" && entry.filename.startsWith(commonBasePathToStrip)) {
+    if (
+      commonBasePathToStrip !== "" &&
+      entry.filename.startsWith(commonBasePathToStrip)
+    ) {
       relativeEntryPath = path.relative(commonBasePathToStrip, entry.filename);
     }
 
