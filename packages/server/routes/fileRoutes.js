@@ -454,10 +454,20 @@ export default function createFileRoutes(
           const pathInZip = zipPathMatch[2].startsWith("/")
             ? zipPathMatch[2].substring(1)
             : zipPathMatch[2];
-          if (!acc[zipFilePath]) {
-            acc[zipFilePath] = { isZip: true, paths: [] };
+          // If pathInZip is empty, it means the user wants to delete the zip file itself.
+          // In this case, treat it as a regular filesystem path for deletion.
+          if (pathInZip === "") {
+            const fsKey = "filesystem";
+            if (!acc[fsKey]) {
+              acc[fsKey] = { isZip: false, paths: [] };
+            }
+            acc[fsKey].paths.push(zipFilePath);
+          } else {
+            if (!acc[zipFilePath]) {
+              acc[zipFilePath] = { isZip: true, paths: [] };
+            }
+            acc[zipFilePath].paths.push(pathInZip);
           }
-          acc[zipFilePath].paths.push(pathInZip);
         } else {
           const fsKey = "filesystem";
           if (!acc[fsKey]) {
