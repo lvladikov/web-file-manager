@@ -850,6 +850,10 @@ const createFileInZip = async (
       if (signal && signal.aborted) {
         throw new Error("Zip creation cancelled.");
       }
+      // If an entry with the same name already exists, skip it to effectively overwrite it.
+      if (entry.filename === newFilePathInZip) {
+        continue;
+      }
       const stream = await entry.openReadStream();
       activeZipStreams.push(stream);
       archive.append(stream, { name: entry.filename });
@@ -918,6 +922,10 @@ const createFolderInZip = async (
     for await (const entry of zipfile) {
       if (signal && signal.aborted) {
         throw new Error("Zip creation cancelled.");
+      }
+      // If an entry with the same name already exists, skip it to effectively overwrite it.
+      if (entry.filename === newFolderPathInZip + "/") {
+        continue;
       }
       const stream = await entry.openReadStream();
       activeZipStreams.push(stream);
