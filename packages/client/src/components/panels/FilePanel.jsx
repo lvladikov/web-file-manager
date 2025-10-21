@@ -635,7 +635,7 @@ const FilePanel = React.forwardRef(
             {Array.isArray(filteredItems) &&
               filteredItems.map((item) => (
                 <FileItem
-                  key={`${panelData.path}-${item.name}`}
+                  key={item.fullPath || `${panelData.path}-${item.name}`}
                   item={item}
                   isSelected={selectedItems.has(item.name)}
                   isFocused={focusedItem === item.name}

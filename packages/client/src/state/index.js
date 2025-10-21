@@ -791,6 +791,7 @@ export default function appState() {
     handleCopyToClipboard,
     handleCutToClipboard,
     handlePasteFromClipboard,
+    sortedAndFilteredItems,
   });
 
   const panelsRef = useRef(panels);

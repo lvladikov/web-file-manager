@@ -44,26 +44,26 @@ export default function useKeyboardShortcuts(props) {
         handleCopyAction,
         handleStartNewFolder,
         handleDeleteItem,
-        handleStartSizeCalculation,
         handleInvertSelection,
         handleStartQuickSelect,
         handleStartQuickUnselect,
-        handleStartFilter,
         filterPanelId,
         handleCloseFilter,
         handleSelectAll,
         handleSwapPanels,
-        calculateSizeForMultipleFolders,
         handleViewItem,
         handleCopyToClipboard,
         handleCutToClipboard,
         handlePasteFromClipboard,
+        sortedAndFilteredItems,
       } = latestProps.current;
 
       if (!panels || !panels.left || !panels.right) {
         // Defensive guard to ensure panels are fully initialized
         return;
       }
+
+      const panelItems = sortedAndFilteredItems[activePanel];
 
       // Handle modals that should trap all keyboard input first.
       if (previewModal.isVisible) {
@@ -332,6 +332,7 @@ export default function useKeyboardShortcuts(props) {
         if (e.key === "Escape") document.activeElement.blur();
         return;
       }
+
       if (isModKey(e) && e.key === "a") {
         e.preventDefault();
         handleSelectAll(activePanel);
@@ -402,7 +403,6 @@ export default function useKeyboardShortcuts(props) {
         if (!panels || !panels[activePanel]) return;
 
         const activeSelection = selections[activePanel];
-        const panelItems = panels[activePanel].items;
 
         if (activeSelection.size > 0) {
           const selectedItems = panelItems.filter((item) =>
@@ -458,7 +458,11 @@ export default function useKeyboardShortcuts(props) {
               item.type === "parent" ||
               item.type === "archive"
             ) {
-              handleNavigate(activePanel, panels[activePanel].path, item.type === 'archive' ? `${item.name}/` : item.name);
+              handleNavigate(
+                activePanel,
+                panels[activePanel].path,
+                item.type === "archive" ? `${item.name}/` : item.name
+              );
             } else {
               handleOpenFile(panels[activePanel].path, item.name);
             }
@@ -532,7 +536,6 @@ export default function useKeyboardShortcuts(props) {
         return;
       }
 
-      const panelItems = panels[activePanel]?.items;
       if (!panelItems || panelItems.length === 0) return;
       const currentFocusedName = focusedItem[activePanel];
       const currentIndex = currentFocusedName
