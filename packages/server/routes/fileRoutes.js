@@ -185,9 +185,14 @@ export default function createFileRoutes(
           // We are at the root of the zip and want to go up
           currentPath = path.dirname(zipFile);
         } else {
-          const newInternal = path.posix.normalize(
+          let newInternal = path.posix.normalize(
             path.posix.join(internal, target)
           );
+          // If the new path ends with .zip, it means we navigated up to a nested zip file.
+          // It should be treated as a directory, so it needs a trailing slash.
+          if (newInternal.toLowerCase().endsWith(".zip")) {
+            newInternal += "/";
+          }
           currentPath = zipFile + newInternal;
         }
       } else {
@@ -515,8 +520,14 @@ export default function createFileRoutes(
 
       let jobType = "copy";
       const sourceZipPathMatch = matchZipPath(sources[0]);
-      const sourceZipFilePath = sourceZipPathMatch ? sourceZipPathMatch[1] : null;
-      const sourcePathInZip = sourceZipPathMatch ? (sourceZipPathMatch[2].startsWith("/") ? sourceZipPathMatch[2].substring(1) : sourceZipPathMatch[2]) : null;
+      const sourceZipFilePath = sourceZipPathMatch
+        ? sourceZipPathMatch[1]
+        : null;
+      const sourcePathInZip = sourceZipPathMatch
+        ? sourceZipPathMatch[2].startsWith("/")
+          ? sourceZipPathMatch[2].substring(1)
+          : sourceZipPathMatch[2]
+        : null;
 
       if (zipDestMatch) {
         jobType = "zip-add";
