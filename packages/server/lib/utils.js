@@ -6,6 +6,34 @@ import { pipeline } from "stream/promises";
 import * as yauzl from "yauzl-promise";
 import archiver from "archiver";
 
+const extractNestedZipToTemp = async (zipFilePath, pathInZip) => {
+  const tempDir = await fse.mkdtemp(path.join(os.tmpdir(), "nested-zip-"));
+  const tempNestedZipPath = path.join(tempDir, path.basename(pathInZip));
+
+  const parentZip = await yauzl.open(zipFilePath);
+  try {
+    let entryFound = null;
+    for await (const entry of parentZip) {
+      if (entry.filename === pathInZip) {
+        entryFound = entry;
+        break;
+      }
+    }
+
+    if (!entryFound) {
+      throw new Error(`Nested zip not found: ${pathInZip}`);
+    }
+
+    const readStream = await parentZip.openReadStream(entryFound);
+    const writeStream = fse.createWriteStream(tempNestedZipPath);
+    await pipeline(readStream, writeStream);
+
+    return { tempNestedZipPath, tempDir };
+  } finally {
+    await parentZip.close();
+  }
+};
+
 const getFileType = (filename, isDirectory) => {
   if (isDirectory) return "folder";
 
@@ -753,73 +781,82 @@ const matchZipPath = (path) => {
 const updateFileInZip = async (
   zipFilePath,
   filePathInZip,
-  content,
+  content, // content can be a Buffer, string, or stream
   signal = null
 ) => {
-  const tempZipPath = zipFilePath + ".tmp";
-  const output = fse.createWriteStream(tempZipPath);
-  const archive = archiver("zip", {
-    zlib: { level: 9 },
-  });
+  // Check if the path is inside a nested zip.
+  const zipEndIndex = filePathInZip.toLowerCase().lastIndexOf(".zip/");
+  if (zipEndIndex === -1) {
+    // --- BASE CASE ---
+    // Not a nested zip, so we can update the file directly.
+    const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+    const output = fse.createWriteStream(tempZipPath);
+    const archive = archiver("zip", {
+      zlib: { level: 9 },
+    });
 
-  const activeZipStreams = [];
+    const archiveFinishedPromise = new Promise((resolve, reject) => {
+      output.on("close", resolve);
+      archive.on("error", reject);
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          archive.destroy();
+          reject(new Error("Zip update cancelled."));
+        });
+      }
+    });
 
-  // Pipe archive to output stream
-  const archivePromise = signal
-    ? pipeline(archive, output, { signal })
-    : pipeline(archive, output);
+    archive.pipe(output);
 
-  // Handle cancellation for cleanup
-  if (signal) {
-    signal.addEventListener(
-      "abort",
-      () => {
-        fse.remove(tempZipPath); // Clean up partial temp file
-        activeZipStreams.forEach((s) => s.destroy()); // Destroy all active streams
-      },
-      { once: true }
-    );
+    const zipfile = await yauzl.open(zipFilePath);
+    try {
+      for await (const entry of zipfile) {
+        if (entry.filename !== filePathInZip) {
+          const stream = await entry.openReadStream();
+          archive.append(stream, { name: entry.filename });
+        }
+      }
+
+      archive.append(content, { name: filePathInZip });
+
+      await archive.finalize();
+      await archiveFinishedPromise;
+      await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+    } catch (error) {
+      await fse.remove(tempZipPath).catch(() => {});
+      throw error;
+    } finally {
+      await zipfile.close();
+    }
+    return;
   }
 
-  const zipfile = await yauzl.open(zipFilePath);
+  // --- RECURSIVE STEP ---
+  // The path is inside a nested zip.
+  const nestedZipPathInParent = filePathInZip.substring(0, zipEndIndex + 4);
+  const remainingPath = filePathInZip.substring(zipEndIndex + 5);
+
+  // 1. Extract the nested zip to a temporary location.
+  const { tempNestedZipPath, tempDir } = await extractNestedZipToTemp(
+    zipFilePath,
+    nestedZipPathInParent
+  );
+
   try {
-    for await (const entry of zipfile) {
-      if (signal && signal.aborted) {
-        throw new Error("Zip update cancelled.");
-      }
-      if (entry.filename !== filePathInZip) {
-        const stream = await entry.openReadStream();
-        activeZipStreams.push(stream);
-        archive.append(stream, { name: entry.filename });
-      }
-    }
+    // 2. Recursively call this function on the extracted (now outer) zip.
+    await updateFileInZip(tempNestedZipPath, remainingPath, content, signal);
 
-    archive.append(content, { name: filePathInZip });
-    if (signal && signal.aborted) {
-      throw new Error("Zip update cancelled.");
-    }
-    archive.finalize();
-
-    await archivePromise;
-    if (signal && signal.aborted) {
-      await fse.remove(tempZipPath);
-      throw new Error("Zip update cancelled.");
-    }
-    // Only move if the archive creation was successful and not aborted
-    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
-  } catch (error) {
-    if (signal && signal.aborted) {
-      await fse.remove(tempZipPath);
-      throw new Error("Zip update cancelled.");
-    }
-    console.error(
-      `[Server] updateFileInZip: Caught unexpected error for ${filePathInZip}:`,
-      error
+    // 3. Stream the now-modified nested zip back into the original parent zip.
+    const modifiedZipStream = fse.createReadStream(tempNestedZipPath);
+    await updateFileInZip(
+      zipFilePath,
+      nestedZipPathInParent,
+      modifiedZipStream,
+      signal
     );
-    await fse.remove(tempZipPath);
-    throw error;
   } finally {
-    await zipfile.close();
+    // 4. Clean up the temporary directory.
+    await fse.remove(tempDir);
   }
 };
 
@@ -828,71 +865,61 @@ const createFileInZip = async (
   newFilePathInZip,
   signal = null
 ) => {
-  const tempZipPath = zipFilePath + ".tmp";
-  const output = fse.createWriteStream(tempZipPath);
-  const archive = archiver("zip", {
-    zlib: { level: 9 },
-  });
+  const zipEndIndex = newFilePathInZip.toLowerCase().lastIndexOf(".zip/");
+  if (zipEndIndex === -1) {
+    const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+    const output = fse.createWriteStream(tempZipPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.pipe(output);
 
-  const activeZipStreams = [];
+    const archiveFinishedPromise = new Promise((resolve, reject) => {
+      output.on("close", resolve);
+      archive.on("error", reject);
+    });
 
-  // Pipe archive to output stream
-  const archivePromise = signal
-    ? pipeline(archive, output, { signal })
-    : pipeline(archive, output);
-
-  // Handle cancellation for cleanup
-  if (signal) {
-    signal.addEventListener(
-      "abort",
-      () => {
-        fse.remove(tempZipPath); // Clean up partial temp file
-        activeZipStreams.forEach((s) => s.destroy()); // Destroy all active streams
-      },
-      { once: true }
-    );
+    const zipfile = await yauzl.open(zipFilePath);
+    try {
+      for await (const entry of zipfile) {
+        if (entry.filename !== newFilePathInZip) {
+          const stream = await entry.openReadStream();
+          archive.append(stream, { name: entry.filename });
+        }
+      }
+      archive.append("", { name: newFilePathInZip });
+      await archive.finalize();
+      await archiveFinishedPromise;
+      await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+    } catch (error) {
+      await fse.remove(tempZipPath).catch(() => {});
+      throw error;
+    } finally {
+      await zipfile.close();
+    }
+    return;
   }
 
-  const zipfile = await yauzl.open(zipFilePath);
+  const nestedZipPathInParent = newFilePathInZip.substring(0, zipEndIndex + 4);
+  const remainingPath = newFilePathInZip.substring(zipEndIndex + 5);
+
+  const { tempNestedZipPath, tempDir } = await extractNestedZipToTemp(
+    zipFilePath,
+    nestedZipPathInParent
+  );
+
   try {
-    for await (const entry of zipfile) {
-      if (signal && signal.aborted) {
-        throw new Error("Zip creation cancelled.");
-      }
-      // If an entry with the same name already exists, skip it to effectively overwrite it.
-      if (entry.filename === newFilePathInZip) {
-        continue;
-      }
-      const stream = await entry.openReadStream();
-      activeZipStreams.push(stream);
-      archive.append(stream, { name: entry.filename });
-    }
+    // Recursively call this function on the extracted nested zip
+    await createFileInZip(tempNestedZipPath, remainingPath, signal);
 
-    archive.append("", { name: newFilePathInZip });
-    if (signal && signal.aborted) {
-      throw new Error("Zip creation cancelled.");
-    }
-    archive.finalize();
-
-    await archivePromise; // Await the pipeline, which will reject on abort
-    if (signal && signal.aborted) {
-      await fse.remove(tempZipPath);
-      throw new Error("Zip creation cancelled.");
-    }
-    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
-  } catch (error) {
-    if (signal && signal.aborted) {
-      await fse.remove(tempZipPath);
-      throw new Error("Zip creation cancelled.");
-    }
-    console.error(
-      `[Server] createFileInZip: Caught unexpected error for ${newFilePathInZip}:`,
-      error
+    // Update the parent zip with the modified nested zip
+    const modifiedZipStream = fse.createReadStream(tempNestedZipPath);
+    await updateFileInZip(
+      zipFilePath,
+      nestedZipPathInParent,
+      modifiedZipStream,
+      signal
     );
-    await fse.remove(tempZipPath);
-    throw error;
   } finally {
-    await zipfile.close();
+    await fse.remove(tempDir);
   }
 };
 
@@ -901,71 +928,62 @@ const createFolderInZip = async (
   newFolderPathInZip,
   signal = null
 ) => {
-  const tempZipPath = zipFilePath + ".tmp";
-  const output = fse.createWriteStream(tempZipPath);
-  const archive = archiver("zip", {
-    zlib: { level: 9 },
-  });
+  const zipEndIndex = newFolderPathInZip.toLowerCase().lastIndexOf(".zip/");
+  if (zipEndIndex === -1) {
+    const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+    const output = fse.createWriteStream(tempZipPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.pipe(output);
 
-  const activeZipStreams = [];
+    const archiveFinishedPromise = new Promise((resolve, reject) => {
+      output.on("close", resolve);
+      archive.on("error", reject);
+    });
 
-  // Pipe archive to output stream
-  const archivePromise = signal
-    ? pipeline(archive, output, { signal })
-    : pipeline(archive, output);
-
-  // Handle cancellation for cleanup
-  if (signal) {
-    signal.addEventListener(
-      "abort",
-      () => {
-        fse.remove(tempZipPath); // Clean up partial temp file
-        activeZipStreams.forEach((s) => s.destroy()); // Destroy all active streams
-      },
-      { once: true }
-    );
+    const zipfile = await yauzl.open(zipFilePath);
+    try {
+      for await (const entry of zipfile) {
+        if (entry.filename !== newFolderPathInZip + "/") {
+          const stream = await entry.openReadStream();
+          archive.append(stream, { name: entry.filename });
+        }
+      }
+      archive.append(null, { name: newFolderPathInZip + "/" });
+      await archive.finalize();
+      await archiveFinishedPromise;
+      await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+    } catch (error) {
+      await fse.remove(tempZipPath).catch(() => {});
+      throw error;
+    } finally {
+      await zipfile.close();
+    }
+    return;
   }
 
-  const zipfile = await yauzl.open(zipFilePath);
+  // Recursive step for nested zips
+  const nestedZipPathInParent = newFolderPathInZip.substring(
+    0,
+    zipEndIndex + 4
+  );
+  const remainingPath = newFolderPathInZip.substring(zipEndIndex + 5);
+
+  const { tempNestedZipPath, tempDir } = await extractNestedZipToTemp(
+    zipFilePath,
+    nestedZipPathInParent
+  );
+
   try {
-    for await (const entry of zipfile) {
-      if (signal && signal.aborted) {
-        throw new Error("Zip creation cancelled.");
-      }
-      // If an entry with the same name already exists, skip it to effectively overwrite it.
-      if (entry.filename === newFolderPathInZip + "/") {
-        continue;
-      }
-      const stream = await entry.openReadStream();
-      activeZipStreams.push(stream);
-      archive.append(stream, { name: entry.filename });
-    }
-
-    archive.append(null, { name: newFolderPathInZip + "/" });
-    if (signal && signal.aborted) {
-      throw new Error("Zip creation cancelled.");
-    }
-    archive.finalize();
-
-    await archivePromise; // Await the pipeline, which will reject on abort
-    if (signal && signal.aborted) {
-      await fse.remove(tempZipPath);
-      throw new Error("Zip creation cancelled.");
-    }
-    await fse.move(tempZipPath, zipFilePath, { overwrite: true });
-  } catch (error) {
-    if (signal && signal.aborted) {
-      await fse.remove(tempZipPath);
-      throw new Error("Zip creation cancelled.");
-    }
-    console.error(
-      `[Server] createFolderInZip: Caught unexpected error for ${newFolderPathInZip}:`,
-      error
+    await createFolderInZip(tempNestedZipPath, remainingPath, signal);
+    const modifiedZipStream = fse.createReadStream(tempNestedZipPath);
+    await updateFileInZip(
+      zipFilePath,
+      nestedZipPathInParent,
+      modifiedZipStream,
+      signal
     );
-    await fse.remove(tempZipPath);
-    throw error;
   } finally {
-    await zipfile.close();
+    await fse.remove(tempDir);
   }
 };
 
