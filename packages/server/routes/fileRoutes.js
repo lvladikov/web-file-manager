@@ -514,9 +514,16 @@ export default function createFileRoutes(
       const zipSourceMatch = matchZipPath(sources[0]);
 
       let jobType = "copy";
+      const sourceZipPathMatch = matchZipPath(sources[0]);
+      const sourceZipFilePath = sourceZipPathMatch ? sourceZipPathMatch[1] : null;
+      const sourcePathInZip = sourceZipPathMatch ? (sourceZipPathMatch[2].startsWith("/") ? sourceZipPathMatch[2].substring(1) : sourceZipPathMatch[2]) : null;
+
       if (zipDestMatch) {
         jobType = "zip-add";
-      } else if (zipSourceMatch) {
+      } else if (sourceZipPathMatch && sourcePathInZip === "") {
+        // If the source is a zip file itself (not content within it) and destination is not a zip, treat as regular copy
+        jobType = "copy";
+      } else if (sourceZipPathMatch) {
         jobType = "zip-extract";
       }
 
