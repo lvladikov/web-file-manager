@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { createNewFile } from "../lib/api";
-import { buildFullPath } from "../lib/utils";
+import { buildFullPath, matchZipPath } from "../lib/utils";
 
 export default function useNewFile({
   renamingItem,
@@ -11,6 +11,9 @@ export default function useNewFile({
   setSelectionAnchor,
   setError,
   creatingFolder,
+  startZipUpdate,
+  hideZipUpdate,
+  connectZipUpdateWebSocket,
 }) {
   const [creatingFile, setCreatingFile] = useState({
     panelId: null,
@@ -19,7 +22,11 @@ export default function useNewFile({
 
   const handleStartNewFile = useCallback(
     (panelId) => {
-      if (renamingItem.panelId || creatingFolder.panelId || creatingFile.panelId) {
+      if (
+        renamingItem.panelId ||
+        creatingFolder.panelId ||
+        creatingFile.panelId
+      ) {
         return;
       }
       const currentItems = panels[panelId]?.items || [];
@@ -27,7 +34,7 @@ export default function useNewFile({
       const baseName = "New File";
       const extension = ".txt";
       let newFileName = `${baseName}${extension}`;
-      
+
       if (existingNames.has(newFileName)) {
         let counter = 2;
         while (existingNames.has(`${baseName} (${counter})${extension}`)) {
@@ -39,7 +46,13 @@ export default function useNewFile({
       setCreatingFile({ panelId: panelId, value: newFileName });
       setSelections((prev) => ({ ...prev, [panelId]: new Set() }));
     },
-    [renamingItem, creatingFolder.panelId, creatingFile.panelId, panels, setSelections]
+    [
+      renamingItem,
+      creatingFolder.panelId,
+      creatingFile.panelId,
+      panels,
+      setSelections,
+    ]
   );
 
   const handleCancelNewFile = useCallback(() => {
@@ -55,7 +68,30 @@ export default function useNewFile({
     const panel = panels[panelId];
     const newFilePath = buildFullPath(panel.path, value);
     try {
-      await createNewFile(newFilePath);
+      const zipPathMatch = matchZipPath(newFilePath);
+      let jobId = null;
+
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const filePathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+
+        startZipUpdate({
+          zipFilePath,
+          filePathInZip,
+          originalZipSize: 0, // Value will be updated by WebSocket
+          itemType: "file",
+        });
+      }
+
+      const response = await createNewFile(newFilePath);
+      jobId = response.jobId;
+
+      if (zipPathMatch) {
+        connectZipUpdateWebSocket(jobId);
+      }
+
       handleCancelNewFile(); // Reset state before navigation
       await handleNavigate(panelId, panel.path, "");
       setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
@@ -64,6 +100,9 @@ export default function useNewFile({
     } catch (err) {
       setError(err.message);
       handleCancelNewFile();
+      if (hideZipUpdate) {
+        hideZipUpdate(); // Hide modal on error
+      }
     }
   }, [
     creatingFile,
@@ -74,6 +113,9 @@ export default function useNewFile({
     setFocusedItem,
     setSelectionAnchor,
     setSelections,
+    startZipUpdate,
+    hideZipUpdate,
+    connectZipUpdateWebSocket,
   ]);
 
   return {

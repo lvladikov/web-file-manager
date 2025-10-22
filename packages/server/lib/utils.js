@@ -210,7 +210,7 @@ const getDirSizeWithProgress = async (dirPath, job) => {
     } else {
       try {
         const stats = await fse.stat(itemPath);
-        job.sizeSoFar += stats.size; // Add file size to the running total
+        job.sizeSoFar += stats.size;
         // Send progress update for the file
         if (job.ws && job.ws.readyState === 1) {
           job.ws.send(
@@ -860,11 +860,8 @@ const updateFileInZip = async (
   }
 };
 
-const createFileInZip = async (
-  zipFilePath,
-  newFilePathInZip,
-  signal = null
-) => {
+const createFileInZip = async (zipFilePath, newFilePathInZip, job = null) => {
+  const signal = job?.controller?.signal;
   const zipEndIndex = newFilePathInZip.toLowerCase().lastIndexOf(".zip/");
   if (zipEndIndex === -1) {
     const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
@@ -875,19 +872,58 @@ const createFileInZip = async (
     const archiveFinishedPromise = new Promise((resolve, reject) => {
       output.on("close", resolve);
       archive.on("error", reject);
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          archive.destroy();
+          reject(new Error("Zip update cancelled."));
+        });
+      }
+    });
+
+    const originalZipSize = (await fse.pathExists(zipFilePath))
+      ? (await fse.stat(zipFilePath)).size
+      : 0;
+
+    if (job) {
+      job.totalBytes = originalZipSize;
+      job.processedBytes = 0;
+      job.currentFile = newFilePathInZip;
+      job.currentFileTotalSize = 0; // New file is empty
+      job.currentFileBytesProcessed = 0;
+    }
+
+    archive.on("progress", (progress) => {
+      if (job && job.ws && job.ws.readyState === 1) {
+        job.processedBytes = progress.processedBytes;
+        job.ws.send(
+          JSON.stringify({
+            type: "progress",
+            total: job.totalBytes,
+            processed: job.processedBytes,
+            currentFile: job.currentFile,
+            currentFileTotalSize: job.currentFileTotalSize,
+            currentFileBytesProcessed: job.currentFileBytesProcessed,
+          })
+        );
+      }
     });
 
     const zipfile = await yauzl.open(zipFilePath);
     try {
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       for await (const entry of zipfile) {
+        if (signal && signal.aborted) throw new Error("Zip update cancelled.");
         if (entry.filename !== newFilePathInZip) {
           const stream = await entry.openReadStream();
           archive.append(stream, { name: entry.filename });
         }
       }
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       archive.append("", { name: newFilePathInZip });
       await archive.finalize();
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       await archiveFinishedPromise;
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       await fse.move(tempZipPath, zipFilePath, { overwrite: true });
     } catch (error) {
       await fse.remove(tempZipPath).catch(() => {});
@@ -908,7 +944,7 @@ const createFileInZip = async (
 
   try {
     // Recursively call this function on the extracted nested zip
-    await createFileInZip(tempNestedZipPath, remainingPath, signal);
+    await createFileInZip(tempNestedZipPath, remainingPath, job);
 
     // Update the parent zip with the modified nested zip
     const modifiedZipStream = fse.createReadStream(tempNestedZipPath);
@@ -916,7 +952,7 @@ const createFileInZip = async (
       zipFilePath,
       nestedZipPathInParent,
       modifiedZipStream,
-      signal
+      job?.controller?.signal
     );
   } finally {
     await fse.remove(tempDir);
@@ -926,8 +962,9 @@ const createFileInZip = async (
 const createFolderInZip = async (
   zipFilePath,
   newFolderPathInZip,
-  signal = null
+  job = null
 ) => {
+  const signal = job?.controller?.signal;
   const zipEndIndex = newFolderPathInZip.toLowerCase().lastIndexOf(".zip/");
   if (zipEndIndex === -1) {
     const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
@@ -938,19 +975,58 @@ const createFolderInZip = async (
     const archiveFinishedPromise = new Promise((resolve, reject) => {
       output.on("close", resolve);
       archive.on("error", reject);
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          archive.destroy();
+          reject(new Error("Zip update cancelled."));
+        });
+      }
+    });
+
+    const originalZipSize = (await fse.pathExists(zipFilePath))
+      ? (await fse.stat(zipFilePath)).size
+      : 0;
+
+    if (job) {
+      job.totalBytes = originalZipSize; // Initial total size
+      job.processedBytes = 0;
+      job.currentFile = newFolderPathInZip;
+      job.currentFileTotalSize = 0; // Folders don't have a size in this context
+      job.currentFileBytesProcessed = 0;
+    }
+
+    archive.on("progress", (progress) => {
+      if (job && job.ws && job.ws.readyState === 1) {
+        job.processedBytes = progress.processedBytes;
+        job.ws.send(
+          JSON.stringify({
+            type: "progress",
+            total: job.totalBytes,
+            processed: job.processedBytes,
+            currentFile: job.currentFile,
+            currentFileTotalSize: job.currentFileTotalSize,
+            currentFileBytesProcessed: job.currentFileBytesProcessed,
+          })
+        );
+      }
     });
 
     const zipfile = await yauzl.open(zipFilePath);
     try {
+      if (signal && signal.aborted) throw new Error("Zip update cancelled."); // Check before loop
       for await (const entry of zipfile) {
+        if (signal && signal.aborted) throw new Error("Zip update cancelled.");
         if (entry.filename !== newFolderPathInZip + "/") {
           const stream = await entry.openReadStream();
           archive.append(stream, { name: entry.filename });
         }
       }
+      if (signal && signal.aborted) throw new Error("Zip update cancelled."); // Check before appending new folder
       archive.append(null, { name: newFolderPathInZip + "/" });
       await archive.finalize();
+      if (signal && signal.aborted) throw new Error("Zip update cancelled."); // Check signal after finalize
       await archiveFinishedPromise;
+      if (signal && signal.aborted) throw new Error("Zip update cancelled."); // Check signal after promise
       await fse.move(tempZipPath, zipFilePath, { overwrite: true });
     } catch (error) {
       await fse.remove(tempZipPath).catch(() => {});
@@ -1015,7 +1091,8 @@ const getSummaryFromZip = async (zipFilePath, pathInZip) => {
   return { files: fileCount, folders: folderCount };
 };
 
-const deleteFromZip = async (zipFilePath, pathsInZip) => {
+const deleteFromZip = async (zipFilePath, pathsInZip, job = null) => {
+  const signal = job?.controller?.signal;
   const pathsToDelete = Array.isArray(pathsInZip) ? pathsInZip : [pathsInZip];
 
   const tempZipPath = zipFilePath + ".tmp";
@@ -1025,16 +1102,51 @@ const deleteFromZip = async (zipFilePath, pathsInZip) => {
   });
   archive.pipe(output);
 
+  const archiveFinishedPromise = new Promise((resolve, reject) => {
+    output.on("close", resolve);
+    archive.on("error", reject);
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        archive.destroy();
+        reject(new Error("Zip update cancelled."));
+      });
+    }
+  });
+
+  if (job) {
+    job.totalBytes = job.originalZipSize;
+    job.processedBytes = 0;
+    job.currentFile = "Deleting items...";
+    job.currentFileTotalSize = 0;
+    job.currentFileBytesProcessed = 0;
+  }
+
+  archive.on("progress", (progress) => {
+    if (job && job.ws && job.ws.readyState === 1) {
+      job.processedBytes = progress.processedBytes;
+      job.ws.send(
+        JSON.stringify({
+          type: "progress",
+          total: job.totalBytes,
+          processed: job.processedBytes,
+          currentFile: job.currentFile,
+          currentFileTotalSize: job.currentFileTotalSize,
+          currentFileBytesProcessed: job.currentFileBytesProcessed,
+        })
+      );
+    }
+  });
+
   const zipfile = await yauzl.open(zipFilePath);
   try {
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     for await (const entry of zipfile) {
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       const shouldDelete = pathsToDelete.some((pathToDelete) => {
-        // A folder path from client won't have a trailing slash, but its entry in the zip does.
         const pathToDeleteAsFolder = pathToDelete.endsWith("/")
           ? pathToDelete
           : `${pathToDelete}/`;
 
-        // Delete if it's an exact match (for a file) or starts with the folder path
         return (
           entry.filename === pathToDelete ||
           entry.filename.startsWith(pathToDeleteAsFolder)
@@ -1046,28 +1158,68 @@ const deleteFromZip = async (zipFilePath, pathsInZip) => {
         archive.append(stream, { name: entry.filename });
       }
     }
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     await archive.finalize();
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
+    await archiveFinishedPromise;
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     await fse.move(tempZipPath, zipFilePath, { overwrite: true });
   } catch (error) {
-    // Ensure temp file is removed on error
-    await fse
-      .remove(tempZipPath)
-      .catch((err) =>
-        console.error(`Failed to remove temp zip: ${err.message}`)
-      );
+    await fse.remove(tempZipPath).catch(() => {});
     throw error;
   } finally {
     await zipfile.close();
   }
 };
 
-const renameInZip = async (zipFilePath, oldPathInZip, newPathInZip) => {
+const renameInZip = async (
+  zipFilePath,
+  oldPathInZip,
+  newPathInZip,
+  job = null
+) => {
+  const signal = job?.controller?.signal;
   const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
   const output = fse.createWriteStream(tempZipPath);
   const archive = archiver("zip", {
     zlib: { level: 9 },
   });
   archive.pipe(output);
+
+  const archiveFinishedPromise = new Promise((resolve, reject) => {
+    output.on("close", resolve);
+    archive.on("error", reject);
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        archive.destroy();
+        reject(new Error("Zip update cancelled."));
+      });
+    }
+  });
+
+  if (job) {
+    job.totalBytes = job.originalZipSize;
+    job.processedBytes = 0;
+    job.currentFile = newPathInZip;
+    job.currentFileTotalSize = 0;
+    job.currentFileBytesProcessed = 0;
+  }
+
+  archive.on("progress", (progress) => {
+    if (job && job.ws && job.ws.readyState === 1) {
+      job.processedBytes = progress.processedBytes;
+      job.ws.send(
+        JSON.stringify({
+          type: "progress",
+          total: job.totalBytes,
+          processed: job.processedBytes,
+          currentFile: job.currentFile,
+          currentFileTotalSize: job.currentFileTotalSize,
+          currentFileBytesProcessed: job.currentFileBytesProcessed,
+        })
+      );
+    }
+  });
 
   const zipfile = await yauzl.open(zipFilePath);
 
@@ -1076,7 +1228,9 @@ const renameInZip = async (zipFilePath, oldPathInZip, newPathInZip) => {
   const newPathAsFolderPrefix = `${newPathInZip}/`;
 
   try {
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     for await (const entry of zipfile) {
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       let entryNameToWrite = entry.filename;
 
       if (entry.filename.startsWith(oldPathAsFolderPrefix)) {
@@ -1094,7 +1248,11 @@ const renameInZip = async (zipFilePath, oldPathInZip, newPathInZip) => {
       archive.append(stream, { name: entryNameToWrite });
     }
 
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     await archive.finalize();
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
+    await archiveFinishedPromise;
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     await fse.move(tempZipPath, zipFilePath, { overwrite: true });
   } catch (error) {
     await fse.remove(tempZipPath).catch(() => {});

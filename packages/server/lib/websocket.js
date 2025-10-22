@@ -55,7 +55,8 @@ export function initializeWebSocketServer(
   activeDecompressJobs,
   activeArchiveTestJobs,
   activeDuplicateJobs,
-  activeCopyPathsJobs
+  activeCopyPathsJobs,
+  activeZipOperations
 ) {
   const wss = new WebSocketServer({ server });
 
@@ -78,6 +79,14 @@ export function initializeWebSocketServer(
         jobMap = activeDuplicateJobs;
       } else if (jobType === "copy-paths") {
         jobMap = activeCopyPathsJobs;
+      } else if (jobType === "rename-in-zip") {
+        jobMap = activeZipOperations;
+      } else if (jobType === "delete-in-zip") {
+        jobMap = activeZipOperations;
+      } else if (jobType === "create-file-in-zip") {
+        jobMap = activeZipOperations;
+      } else if (jobType === "create-folder-in-zip") {
+        jobMap = activeZipOperations;
       } else {
         // Default to copy if not specified or unknown
         jobMap = activeCopyJobs;
@@ -551,6 +560,96 @@ export function initializeWebSocketServer(
             } finally {
               if (job.status !== "completed" && job.status !== "failed") {
                 setTimeout(() => activeCompressJobs.delete(jobId), 5000);
+              }
+            }
+          })();
+        }
+
+        if (jobType === "rename-in-zip" || jobType === "delete-in-zip" || jobType === "create-file-in-zip" || jobType === "create-folder-in-zip") {
+          (async () => {
+            let progressInterval;
+            try {
+              job.status = "running";
+              // Wait for the WebSocket to be connected
+              await new Promise(resolve => {
+                if (job.ws && job.ws.readyState === 1) {
+                  resolve();
+                } else {
+                  const interval = setInterval(() => {
+                    if (job.ws && job.ws.readyState === 1) {
+                      clearInterval(interval);
+                      resolve();
+                    }
+                  }, 50);
+                }
+              });
+
+              const message = {
+                type: "start",
+                totalSize: job.totalBytes, // This is the total size of the new zip
+                originalZipSize: job.originalZipSize, // Send the original zip size
+              };
+              job.ws.send(JSON.stringify(message));
+
+              job.lastProcessedBytes = 0;
+              job.lastUpdateTime = Date.now();
+
+              progressInterval = setInterval(() => {
+                if (job.ws && job.ws.readyState === 1) {
+                  const currentTime = Date.now();
+                  const timeElapsed = (currentTime - job.lastUpdateTime) / 1000;
+                  const bytesSinceLastUpdate =
+                    job.processedBytes - job.lastProcessedBytes;
+                  const instantaneousSpeed =
+                    timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+
+                  job.ws.send(
+                    JSON.stringify({
+                      type: "progress",
+                      total: job.totalBytes,
+                      processed: job.processedBytes,
+                      currentFile: job.currentFile,
+                      currentFileTotalSize: job.currentFileTotalSize,
+                      currentFileBytesProcessed: job.currentFileBytesProcessed,
+                      instantaneousSpeed: instantaneousSpeed,
+                    })
+                  );
+
+                  job.lastProcessedBytes = job.processedBytes;
+                  job.lastUpdateTime = currentTime;
+                }
+              }, 250);
+
+              // The actual createFolderInZip call is made in fileRoutes.js
+              // This WebSocket handler is just for progress updates.
+              // Await the completion promise from fileRoutes.js
+              job.controller.signal.addEventListener("abort", () => {
+                console.log("[websocket] Abort signal received for job:", job.id);
+                if (job.rejectCompletion) { // Ensure rejectCompletion exists
+                  job.rejectCompletion(new Error("Zip operation cancelled."));
+                }
+              });
+              await job.completionPromise;
+
+              job.status = "completed";
+              if (job.ws && job.ws.readyState === 1) {
+                job.ws.send(JSON.stringify({ type: "complete" }));
+                job.ws.close(1000, "Job Completed");
+              }
+            } catch (error) {
+              clearInterval(progressInterval);
+              if (job.status !== "cancelled") job.status = "failed";
+              if (job.ws && job.ws.readyState === 1) {
+                const type = job.status === "cancelled" ? "cancelled" : "error";
+                job.ws.send(JSON.stringify({ type, message: error.message }));
+                job.ws.close(1000, `Job finished with status: ${type}`);
+              }
+            } finally {
+              clearInterval(progressInterval);
+              // The job is deleted by fileRoutes.js after a timeout for non-zip operations
+              // For zip operations, we delete it here after completion/failure
+              if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
+                setTimeout(() => activeZipOperations.delete(jobId), 5000);
               }
             }
           })();

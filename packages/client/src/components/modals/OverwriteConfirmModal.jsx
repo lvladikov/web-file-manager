@@ -15,7 +15,6 @@ const OverwriteConfirmModal = ({
   const showSubsequentOptions = isMultiSource || isFolder;
   const operation = jobType === "move" ? "Move" : "Copy";
 
-  // Add text-sm to prevent text wrapping and ensure uniform height.
   const baseButtonClasses =
     "py-3 px-4 rounded-lg w-full flex items-center justify-center transition-colors duration-150 text-sm";
 

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { deleteItem, fetchDeleteSummary } from "../lib/api";
+import { matchZipPath } from "../lib/utils";
 
 export default function useDelete({
   activePanel,
@@ -10,6 +11,9 @@ export default function useDelete({
   handleNavigate,
   setError,
   panelRefs,
+  startZipUpdate,
+  hideZipUpdate,
+  connectZipUpdateWebSocket,
 }) {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteSummary, setDeleteSummary] = useState(null);
@@ -80,22 +84,52 @@ export default function useDelete({
 
   const confirmDeletion = useCallback(async () => {
     if (deleteTargets.length === 0) return;
+
+    const pathsToDelete = deleteTargets.map((item) => item.fullPath);
+    const zipPathMatch = matchZipPath(pathsToDelete[0]);
+
     try {
-      const pathsToDelete = deleteTargets.map((item) => item.fullPath);
-      await deleteItem(pathsToDelete);
-      // Refresh both panels
-      const otherPanelId = activePanel === "left" ? "right" : "left";
-      await handleNavigate(activePanel, panels[activePanel].path, "");
-      await handleNavigate(otherPanelId, panels[otherPanelId].path, "");
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        startZipUpdate({
+          title: "Deleting items from zip...",
+          zipFilePath,
+          operationDescription: `Deleting ${deleteTargets.length} item(s)...`,
+        });
+      }
+
+      const response = await deleteItem(pathsToDelete);
+
+      if (zipPathMatch) {
+        connectZipUpdateWebSocket(response.jobId);
+      } else {
+        // For non-zip operations, refresh panels immediately
+        const otherPanelId = activePanel === "left" ? "right" : "left";
+        await handleNavigate(activePanel, panels[activePanel].path, "");
+        await handleNavigate(otherPanelId, panels[otherPanelId].path, "");
+      }
     } catch (err) {
       setError(`Delete failed: ${err.message}`);
+      if (zipPathMatch) {
+        hideZipUpdate();
+      }
     } finally {
       setDeleteModalVisible(false);
       setDeleteTargets([]);
       setDeleteSummary(null);
       panelRefs[activePanel].current?.focus();
     }
-  }, [deleteTargets, activePanel, panels, handleNavigate, setError, panelRefs]);
+  }, [
+    deleteTargets,
+    activePanel,
+    panels,
+    handleNavigate,
+    setError,
+    panelRefs,
+    startZipUpdate,
+    hideZipUpdate,
+    connectZipUpdateWebSocket,
+  ]);
 
   const handleCancelDelete = useCallback(() => {
     setDeleteModalVisible(false);

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { renameItem } from "../lib/api";
-import { buildFullPath } from "../lib/utils";
+import { buildFullPath, matchZipPath } from "../lib/utils";
 
 export default function useRename({
   panels,
@@ -9,6 +9,9 @@ export default function useRename({
   setSelectionAnchor,
   setSelections,
   setError,
+  startZipUpdate,
+  hideZipUpdate,
+  connectZipUpdateWebSocket,
 }) {
   const [renamingItem, setRenamingItem] = useState({
     panelId: null,
@@ -31,16 +34,44 @@ export default function useRename({
       handleCancelRename();
       return;
     }
+
     const panel = panels[panelId];
     const oldPath = buildFullPath(panel.path, name);
+    const zipPathMatch = matchZipPath(oldPath);
+
     try {
-      await renameItem(oldPath, value);
-      await handleNavigate(panelId, panel.path, "");
-      setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
-      setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
-      setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const oldFilePathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+
+        const lastSlashIndex = oldFilePathInZip.lastIndexOf('/');
+        const dirPath = lastSlashIndex === -1 ? '' : oldFilePathInZip.substring(0, lastSlashIndex);
+        const newFilePathInZip = dirPath ? `${dirPath}/${value}` : value;
+
+        startZipUpdate({
+          title: "Renaming item in zip...",
+          zipFilePath,
+          filePathInZip: newFilePathInZip,
+        });
+      }
+
+      const response = await renameItem(oldPath, value);
+
+      if (zipPathMatch) {
+        connectZipUpdateWebSocket(response.jobId);
+      } else {
+        await handleNavigate(panelId, panel.path, "");
+        setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
+        setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
+        setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
+      }
     } catch (err) {
       setError(err.message);
+      if (zipPathMatch) {
+        hideZipUpdate();
+      }
     } finally {
       handleCancelRename();
     }
@@ -53,6 +84,9 @@ export default function useRename({
     setFocusedItem,
     setSelectionAnchor,
     setSelections,
+    startZipUpdate,
+    hideZipUpdate,
+    connectZipUpdateWebSocket,
   ]);
 
   return {

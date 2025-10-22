@@ -30,7 +30,7 @@ const readConfig = async () => {
       columnWidths: { ...defaultConfig.columnWidths, ...config.columnWidths },
     };
   } catch (error) {
-    return defaultConfig; // Return full default config if file doesn't exist
+    return defaultConfig;
   }
 };
 

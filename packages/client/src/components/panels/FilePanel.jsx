@@ -380,7 +380,6 @@ const FilePanel = React.forwardRef(
         item.type === "parent" ||
         item.type === "archive"
       ) {
-        // added archive here
         onNavigate(item.type === "archive" ? `${item.name}/` : item.name);
       } else {
         onOpenFile(panelData.path, item.name);
@@ -388,6 +387,12 @@ const FilePanel = React.forwardRef(
     };
 
     const handleItemClick = (itemName, e) => {
+      // Always clear any pending rename timer on any click.
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+
       handlePanelClick(); // Activate the panel instantly.
 
       // If the "go up" item is clicked, clear selection and prevent further selection logic.
@@ -395,10 +400,6 @@ const FilePanel = React.forwardRef(
         setSelectedItems(new Set());
         setFocusedItem(null);
         setSelectionAnchor(null);
-        if (clickTimerRef.current) {
-          clearTimeout(clickTimerRef.current);
-          clickTimerRef.current = null;
-        }
         return; // Exit early
       }
 
@@ -413,13 +414,6 @@ const FilePanel = React.forwardRef(
           onStartRename(panelId, itemName);
         }, 300);
       } else {
-        // This is a click on a NEW item, or a click with a modifier key.
-        // This action is unambiguous, so we perform selection instantly and cancel any old timers.
-        if (clickTimerRef.current) {
-          clearTimeout(clickTimerRef.current);
-          clickTimerRef.current = null;
-        }
-
         setFocusedItem(itemName);
         const { items } = panelData;
         if (isModKey(e)) {

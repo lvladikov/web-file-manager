@@ -5,6 +5,7 @@ import {
   isPreviewableText,
   isItemPreviewable,
   buildFullPath,
+  matchZipPath,
 } from "../lib/utils";
 
 import useDelete from "./useDelete";
@@ -22,6 +23,7 @@ import useDecompress from "./useDecompress";
 import useArchiveIntegrityTest from "./useArchiveIntegrityTest";
 import useSwapPanels from "./useSwapPanels";
 import useCopyPaths from "./useCopyPaths";
+import useZipUpdate from "./useZipUpdate";
 
 export default function appState() {
   // --- Core State ---
@@ -63,6 +65,7 @@ export default function appState() {
   // --- Core Refs ---
   const wsRef = useRef(null);
   const panelRefs = { left: useRef(null), right: useRef(null) };
+  const pathsToWatch = useRef(new Set());
 
   const handleCloseFilter = (panelId) => {
     setFilterPanelId(null);
@@ -171,15 +174,23 @@ export default function appState() {
   // Independent hooks that provide state and setters
   const settings = useSettings({ setError });
   const modals = useModals();
+  const zipUpdate = useZipUpdate();
 
   const wsFileWatcher = useRef(null);
 
   const watchPath = useCallback((path) => {
+    const zipPathMatch = matchZipPath(path);
+    const pathToWatch = zipPathMatch ? zipPathMatch[1] : path;
+
     if (
       wsFileWatcher.current &&
       wsFileWatcher.current.readyState === WebSocket.OPEN
     ) {
-      wsFileWatcher.current.send(JSON.stringify({ type: "watch_path", path }));
+      wsFileWatcher.current.send(
+        JSON.stringify({ type: "watch_path", path: pathToWatch })
+      );
+    } else {
+      pathsToWatch.current.add(pathToWatch);
     }
   }, []);
 
@@ -223,6 +234,9 @@ export default function appState() {
     setSelectionAnchor,
     setSelections,
     setError,
+    startZipUpdate: zipUpdate.startZipUpdate,
+    hideZipUpdate: zipUpdate.hideZipUpdate,
+    connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
   });
   const newFolder = useNewFolder({
     renamingItem: rename.renamingItem,
@@ -232,6 +246,9 @@ export default function appState() {
     setFocusedItem,
     setSelectionAnchor,
     setError,
+    startZipUpdate: zipUpdate.startZipUpdate,
+    hideZipUpdate: zipUpdate.hideZipUpdate,
+    connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
   });
 
   const newFile = useNewFile({
@@ -243,6 +260,9 @@ export default function appState() {
     setFocusedItem,
     setSelectionAnchor,
     setError,
+    startZipUpdate: zipUpdate.startZipUpdate,
+    hideZipUpdate: zipUpdate.hideZipUpdate,
+    connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
   });
 
   const activeSelection = selections[activePanel];
@@ -282,6 +302,9 @@ export default function appState() {
     handleNavigate: panelOps.handleNavigate,
     setError,
     panelRefs,
+    startZipUpdate: zipUpdate.startZipUpdate,
+    hideZipUpdate: zipUpdate.hideZipUpdate,
+    connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
   });
 
   const compress = useCompress({
@@ -807,6 +830,11 @@ export default function appState() {
 
     wsFileWatcher.current.onopen = () => {
       if (!isMounted) return;
+      // Watch any paths that were requested before the connection was open
+      pathsToWatch.current.forEach((path) => {
+        wsFileWatcher.current.send(JSON.stringify({ type: "watch_path", path }));
+      });
+      pathsToWatch.current.clear();
     };
 
     wsFileWatcher.current.onmessage = (event) => {
@@ -816,7 +844,10 @@ export default function appState() {
         if (message.type === "path_changed") {
           const { path } = message;
           Object.entries(panelsRef.current).forEach(([panelId, panel]) => {
-            if (panel.path === path) {
+            const zipPathMatch = matchZipPath(panel.path);
+            const panelZipPath = zipPathMatch ? zipPathMatch[1] : panel.path;
+
+            if (panelZipPath === path) {
               panelOpsRef.current.handleRefreshPanel(panelId);
             }
           });
@@ -891,6 +922,8 @@ export default function appState() {
     ...decompress,
     ...archiveTest,
     ...copyPaths,
+    ...zipUpdate,
+    
     // Connector Handlers
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,

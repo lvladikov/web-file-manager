@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { createNewFolder } from "../lib/api";
-import { buildFullPath } from "../lib/utils";
+import { buildFullPath, matchZipPath } from "../lib/utils";
 
 export default function useNewFolder({
   renamingItem,
@@ -10,6 +10,9 @@ export default function useNewFolder({
   setFocusedItem,
   setSelectionAnchor,
   setError,
+  startZipUpdate,
+  hideZipUpdate,
+  connectZipUpdateWebSocket, // Back in destructured object
 }) {
   const [creatingFolder, setCreatingFolder] = useState({
     panelId: null,
@@ -50,7 +53,31 @@ export default function useNewFolder({
     const panel = panels[panelId];
     const newFolderPath = buildFullPath(panel.path, value);
     try {
-      await createNewFolder(newFolderPath);
+      const zipPathMatch = matchZipPath(newFolderPath);
+      let jobId = null;
+
+      if (zipPathMatch) {
+        const zipFilePath = zipPathMatch[1];
+        const filePathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
+
+        startZipUpdate({
+          zipFilePath,
+          filePathInZip,
+          originalZipSize: 0, // Value will be updated by WebSocket
+          itemType: "folder",
+        });
+      }
+
+      const response = await createNewFolder(newFolderPath);
+      jobId = response.jobId; // Get the jobId from the server response
+
+      if (zipPathMatch) {
+        // Now that we have the jobId, connect the WebSocket
+        connectZipUpdateWebSocket(jobId);
+      }
+
       handleCancelNewFolder(); // Reset state before navigation
       await handleNavigate(panelId, panel.path, "");
       setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
@@ -59,6 +86,7 @@ export default function useNewFolder({
     } catch (err) {
       setError(err.message);
       handleCancelNewFolder();
+      hideZipUpdate(); // Hide modal on error
     }
   }, [
     creatingFolder,
@@ -69,6 +97,9 @@ export default function useNewFolder({
     setFocusedItem,
     setSelectionAnchor,
     setSelections,
+    startZipUpdate,
+    hideZipUpdate,
+    connectZipUpdateWebSocket,
   ]);
 
   return {

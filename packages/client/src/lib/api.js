@@ -8,6 +8,7 @@ const createNewFile = async (newFilePath) => {
     const data = await response.json();
     throw new Error(data.message || "Failed to create file.");
   }
+  return response.json();
 };
 
 const createNewFolder = async (newFolderPath) => {
@@ -20,6 +21,7 @@ const createNewFolder = async (newFolderPath) => {
     const data = await response.json();
     throw new Error(data.message || "Failed to create folder.");
   }
+  return response.json();
 };
 
 const deleteItem = async (targetPaths) => {
@@ -137,6 +139,7 @@ const renameItem = async (oldPath, newName) => {
     const data = await response.json();
     throw new Error(data.message || "Failed to rename item.");
   }
+  return response.json();
 };
 
 const startCopyItems = async (sources, destination) => {

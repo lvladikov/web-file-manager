@@ -343,7 +343,6 @@ export default function createFileRoutes(
             res.status(200).json({ message: "File opened successfully" });
 
             // Add a delay before deleting the temporary file to give the
-
             // application enough time to open it.
 
             setTimeout(() => {
@@ -483,19 +482,57 @@ export default function createFileRoutes(
         return acc;
       }, {});
 
-      for (const containerPath in groupedPaths) {
-        const group = groupedPaths[containerPath];
-        if (group.isZip) {
-          await deleteFromZip(containerPath, group.paths);
-        } else {
-          for (const fsPath of group.paths) {
-            if (await fse.pathExists(fsPath)) {
-              await fse.remove(fsPath);
-            }
+      // This logic assumes one operation at a time, which is what the client does.
+      const containerPath = Object.keys(groupedPaths)[0];
+      const group = groupedPaths[containerPath];
+
+      if (group.isZip) {
+        const jobId = crypto.randomUUID();
+        const abortController = new AbortController();
+        const job = {
+          id: jobId,
+          status: "pending",
+          ws: null,
+          controller: abortController,
+          type: "delete-in-zip",
+          zipFilePath: containerPath,
+          pathsInZip: group.paths,
+          originalZipSize: 0,
+          totalBytes: 0,
+          processedBytes: 0,
+          currentFile: "",
+          currentFileTotalSize: 0,
+          currentFileBytesProcessed: 0,
+        };
+        activeZipOperations.set(jobId, job);
+
+        let resolveCompletion;
+        let rejectCompletion;
+        const completionPromise = new Promise((resolve, reject) => {
+          resolveCompletion = resolve;
+          rejectCompletion = reject;
+        });
+        job.completionPromise = completionPromise;
+        job.resolveCompletion = resolveCompletion;
+        job.rejectCompletion = rejectCompletion;
+
+        job.originalZipSize = (await fse.pathExists(containerPath))
+          ? (await fse.stat(containerPath)).size
+          : 0;
+
+        deleteFromZip(containerPath, group.paths, job)
+          .then(() => job.resolveCompletion())
+          .catch((err) => job.rejectCompletion(err));
+
+        return res.status(202).json({ message: "Delete job started.", jobId });
+      } else {
+        for (const fsPath of group.paths) {
+          if (await fse.pathExists(fsPath)) {
+            await fse.remove(fsPath);
           }
         }
+        return res.status(200).json({ message: "Items deleted successfully." });
       }
-      res.status(200).json({ message: "Items deleted successfully." });
     } catch (error) {
       console.error("Error deleting items:", error);
       res
@@ -628,20 +665,55 @@ export default function createFileRoutes(
 
     const jobId = crypto.randomUUID();
     const abortController = new AbortController();
-    activeZipOperations.set(jobId, abortController);
+    const job = {
+      id: jobId,
+      status: "pending",
+      ws: null, // WebSocket will be attached when client connects
+      controller: abortController,
+      type: "create-folder-in-zip",
+      zipFilePath: null,
+      filePathInZip: null,
+      originalZipSize: 0,
+      totalBytes: 0,
+      processedBytes: 0,
+      currentFile: "",
+      currentFileTotalSize: 0,
+      currentFileBytesProcessed: 0,
+    };
+    activeZipOperations.set(jobId, job);
 
+    let zipPathMatch = null;
     try {
-      const zipPathMatch = matchZipPath(newFolderPath);
+      zipPathMatch = matchZipPath(newFolderPath);
       if (zipPathMatch) {
+        let resolveCompletion;
+        let rejectCompletion;
+        const completionPromise = new Promise((resolve, reject) => {
+          resolveCompletion = resolve;
+          rejectCompletion = reject;
+        });
+        job.completionPromise = completionPromise;
+        job.resolveCompletion = resolveCompletion;
+        job.rejectCompletion = rejectCompletion;
+
         const zipFilePath = zipPathMatch[1];
         const filePathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
-        await createFolderInZip(
-          zipFilePath,
-          filePathInZip,
-          abortController.signal
+
+        job.zipFilePath = zipFilePath;
+        job.filePathInZip = filePathInZip;
+        job.originalZipSize = (await fse.pathExists(zipFilePath))
+          ? (await fse.stat(zipFilePath)).size
+          : 0;
+        console.log(
+          "[/api/new-folder] Calculated originalZipSize:",
+          job.originalZipSize
         );
+
+        createFolderInZip(zipFilePath, filePathInZip, job)
+          .then(() => job.resolveCompletion()) // Resolve the promise on success
+          .catch((err) => job.rejectCompletion(err)); // Reject the promise on error
       } else {
         if (await fse.pathExists(newFolderPath)) {
           return res.status(409).json({
@@ -653,11 +725,24 @@ export default function createFileRoutes(
       res.status(201).json({ message: "Folder created successfully.", jobId });
     } catch (error) {
       console.error("New folder error:", error);
+      if (zipPathMatch) {
+        console.log(
+          "[fileRoutes] Rejecting completion promise for job:",
+          job.id,
+          "with error:",
+          error.message
+        );
+        job.rejectCompletion(error); // Reject the promise on error only if it's a zip operation
+      }
       res
         .status(500)
         .json({ message: `Failed to create folder: ${error.message}` });
     } finally {
-      activeZipOperations.delete(jobId);
+      // For non-zip operations, delete the job immediately.
+      // For zip operations, the WebSocket handler will delete it after a timeout.
+      if (!zipPathMatch) {
+        activeZipOperations.delete(jobId);
+      }
     }
   });
 
@@ -672,20 +757,51 @@ export default function createFileRoutes(
 
     const jobId = crypto.randomUUID();
     const abortController = new AbortController();
-    activeZipOperations.set(jobId, abortController);
+    const job = {
+      id: jobId,
+      status: "pending",
+      ws: null,
+      controller: abortController,
+      type: "create-file-in-zip",
+      zipFilePath: null,
+      filePathInZip: null,
+      originalZipSize: 0,
+      totalBytes: 0,
+      processedBytes: 0,
+      currentFile: "",
+      currentFileTotalSize: 0,
+      currentFileBytesProcessed: 0,
+    };
+    activeZipOperations.set(jobId, job);
 
+    let zipPathMatch = null;
     try {
-      const zipPathMatch = matchZipPath(newFilePath);
+      zipPathMatch = matchZipPath(newFilePath);
       if (zipPathMatch) {
+        let resolveCompletion;
+        let rejectCompletion;
+        const completionPromise = new Promise((resolve, reject) => {
+          resolveCompletion = resolve;
+          rejectCompletion = reject;
+        });
+        job.completionPromise = completionPromise;
+        job.resolveCompletion = resolveCompletion;
+        job.rejectCompletion = rejectCompletion;
+
         const zipFilePath = zipPathMatch[1];
         const filePathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
-        await createFileInZip(
-          zipFilePath,
-          filePathInZip,
-          abortController.signal
-        );
+
+        job.zipFilePath = zipFilePath;
+        job.filePathInZip = filePathInZip;
+        job.originalZipSize = (await fse.pathExists(zipFilePath))
+          ? (await fse.stat(zipFilePath)).size
+          : 0;
+
+        createFileInZip(zipFilePath, filePathInZip, job)
+          .then(() => job.resolveCompletion())
+          .catch((err) => job.rejectCompletion(err));
       } else {
         if (await fse.pathExists(newFilePath)) {
           return res
@@ -697,11 +813,16 @@ export default function createFileRoutes(
       res.status(201).json({ message: "File created successfully.", jobId });
     } catch (error) {
       console.error("New file error:", error);
+      if (zipPathMatch) {
+        job.rejectCompletion(error);
+      }
       res
         .status(500)
         .json({ message: `Failed to create file: ${error.message}` });
     } finally {
-      activeZipOperations.delete(jobId);
+      if (!zipPathMatch) {
+        activeZipOperations.delete(jobId);
+      }
     }
   });
 
@@ -926,6 +1047,34 @@ export default function createFileRoutes(
     try {
       const zipPathMatch = matchZipPath(oldPath);
       if (zipPathMatch) {
+        const jobId = crypto.randomUUID();
+        const abortController = new AbortController();
+        const job = {
+          id: jobId,
+          status: "pending",
+          ws: null,
+          controller: abortController,
+          type: "rename-in-zip",
+          zipFilePath: null,
+          originalZipSize: 0,
+          totalBytes: 0,
+          processedBytes: 0,
+          currentFile: "",
+          currentFileTotalSize: 0,
+          currentFileBytesProcessed: 0,
+        };
+        activeZipOperations.set(jobId, job);
+
+        let resolveCompletion;
+        let rejectCompletion;
+        const completionPromise = new Promise((resolve, reject) => {
+          resolveCompletion = resolve;
+          rejectCompletion = reject;
+        });
+        job.completionPromise = completionPromise;
+        job.resolveCompletion = resolveCompletion;
+        job.rejectCompletion = rejectCompletion;
+
         const zipFilePath = zipPathMatch[1];
         const oldPathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
@@ -935,8 +1084,16 @@ export default function createFileRoutes(
           newName
         );
 
-        await renameInZip(zipFilePath, oldPathInZip, newPathInZip);
-        res.status(200).json({ message: "Item renamed successfully." });
+        job.zipFilePath = zipFilePath;
+        job.originalZipSize = (await fse.pathExists(zipFilePath))
+          ? (await fse.stat(zipFilePath)).size
+          : 0;
+
+        renameInZip(zipFilePath, oldPathInZip, newPathInZip, job)
+          .then(() => job.resolveCompletion())
+          .catch((err) => job.rejectCompletion(err));
+
+        return res.status(202).json({ message: "Rename job started.", jobId });
       } else {
         const newPath = path.join(path.dirname(oldPath), newName);
         if (await fse.pathExists(newPath)) {
@@ -1067,8 +1224,11 @@ export default function createFileRoutes(
     if (!jobId || !activeZipOperations.has(jobId)) {
       return res.status(404).json({ message: "Zip operation job not found." });
     }
-    const abortController = activeZipOperations.get(jobId);
-    abortController.abort();
+    const job = activeZipOperations.get(jobId);
+    if (job && job.controller) {
+      console.log("[fileRoutes] Aborting job:", jobId);
+      job.controller.abort();
+    }
     activeZipOperations.delete(jobId); // Clean up the job
     res
       .status(200)

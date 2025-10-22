@@ -136,7 +136,7 @@ const Breadcrumbs = ({ path, onNavigate }) => {
         finalSegments.length = 0; // Clear finalSegments
         finalSegments.push(segments[0]);
         if (segments.length > 1) {
-          finalSegments.push({ type: "ellipsis" }); // Add ellipsis if there are more than 1 segment
+          finalSegments.push({ type: "ellipsis" });
           finalSegments.push(lastSegment);
         }
       }
