@@ -1343,6 +1343,61 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
   }
 };
 
+const getDirTotalSizeInZip = async (zipFilePath, dirPathInZip, job) => {
+  const zipEndIndex = dirPathInZip.toLowerCase().indexOf(".zip/");
+  if (zipEndIndex !== -1) {
+    // This is a nested zip path
+    const nestedZipPathInParent = dirPathInZip.substring(0, zipEndIndex + 4);
+    const remainingPath = dirPathInZip.substring(zipEndIndex + 5);
+
+    const { tempNestedZipPath, tempDir } = await extractNestedZipToTemp(
+      zipFilePath,
+      nestedZipPathInParent
+    );
+
+    try {
+      const result = await getDirTotalSizeInZip(
+        tempNestedZipPath,
+        remainingPath,
+        job
+      );
+      return result;
+    } finally {
+      await fse.remove(tempDir);
+    }
+  }
+
+  // Base case: not a nested zip, or we've extracted the nested zip
+  const zipfile = await yauzl.open(zipFilePath);
+  let totalSize = 0;
+  const dirPrefix = dirPathInZip.endsWith("/")
+    ? dirPathInZip
+    : `${dirPathInZip}/`;
+
+  try {
+    for await (const entry of zipfile) {
+      if (job?.controller?.signal?.aborted) {
+        throw new Error("Calculation cancelled");
+      }
+      if (entry.filename.startsWith(dirPrefix)) {
+        totalSize += entry.uncompressedSize;
+        if (job?.ws?.readyState === 1) {
+          job.ws.send(
+            JSON.stringify({
+              type: "progress",
+              file: entry.filename,
+              sizeSoFar: totalSize,
+            })
+          );
+        }
+      }
+    }
+  } finally {
+    await zipfile.close();
+  }
+  return { totalSize };
+};
+
 const extractFilesFromZip = async (job) => {
   const getCommonBasePath = (entriesToExtract) => {
     if (entriesToExtract.length === 0) {
@@ -1462,4 +1517,5 @@ export {
   renameInZip,
   addFilesToZip,
   extractFilesFromZip,
+  getDirTotalSizeInZip,
 };

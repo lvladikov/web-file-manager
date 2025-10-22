@@ -26,6 +26,7 @@ import {
   addFilesToZip,
   matchZipPath,
   extractFilesFromZip,
+  getDirTotalSizeInZip,
 } from "./utils.js";
 
 // Keep track of clients that are watching for file changes
@@ -409,23 +410,43 @@ export function initializeWebSocketServer(
         if (jobType === "size") {
           (async () => {
             try {
-              const totalSize = await getDirTotalSize(
-                job.folderPath,
-                job.controller.signal
-              );
-              job.totalSize = totalSize;
+              const zipPathMatch = matchZipPath(job.folderPath);
+              if (zipPathMatch) {
+                const zipFilePath = zipPathMatch[1];
+                const pathInZip = zipPathMatch[2].startsWith("/")
+                  ? zipPathMatch[2].substring(1)
+                  : zipPathMatch[2];
 
-              if (ws.readyState === 1) {
-                ws.send(
-                  JSON.stringify({ type: "start", totalSize: totalSize })
+                const { totalSize } = await getDirTotalSizeInZip(
+                  zipFilePath,
+                  pathInZip,
+                  job
                 );
-              }
+                job.totalSize = totalSize;
 
-              job.sizeSoFar = 0;
-              await getDirSizeWithProgress(job.folderPath, job);
-              if (ws.readyState === 1) {
-                ws.send(JSON.stringify({ type: "complete", size: totalSize }));
-                ws.close(1000, "Job Completed");
+                if (ws.readyState === 1) {
+                  ws.send(JSON.stringify({ type: "complete", size: totalSize }));
+                  ws.close(1000, "Job Completed");
+                }
+              } else {
+                const totalSize = await getDirTotalSize(
+                  job.folderPath,
+                  job.controller.signal
+                );
+                job.totalSize = totalSize;
+
+                if (ws.readyState === 1) {
+                  ws.send(
+                    JSON.stringify({ type: "start", totalSize: totalSize })
+                  );
+                }
+
+                job.sizeSoFar = 0;
+                await getDirSizeWithProgress(job.folderPath, job);
+                if (ws.readyState === 1) {
+                  ws.send(JSON.stringify({ type: "complete", size: totalSize }));
+                  ws.close(1000, "Job Completed");
+                }
               }
             } catch (error) {
               if (job.status !== "cancelled") job.status = "failed";
