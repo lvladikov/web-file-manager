@@ -6,7 +6,7 @@ import {
   startDuplicateItems,
   cancelDuplicate,
 } from "../lib/api";
-import { buildFullPath, truncatePath, basename, dirname } from "../lib/utils";
+import { buildFullPath, truncatePath, basename, dirname, matchZipPath } from "../lib/utils";
 
 const getUniqueName = (originalName, existingNames) => {
   const dotIndex = originalName.lastIndexOf(".");
@@ -59,6 +59,7 @@ export default function useCopy({
     isMove: false,
     isDuplicate: false,
     sources: [],
+    isZipAdd: false,
   });
 
   const latestProps = useRef({});
@@ -127,6 +128,7 @@ export default function useCopy({
           destinationPath,
           isMove
         );
+        const isZipAdd = !!matchZipPath(destinationPath);
         setCopyProgress({
           isVisible: true,
           status: "scanning",
@@ -140,6 +142,7 @@ export default function useCopy({
           isMove,
           isDuplicate: false,
           sources,
+          isZipAdd,
         });
       } catch (err) {
         setError(`${isMove ? "Move" : "Copy"} failed: ${err.message}`);

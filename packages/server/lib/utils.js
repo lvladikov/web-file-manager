@@ -1263,71 +1263,241 @@ const renameInZip = async (
 };
 
 const addFilesToZip = async (zipFilePath, pathInZip, job) => {
-  const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
-  const output = fse.createWriteStream(tempZipPath);
-  const archive = archiver("zip", {
-    zlib: { level: 9 },
-  });
-
   const { signal } = job.controller;
-  archive.pipe(output);
+  let zipfile = null; // Will hold the yauzl instance for the original zip
+  const finalEntries = new Map(); // Map<entryName, { type: 'original' | 'new', data: EntryObject | FileInfo }>
+  const originalZipEntries = []; // Declare originalZipEntries here
 
-  const archiveFinishedPromise = new Promise((resolve, reject) => {
-    output.on("close", resolve);
-    archive.on("error", reject);
-    output.on("error", reject);
-  });
+  let tempZipPath = null; // Declare tempZipPath here
+  let output = null; // Declare output here
+  let archive = null; // Declare archive here
 
-  const newFileEntryNames = new Set(
-    job.filesToProcess.map((file) =>
-      path.posix.join(pathInZip, file.relativePath)
-    )
-  );
-  const newDirEntryNames = new Set(
-    (job.emptyDirsToAdd || []).map((dir) => path.posix.join(pathInZip, dir))
-  );
-  const allNewEntryNames = new Set([...newFileEntryNames, ...newDirEntryNames]);
-
-  let zipfile;
   try {
+    // --- Pass 1: Determine the final state of the archive and resolve conflicts ---
+
+    // 1. Collect all original entries from the existing zip (if any)
     if (await fse.pathExists(zipFilePath)) {
       zipfile = await yauzl.open(zipFilePath);
       for await (const entry of zipfile) {
-        if (signal.aborted) throw new Error("Zip add cancelled.");
-        if (!allNewEntryNames.has(entry.filename)) {
-          const stream = await entry.openReadStream();
-          archive.append(stream, { name: entry.filename });
+        finalEntries.set(entry.filename, { type: "original", data: entry });
+        originalZipEntries.push(entry); // Populate originalZipEntries here
+      }
+      // Do NOT close zipfile here, as we might need to open read streams from it later.
+    }
+    // 2. Process new files/folders and resolve conflicts
+    const newItemsToProcess = [
+      ...(job.filesToProcess || []).map((file) => ({
+        entryName: path.posix.join(pathInZip, file.relativePath),
+        type: "file",
+        data: file,
+      })),
+      ...(job.emptyDirsToAdd || []).map((dir) => ({
+        entryName: path.posix.join(pathInZip, dir),
+        type: "folder",
+        data: null, // No specific file data for empty folders
+      })),
+    ];
+
+    // Sort newItemsToProcess to ensure folders are processed before their contents
+    newItemsToProcess.sort((a, b) => {
+      // Folders (ending with '/') should come before files or subfolders within them
+      const aIsFolder = a.entryName.endsWith("/");
+      const bIsFolder = b.entryName.endsWith("/");
+
+      if (aIsFolder && !bIsFolder && b.entryName.startsWith(a.entryName)) {
+        return -1; // a is a parent folder of b, so a comes first
+      }
+      if (bIsFolder && !aIsFolder && a.entryName.startsWith(b.entryName)) {
+        return 1; // b is a parent folder of a, so b comes first
+      }
+      // Otherwise, maintain original order or sort alphabetically for consistency
+      return a.entryName.localeCompare(b.entryName);
+    });
+
+    // Keep track of folders that have been decided to be overwritten or skipped entirely
+    const folderDecisions = new Map(); // Map<folderEntryName, 'skip' | 'overwrite'>
+
+    for (const newItem of newItemsToProcess) {
+      if (signal.aborted) throw new Error("Zip add cancelled.");
+
+      const { entryName, type } = newItem;
+
+      // Check if this item is inside a folder that has already been skipped
+      let isInsideSkippedFolder = false;
+      for (const [folderPrefix, decision] of folderDecisions.entries()) {
+        if (
+          decision === "skip" &&
+          (entryName === folderPrefix || entryName.startsWith(folderPrefix))
+        ) {
+          isInsideSkippedFolder = true;
+          break;
+        }
+      }
+      if (isInsideSkippedFolder) {
+        continue; // Skip this item as its parent folder was skipped
+      }
+
+      // If this item is inside an overwritten folder, it will be implicitly overwritten.
+      // We don't need to prompt for it, just ensure it's added to finalEntries.
+      let isInsideOverwrittenFolder = false;
+      for (const [folderPrefix, decision] of folderDecisions.entries()) {
+        if (
+          decision === "overwrite" &&
+          (entryName === folderPrefix || entryName.startsWith(folderPrefix))
+        ) {
+          isInsideOverwrittenFolder = true;
+          break;
+        }
+      }
+      if (isInsideOverwrittenFolder) {
+        finalEntries.set(entryName, { type: "new", data: newItem });
+        continue;
+      }
+
+      if (finalEntries.has(entryName)) {
+        // Conflict detected: an existing entry has the same name as a new entry
+        let decision = job.overwriteDecision;
+        const needsPrompt = ["prompt", "overwrite", "skip"].includes(decision);
+
+        if (needsPrompt) {
+          if (job.ws && job.ws.readyState === 1) {
+            console.log(
+              `[addFilesToZip] Sending overwrite_prompt: fullPath=${entryName}, file=${path.basename(
+                entryName
+              )}, itemType=${type}, isFolderPrompt=${type === "folder"}`
+            );
+            job.ws.send(
+              JSON.stringify({
+                type: "overwrite_prompt",
+                file: path.basename(entryName),
+                itemType: type,
+                isFolderPrompt: type === "folder", // Explicitly set for folders
+              })
+            );
+            await new Promise((resolve) => (job.resolveOverwrite = resolve));
+            decision = job.overwriteDecision;
+          }
+        }
+
+        switch (decision) {
+          case "skip":
+          case "skip_all":
+            // Keep the original entry, skip the new one. No change to finalEntries.
+            if (type === "folder") {
+              folderDecisions.set(entryName, "skip");
+            }
+            break;
+          case "overwrite":
+          case "overwrite_all":
+            // Overwrite the original entry with the new one.
+            finalEntries.set(entryName, { type: "new", data: newItem });
+            if (type === "folder") {
+              folderDecisions.set(entryName, "overwrite");
+              // If a folder is overwritten, remove all its original contents from finalEntries
+              // that are children of this folder.
+              for (const [key] of finalEntries.entries()) {
+                if (key.startsWith(entryName) && key !== entryName) {
+                  finalEntries.delete(key);
+                }
+              }
+            }
+            break;
+          case "cancel":
+            throw new Error("Zip add cancelled by user.");
+          default:
+            break;
+        }
+        if (decision === "skip" || decision === "overwrite") {
+          job.overwriteDecision = "prompt"; // Reset to prompt for next conflict
+        }
+      } else {
+        // No conflict, simply add the new item
+        finalEntries.set(entryName, { type: "new", data: newItem });
+      }
+    }
+
+    // 3. Determine if actual modifications are needed
+    let actualModificationOccurred = false;
+    if (originalZipEntries.length !== finalEntries.size) {
+      // Number of entries changed (added or removed)
+      actualModificationOccurred = true;
+    } else {
+      // Same number of entries, check if any content was overwritten
+      for (const [entryName, finalEntry] of finalEntries.entries()) {
+        const originalEntry = originalZipEntries.find(
+          (e) => e.filename === entryName
+        );
+        if (!originalEntry || finalEntry.type === "new") {
+          // An original entry was replaced, or a new entry was added
+          actualModificationOccurred = true;
+          break;
         }
       }
     }
 
-    for (const dir of job.emptyDirsToAdd || []) {
-      const entryName = path.posix.join(pathInZip, dir);
-      archive.append(null, { name: entryName });
+    if (!actualModificationOccurred) {
+      // No actual modification to the archive's content, so no rebuild needed.
+      if (job.ws && job.ws.readyState === 1) {
+        job.ws.send(
+          JSON.stringify({ type: "complete", status: "skipped_all" })
+        );
+      }
+      return { status: "skipped_all" }; // Exit early
     }
 
-    for (const file of job.filesToProcess) {
+    // --- Pass 2: Build the new archive ---
+    const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+    const output = fse.createWriteStream(tempZipPath);
+    const archive = archiver("zip", {
+      zlib: { level: 9 },
+    });
+
+    archive.pipe(output);
+
+    const archiveFinishedPromise = new Promise((resolve, reject) => {
+      output.on("close", resolve);
+      archive.on("error", reject);
+      output.on("error", reject);
+    });
+
+    for (const [entryName, entryInfo] of finalEntries.entries()) {
       if (signal.aborted) throw new Error("Zip add cancelled.");
 
-      const { fullPath, relativePath, stats } = file;
-      const entryName = path.posix.join(pathInZip, relativePath);
+      if (entryInfo.type === "original") {
+        // This is an original entry that was kept
+        const originalYauzlEntry = entryInfo.data;
+        const stream = await originalYauzlEntry.openReadStream();
+        const chunks = [];
+        for await (const chunk of stream) {
+          chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+        archive.append(buffer, { name: entryName });
+      } else {
+        // This is a new entry (either truly new or overwriting an original)
+        const newItemData = entryInfo.data;
+        if (newItemData.type === "folder") {
+          archive.append(null, { name: entryName });
+        } else {
+          const { fullPath, stats } = newItemData.data; // newItemData.data is the FileInfo object
+          job.currentFile = fullPath;
+          job.currentFileTotalSize = stats.size;
+          job.currentFileBytesProcessed = 0;
 
-      job.currentFile = fullPath;
-      job.currentFileTotalSize = stats.size;
-      job.currentFileBytesProcessed = 0;
+          const sourceStream = fse.createReadStream(fullPath);
+          sourceStream.on("data", (chunk) => {
+            job.copied += chunk.length;
+            job.currentFileBytesProcessed += chunk.length;
+          });
 
-      const sourceStream = fse.createReadStream(fullPath);
-      sourceStream.on("data", (chunk) => {
-        job.copied += chunk.length;
-        job.currentFileBytesProcessed += chunk.length;
-      });
+          archive.append(sourceStream, { name: entryName, stats });
 
-      archive.append(sourceStream, { name: entryName, stats });
-
-      await new Promise((resolve, reject) => {
-        sourceStream.on("end", resolve);
-        sourceStream.on("error", reject);
-      });
+          await new Promise((resolve, reject) => {
+            sourceStream.on("end", resolve);
+            sourceStream.on("error", reject);
+          });
+        }
+      }
     }
 
     await archive.finalize();
@@ -1335,11 +1505,12 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
 
     if (signal.aborted) throw new Error("Zip add cancelled.");
     await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+    return { status: "completed" }; // Return status for successful completion
   } catch (error) {
     await fse.remove(tempZipPath).catch(() => {});
     throw error;
   } finally {
-    if (zipfile) await zipfile.close();
+    if (zipfile) await zipfile.close(); // Close once here
   }
 };
 
@@ -1538,7 +1709,7 @@ const getAllZipEntriesRecursive = async (
       `Error recursively reading zip directory ${folderPathInZip} in ${zipFilePath}:`,
       error
     );
-    // Optionally send an error message via WebSocket
+
     if (job.ws && job.ws.readyState === 1) {
       job.ws.send(
         JSON.stringify({
@@ -1552,6 +1723,36 @@ const getAllZipEntriesRecursive = async (
     // Ensure the zip file is closed even if errors occur
     if (zipfile) await zipfile.close();
   }
+};
+
+const getAllFilesAndDirsRecursive = async (dirPath, basePath = dirPath) => {
+  let allFiles = [];
+  let allDirs = [];
+
+  const entries = await fse.readdir(dirPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    const relativePath = path.relative(basePath, fullPath);
+
+    if (entry.isDirectory()) {
+      allDirs.push(relativePath + "/");
+      const { files, dirs } = await getAllFilesAndDirsRecursive(
+        fullPath,
+        basePath
+      );
+      allFiles = allFiles.concat(files);
+      allDirs = allDirs.concat(dirs);
+    } else {
+      try {
+        const stats = await fse.stat(fullPath);
+        allFiles.push({ fullPath, relativePath, stats });
+      } catch (e) {
+        console.error(`Could not stat ${fullPath}, skipping.`);
+      }
+    }
+  }
+  return { files: allFiles, dirs: allDirs };
 };
 
 export {
@@ -1579,4 +1780,5 @@ export {
   extractFilesFromZip,
   getDirTotalSizeInZip,
   getAllZipEntriesRecursive,
+  getAllFilesAndDirsRecursive,
 };

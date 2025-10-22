@@ -12,12 +12,14 @@ const buildFullPath = (basePath, fileName) =>
 const formatBytes = (bytes, spaceBeforeUnit = true) => {
   if (bytes === null || typeof bytes === "undefined") return "";
   if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
+  const units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", "BB", "GeB"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${parseFloat((bytes / Math.pow(1024, i)).toFixed(2))}${
-    spaceBeforeUnit ? " " : ""
-  }${units[i]}`;
-};
+      const clampedI = Math.max(0, i); // Ensure i is not negative
+      const unit = units[clampedI];
+      const value = parseFloat((bytes / Math.pow(1024, clampedI)).toFixed(2));
+      const formattedString = `${value}${spaceBeforeUnit ? " " : ""}${unit}`;
+    
+      return formattedString;};
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 

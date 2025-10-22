@@ -28,6 +28,7 @@ import {
   getAllZipEntriesRecursive,
   extractFilesFromZip,
   getDirTotalSizeInZip,
+  getAllFilesAndDirsRecursive,
 } from "./utils.js";
 // Keep track of clients that are watching for file changes
 const watchingClients = new Map();
@@ -139,28 +140,34 @@ export function initializeWebSocketServer(
 
                 let totalNewBytes = 0;
                 const filesToProcess = [];
+                const emptyDirsToAdd = [];
+
                 for (const sourcePath of sources) {
                   if (job.controller.signal.aborted)
                     throw new Error("Scan cancelled");
                   const stats = await fse.stat(sourcePath);
+                  const basePath = path.dirname(sourcePath);
+
                   if (stats.isDirectory()) {
-                    const basePath = path.dirname(sourcePath);
-                    const nestedFiles = await getAllFiles(sourcePath, basePath);
-                    for (const file of nestedFiles) {
-                      filesToProcess.push(file);
-                      totalNewBytes += file.stats.size;
-                    }
+                    const { files, dirs } = await getAllFilesAndDirsRecursive(sourcePath, basePath);
+                    filesToProcess.push(...files);
+                    emptyDirsToAdd.push(...dirs);
                   } else {
-                    const relativePath = path.basename(sourcePath);
                     filesToProcess.push({
                       fullPath: sourcePath,
-                      relativePath,
+                      relativePath: path.relative(basePath, sourcePath),
                       stats,
                     });
-                    totalNewBytes += stats.size;
                   }
                 }
+
+                // Calculate totalNewBytes from filesToProcess
+                for (const file of filesToProcess) {
+                  totalNewBytes += file.stats.size;
+                }
+
                 job.filesToProcess = filesToProcess;
+                job.emptyDirsToAdd = emptyDirsToAdd;
 
                 job.total = totalNewBytes;
                 job.copied = 0;
@@ -172,19 +179,15 @@ export function initializeWebSocketServer(
                   JSON.stringify({ type: "scan_complete", total: job.total })
                 );
 
-                job.currentFile = `Rebuilding archive: ${path.basename(
-                  zipFilePath
-                )}`;
-
                 progressInterval = setInterval(() => {
                   if (ws.readyState === 1) {
                     const currentTime = Date.now();
-                    const timeElapsed =
-                      (currentTime - job.lastUpdateTime) / 1000;
-                    const bytesSinceLastUpdate =
-                      job.copied - job.lastProcessedBytes;
-                    const instantaneousSpeed =
-                      timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+                    const timeElapsed = Math.max(1, (currentTime - job.lastUpdateTime)); // Ensure timeElapsed is at least 1ms to avoid division by zero
+                    const bytesSinceLastUpdate = job.copied - job.lastProcessedBytes;
+                    const instantaneousSpeed = (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
+
+                    // Ensure instantaneousSpeed is a valid number, otherwise default to 0
+                    const displaySpeed = isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed) ? 0 : instantaneousSpeed;
 
                     ws.send(
                       JSON.stringify({
@@ -195,7 +198,7 @@ export function initializeWebSocketServer(
                         currentFileBytesProcessed:
                           job.currentFileBytesProcessed,
                         currentFileSize: job.currentFileTotalSize,
-                        instantaneousSpeed,
+                        instantaneousSpeed: displaySpeed,
                       })
                     );
 
@@ -204,7 +207,17 @@ export function initializeWebSocketServer(
                   }
                 }, 250);
 
-                await addFilesToZip(zipFilePath, pathInZip, job);
+                const result = await addFilesToZip(zipFilePath, pathInZip, job);
+
+                // If addFilesToZip returned early (e.g., all skipped), it already sent a complete message.
+                // In that case, we just need to ensure the WebSocket is closed here if it wasn't already.
+                if (result && result.status === "skipped_all") {
+                  job.status = "completed"; // Mark job as completed even if skipped
+                  if (ws.readyState === 1) {
+                    ws.close(1000, "Job Completed - Skipped All");
+                  }
+                  return; // Exit early from this async IIFE
+                }
 
                 if (job.isMove) {
                   for (const source of job.sources) {
@@ -505,11 +518,12 @@ export function initializeWebSocketServer(
               progressInterval = setInterval(() => {
                 if (job.ws && job.ws.readyState === 1) {
                   const currentTime = Date.now();
-                  const timeElapsed = (currentTime - job.lastUpdateTime) / 1000;
-                  const bytesSinceLastUpdate =
-                    job.compressedBytes - job.lastProcessedBytes;
-                  const instantaneousSpeed =
-                    timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+                  const timeElapsed = Math.max(1, (currentTime - job.lastUpdateTime)); // Ensure timeElapsed is at least 1ms to avoid division by zero
+                  const bytesSinceLastUpdate = job.compressedBytes - job.lastProcessedBytes;
+                  const instantaneousSpeed = (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
+
+                  // Ensure instantaneousSpeed is a valid number, otherwise default to 0
+                  const displaySpeed = isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed) ? 0 : instantaneousSpeed;
 
                   job.ws.send(
                     JSON.stringify({
@@ -519,7 +533,7 @@ export function initializeWebSocketServer(
                       currentFile: job.currentFile,
                       currentFileTotalSize: job.currentFileTotalSize,
                       currentFileBytesProcessed: job.currentFileBytesProcessed,
-                      instantaneousSpeed: instantaneousSpeed,
+                      instantaneousSpeed: displaySpeed,
                     })
                   );
 
@@ -817,11 +831,12 @@ export function initializeWebSocketServer(
               progressInterval = setInterval(() => {
                 if (ws.readyState === 1) {
                   const currentTime = Date.now();
-                  const timeElapsed = (currentTime - lastUpdateTime) / 1000;
-                  const bytesSinceLastUpdate =
-                    processedBytes - lastProcessedBytes;
-                  const instantaneousSpeed =
-                    timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+                  const timeElapsed = Math.max(1, (currentTime - lastUpdateTime)); // Ensure timeElapsed is at least 1ms to avoid division by zero
+                  const bytesSinceLastUpdate = processedBytes - lastProcessedBytes;
+                  const instantaneousSpeed = (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
+
+                  // Ensure instantaneousSpeed is a valid number, otherwise default to 0
+                  const displaySpeed = isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed) ? 0 : instantaneousSpeed;
 
                   ws.send(
                     JSON.stringify({
@@ -833,7 +848,7 @@ export function initializeWebSocketServer(
                       currentFile: job.currentFile,
                       currentFileTotalSize: job.currentFileTotalSize,
                       currentFileBytesProcessed: job.currentFileBytesProcessed,
-                      instantaneousSpeed: instantaneousSpeed,
+                      instantaneousSpeed: displaySpeed,
                     })
                   );
 

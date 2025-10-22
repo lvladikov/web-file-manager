@@ -17,6 +17,7 @@ const ProgressModal = ({
   onCancel,
   isMove,
   isDuplicate,
+  isZipAdd,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
@@ -71,6 +72,13 @@ const ProgressModal = ({
                 } in Progress...`}
           </h3>
         </div>
+
+        {isZipAdd && (
+          <p className="text-yellow-400 text-sm mb-4">
+            Note: Speed may appear lower because the ZIP file is being rebuilt
+            in the background.
+          </p>
+        )}
 
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
           <p className="text-sm">
