@@ -957,7 +957,7 @@ export default function createFileRoutes(
       destination,
       ws: null,
       zipfile: null, // Will hold the yauzl instance
-      controller: new AbortController(), // Initialize AbortController
+      controller: new AbortController(),
       isNestedZip,
       zipFilePath,
       filePathInZip,
@@ -1007,7 +1007,7 @@ export default function createFileRoutes(
       source: sourcePath,
       ws: null,
       zipfile: null,
-      controller: new AbortController(), // Initialize AbortController
+      controller: new AbortController(),
     };
     activeArchiveTestJobs.set(jobId, job);
     res.status(202).json({ jobId });
@@ -1115,7 +1115,7 @@ export default function createFileRoutes(
 
   // Endpoint to save file content
   router.post("/save-file", async (req, res) => {
-    const { path: filePath, content, jobId } = req.body;
+    const { path: filePath, content, jobId: clientJobId } = req.body;
     if (!filePath || content === undefined) {
       console.log(`[Server] /save-file: Invalid request for ${filePath}`);
       return res
@@ -1126,10 +1126,10 @@ export default function createFileRoutes(
     try {
       const zipPathMatch = matchZipPath(filePath);
       if (zipPathMatch) {
-        const currentJobId = jobId || crypto.randomUUID();
+        const jobId = clientJobId || crypto.randomUUID();
         const abortController = new AbortController();
         const job = {
-          id: currentJobId,
+          id: jobId,
           status: "pending",
           ws: null,
           controller: abortController,
@@ -1142,40 +1142,57 @@ export default function createFileRoutes(
           currentFile: "",
           currentFileTotalSize: 0,
           currentFileBytesProcessed: 0,
+          tempZipPath: null,
+          contentToSave: content,
         };
-        activeZipOperations.set(currentJobId, job);
+        activeZipOperations.set(jobId, job);
 
-        try {
-          const zipFilePath = zipPathMatch[1];
-          const filePathInZip = zipPathMatch[2].startsWith("/")
-            ? zipPathMatch[2].substring(1)
-            : zipPathMatch[2];
+        let resolveCompletion;
+        let rejectCompletion;
+        const completionPromise = new Promise((resolve, reject) => {
+          resolveCompletion = resolve;
+          rejectCompletion = reject;
+        });
+        job.completionPromise = completionPromise;
+        job.resolveCompletion = resolveCompletion;
+        job.rejectCompletion = rejectCompletion;
 
-          job.zipFilePath = zipFilePath;
-          job.filePathInZip = filePathInZip;
-          job.originalZipSize = (await fse.pathExists(zipFilePath))
-            ? (await fse.stat(zipFilePath)).size
-            : 0;
+        const zipFilePath = zipPathMatch[1];
+        const filePathInZip = zipPathMatch[2].startsWith("/")
+          ? zipPathMatch[2].substring(1)
+          : zipPathMatch[2];
 
-          await updateFileInZip(zipFilePath, filePathInZip, content, job, abortController.signal);
+        job.zipFilePath = zipFilePath;
+        job.filePathInZip = filePathInZip;
+        job.currentFile = filePathInZip;
+        job.originalZipSize = (await fse.pathExists(zipFilePath))
+          ? (await fse.stat(zipFilePath)).size
+          : 0;
 
-          res
-            .status(200)
-            .json({ message: "File saved successfully.", jobId: currentJobId });
-        } catch (error) {
-          if (abortController.signal.aborted) {
-            return res.status(400).json({ message: "Zip update cancelled." });
-          }
-          console.error("[Server] Error saving file in zip:", error);
-          res
-            .status(500)
-            .json({ message: `Failed to save file in zip: ${error.message}` });
-        } finally {
-          // Only delete the jobId if the operation was not aborted
-          if (!abortController.signal.aborted) {
-            activeZipOperations.delete(currentJobId);
-          }
-        }
+        // Immediately return 202 Accepted with the jobId
+        res.status(202).json({ message: "Zip update job started.", jobId });
+
+        // Start the updateFileInZip operation asynchronously
+        updateFileInZip(
+          zipFilePath,
+          filePathInZip,
+          job.contentToSave,
+          job,
+          job.controller.signal
+        )
+          .then(() => {
+            console.log(
+              `[Job ${jobId}] updateFileInZip completed successfully.`
+            );
+            job.resolveCompletion(); // Resolve the promise on success
+          })
+          .catch((err) => {
+            console.error(
+              `[Job ${jobId}] updateFileInZip failed:`,
+              err.message
+            );
+            job.rejectCompletion(err); // Reject the promise on error
+          });
       } else {
         await fse.writeFile(filePath, content);
         console.log(
@@ -1184,10 +1201,17 @@ export default function createFileRoutes(
         res.status(200).json({ message: "File saved successfully." });
       }
     } catch (error) {
-      console.error("[Server] Error saving file:", error);
+      console.error("[Server] Error initiating file save:", error);
+      // Ensure job is removed if initial setup fails before async operation starts
+      if (
+        zipPathMatch &&
+        activeZipOperations.has(clientJobId || crypto.randomUUID())
+      ) {
+        activeZipOperations.delete(clientJobId || crypto.randomUUID());
+      }
       res
         .status(500)
-        .json({ message: `Failed to save file: ${error.message}` });
+        .json({ message: `Failed to initiate file save: ${error.message}` });
     }
   });
 

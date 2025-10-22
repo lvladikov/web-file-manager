@@ -59,7 +59,7 @@ const AppContextMenu = ({
       }
     };
 
-    document.addEventListener("keydown", handleGlobalKeyDown, true); // Use capture phase
+    document.addEventListener("keydown", handleGlobalKeyDown, true); // Capture phase
 
     return () => {
       document.removeEventListener("keydown", handleGlobalKeyDown, true);

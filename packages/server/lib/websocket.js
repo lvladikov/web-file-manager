@@ -69,29 +69,39 @@ export function initializeWebSocketServer(
 
     if (jobId) {
       let jobMap;
-      if (jobType === "size") {
-        jobMap = activeSizeJobs;
-      } else if (jobType === "compress") {
-        jobMap = activeCompressJobs;
-      } else if (jobType === "decompress") {
-        jobMap = activeDecompressJobs;
-      } else if (jobType === "archive-test") {
-        jobMap = activeArchiveTestJobs;
-      } else if (jobType === "duplicate") {
-        jobMap = activeDuplicateJobs;
-      } else if (jobType === "copy-paths") {
-        jobMap = activeCopyPathsJobs;
-      } else if (jobType === "rename-in-zip") {
-        jobMap = activeZipOperations;
-      } else if (jobType === "delete-in-zip") {
-        jobMap = activeZipOperations;
-      } else if (jobType === "create-file-in-zip") {
-        jobMap = activeZipOperations;
-      } else if (jobType === "create-folder-in-zip") {
-        jobMap = activeZipOperations;
-      } else {
-        // Default to copy if not specified or unknown
-        jobMap = activeCopyJobs;
+      let isZipOperation = false; // Flag to identify zip operations handled by activeZipOperations
+
+      // Determine jobMap and if it's a generic zip operation
+      switch (jobType) {
+        case "size":
+          jobMap = activeSizeJobs;
+          break;
+        case "compress":
+          jobMap = activeCompressJobs;
+          break;
+        case "decompress":
+          jobMap = activeDecompressJobs;
+          break;
+        case "archive-test":
+          jobMap = activeArchiveTestJobs;
+          break;
+        case "duplicate":
+          jobMap = activeDuplicateJobs;
+          break;
+        case "copy-paths":
+          jobMap = activeCopyPathsJobs;
+          break;
+        case "rename-in-zip":
+        case "delete-in-zip":
+        case "create-file-in-zip":
+        case "create-folder-in-zip":
+        case "update-file-in-zip":
+          jobMap = activeZipOperations;
+          isZipOperation = true;
+          break;
+        default:
+          jobMap = activeCopyJobs;
+          break;
       }
 
       if (jobMap.has(jobId)) {
@@ -120,7 +130,142 @@ export function initializeWebSocketServer(
           }
         });
 
-        if (jobType === "copy" || jobType === "duplicate") {
+        // --- Handle generic zip operations ---
+        if (isZipOperation) {
+          (async () => {
+            let progressInterval;
+            try {
+              job.status = "running";
+
+              // Wait for the WebSocket to be connected (important!)
+              await new Promise((resolve) => {
+                if (job.ws && job.ws.readyState === 1) {
+                  resolve();
+                } else {
+                  const interval = setInterval(() => {
+                    if (job.ws && job.ws.readyState === 1) {
+                      clearInterval(interval);
+                      resolve();
+                    }
+                  }, 50);
+                }
+              });
+
+              if (job.ws && job.ws.readyState === 1) {
+                job.ws.send(
+                  JSON.stringify({
+                    type: "start",
+                    totalSize: job.totalBytes,
+                    originalZipSize: job.originalZipSize,
+                  })
+                );
+              }
+
+              job.lastProcessedBytes = 0;
+              job.lastUpdateTime = Date.now();
+              job.tempZipSize = 0;
+
+              progressInterval = setInterval(async () => {
+                if (job.ws && job.ws.readyState === 1) {
+                  // Get current size of the temporary zip file
+                  let currentTempSize = 0;
+                  if (
+                    job.tempZipPath &&
+                    (await fse.pathExists(job.tempZipPath))
+                  ) {
+                    try {
+                      const stats = await fse.stat(job.tempZipPath);
+                      currentTempSize = stats.size;
+                    } catch (statError) {
+                      console.warn(
+                        `[Job ${jobId}] Error stating temp file ${job.tempZipPath}:`,
+                        statError.message
+                      );
+                    }
+                  }
+                  job.tempZipSize = currentTempSize;
+
+                  // Send progress update including tempZipSize
+                  job.ws.send(
+                    JSON.stringify({
+                      type: "progress",
+                      tempZipSize: job.tempZipSize,
+                      originalZipSize: job.originalZipSize,
+                      currentFile: job.currentFile,
+                      processed: job.processedBytes, // Assuming processedBytes is updated elsewhere
+                      total: job.totalBytes,
+                    })
+                  );
+
+                  job.lastProcessedBytes = job.processedBytes; // Update based on actual progress if tracked
+                  job.lastUpdateTime = Date.now();
+                } else {
+                  // If WebSocket is closed, clear interval
+                  clearInterval(progressInterval);
+                }
+              }, 250); // Send updates every 250ms
+
+              // Await the completion promise set up in fileRoutes.js
+              if (job.completionPromise) {
+                job.controller.signal.addEventListener("abort", () => {
+                  console.log(
+                    "[websocket] Abort signal received for job:",
+                    job.id
+                  );
+                  if (job.rejectCompletion) {
+                    job.rejectCompletion(new Error("Zip operation cancelled."));
+                  }
+                });
+                await job.completionPromise;
+              } else {
+                console.warn(
+                  `[Job ${jobId}] No completionPromise found for job type ${jobType}`
+                );
+                // Handle cases where completionPromise might not be set (though it should be for async zip ops)
+              }
+
+              job.status = "completed";
+              if (job.ws && job.ws.readyState === 1) {
+                job.ws.send(JSON.stringify({ type: "complete" }));
+                job.ws.close(1000, "Job Completed");
+              }
+            } catch (error) {
+              console.error(`[Job ${jobId}] Zip operation failed:`, error);
+              clearInterval(progressInterval); // Stop interval on error
+              if (job.status !== "cancelled") job.status = "failed";
+              if (job.ws && job.ws.readyState === 1) {
+                const type = job.status === "cancelled" ? "cancelled" : "error";
+                job.ws.send(
+                  JSON.stringify({
+                    type,
+                    message: error.message || "Zip operation failed.",
+                  })
+                );
+                job.ws.close(1000, `Job finished with status: ${type}`);
+              }
+            } finally {
+              clearInterval(progressInterval); // Ensure interval is cleared
+              // Only delete the job after a delay if it finished (completed, failed, cancelled)
+              if (
+                job.status === "completed" ||
+                job.status === "failed" ||
+                job.status === "cancelled"
+              ) {
+                console.log(`[Job ${jobId}] Scheduling deletion for job.`);
+                setTimeout(() => {
+                  console.log(
+                    `[Job ${jobId}] Deleting job from activeZipOperations.`
+                  );
+                  activeZipOperations.delete(jobId);
+                }, 5000); // Delay deletion
+              } else {
+                console.warn(
+                  `[Job ${jobId}] Job status is ${job.status}, not scheduling deletion.`
+                );
+              }
+            }
+          })();
+        } else if (jobType === "copy" || jobType === "duplicate") {
           if (job.jobType === "zip-add") {
             (async () => {
               let progressInterval;
@@ -141,7 +286,7 @@ export function initializeWebSocketServer(
                 const originalZipSize = (await fse.pathExists(zipFilePath))
                   ? (await fse.stat(zipFilePath)).size
                   : 0;
-                job.originalZipSize = originalZipSize; // Initialize originalZipSize
+                job.originalZipSize = originalZipSize;
 
                 let totalNewBytes = 0;
                 const filesToProcess = [];
@@ -154,7 +299,10 @@ export function initializeWebSocketServer(
                   const basePath = path.dirname(sourcePath);
 
                   if (stats.isDirectory()) {
-                    const { files, dirs } = await getAllFilesAndDirsRecursive(sourcePath, basePath);
+                    const { files, dirs } = await getAllFilesAndDirsRecursive(
+                      sourcePath,
+                      basePath
+                    );
                     filesToProcess.push(...files);
                     emptyDirsToAdd.push(...dirs);
                   } else {
@@ -179,7 +327,7 @@ export function initializeWebSocketServer(
                 job.status = "copying";
                 job.lastProcessedBytes = 0;
                 job.lastUpdateTime = Date.now();
-                job.tempZipSize = 0; // Initialize tempZipSize
+                job.tempZipSize = 0;
 
                 ws.send(
                   JSON.stringify({ type: "scan_complete", total: job.total })
@@ -188,14 +336,25 @@ export function initializeWebSocketServer(
                 progressInterval = setInterval(async () => {
                   if (ws.readyState === 1) {
                     const currentTime = Date.now();
-                    const timeElapsed = Math.max(1, (currentTime - job.lastUpdateTime));
-                    const bytesSinceLastUpdate = job.copied - job.lastProcessedBytes;
-                    const instantaneousSpeed = (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
+                    const timeElapsed = Math.max(
+                      1,
+                      currentTime - job.lastUpdateTime
+                    );
+                    const bytesSinceLastUpdate =
+                      job.copied - job.lastProcessedBytes;
+                    const instantaneousSpeed =
+                      (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
 
-                    const displaySpeed = isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed) ? 0 : instantaneousSpeed;
+                    const displaySpeed =
+                      isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed)
+                        ? 0
+                        : instantaneousSpeed;
 
                     // Get current size of the temporary zip file
-                    if (job.tempZipPath && await fse.pathExists(job.tempZipPath)) {
+                    if (
+                      job.tempZipPath &&
+                      (await fse.pathExists(job.tempZipPath))
+                    ) {
                       const stats = await fse.stat(job.tempZipPath);
                       job.tempZipSize = stats.size;
                     }
@@ -211,7 +370,7 @@ export function initializeWebSocketServer(
                         currentFileSize: job.currentFileTotalSize,
                         instantaneousSpeed: displaySpeed,
                         tempZipSize: job.tempZipSize,
-                        originalZipSize: job.originalZipSize, // Add originalZipSize
+                        originalZipSize: job.originalZipSize,
                       })
                     );
 
@@ -431,9 +590,7 @@ export function initializeWebSocketServer(
               }
             })();
           }
-        }
-
-        if (jobType === "size") {
+        } else if (jobType === "size") {
           (async () => {
             try {
               const zipPathMatch = matchZipPath(job.folderPath);
@@ -490,9 +647,7 @@ export function initializeWebSocketServer(
               setTimeout(() => activeSizeJobs.delete(jobId), 5000);
             }
           })();
-        }
-
-        if (jobType === "compress") {
+        } else if (jobType === "compress") {
           (async () => {
             let progressInterval;
             try {
@@ -531,12 +686,20 @@ export function initializeWebSocketServer(
               progressInterval = setInterval(() => {
                 if (job.ws && job.ws.readyState === 1) {
                   const currentTime = Date.now();
-                  const timeElapsed = Math.max(1, (currentTime - job.lastUpdateTime)); // Ensure timeElapsed is at least 1ms to avoid division by zero
-                  const bytesSinceLastUpdate = job.compressedBytes - job.lastProcessedBytes;
-                  const instantaneousSpeed = (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
+                  const timeElapsed = Math.max(
+                    1,
+                    currentTime - job.lastUpdateTime
+                  ); // Ensure timeElapsed is at least 1ms to avoid division by zero
+                  const bytesSinceLastUpdate =
+                    job.compressedBytes - job.lastProcessedBytes;
+                  const instantaneousSpeed =
+                    (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
 
                   // Ensure instantaneousSpeed is a valid number, otherwise default to 0
-                  const displaySpeed = isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed) ? 0 : instantaneousSpeed;
+                  const displaySpeed =
+                    isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed)
+                      ? 0
+                      : instantaneousSpeed;
 
                   job.ws.send(
                     JSON.stringify({
@@ -615,122 +778,7 @@ export function initializeWebSocketServer(
               }
             }
           })();
-        }
-
-        if (
-          jobType === "rename-in-zip" ||
-          jobType === "delete-in-zip" ||
-          jobType === "create-file-in-zip" ||
-          jobType === "create-folder-in-zip"
-        ) {
-          (async () => {
-            let progressInterval;
-            try {
-              job.status = "running";
-              // Wait for the WebSocket to be connected
-              await new Promise((resolve) => {
-                if (job.ws && job.ws.readyState === 1) {
-                  resolve();
-                } else {
-                  const interval = setInterval(() => {
-                    if (job.ws && job.ws.readyState === 1) {
-                      clearInterval(interval);
-                      resolve();
-                    }
-                  }, 50);
-                }
-              });
-
-              const message = {
-                type: "start",
-                totalSize: job.totalBytes, // This is the total size of the new zip
-                originalZipSize: job.originalZipSize, // Send the original zip size
-              };
-              job.ws.send(JSON.stringify(message));
-
-              job.lastProcessedBytes = 0;
-              job.lastUpdateTime = Date.now();
-              job.tempZipSize = 0; // Initialize tempZipSize
-              job.originalZipSize = job.originalZipSize || 0; // Ensure originalZipSize is initialized
-
-              progressInterval = setInterval(async () => {
-                if (job.ws && job.ws.readyState === 1) {
-                  const currentTime = Date.now();
-                  const timeElapsed = (currentTime - job.lastUpdateTime) / 1000;
-                  const bytesSinceLastUpdate =
-                    job.processedBytes - job.lastProcessedBytes;
-                  const instantaneousSpeed =
-                    timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
-
-                  // Get current size of the temporary zip file
-                  if (job.tempZipPath && await fse.pathExists(job.tempZipPath)) {
-                    const stats = await fse.stat(job.tempZipPath);
-                    job.tempZipSize = stats.size;
-                  }
-
-                  job.ws.send(
-                    JSON.stringify({
-                      type: "progress",
-                      total: job.totalBytes,
-                      processed: job.processedBytes,
-                      currentFile: job.currentFile,
-                      currentFileTotalSize: job.currentFileTotalSize,
-                      currentFileBytesProcessed: job.currentFileBytesProcessed,
-                      instantaneousSpeed: instantaneousSpeed,
-                      tempZipSize: job.tempZipSize,
-                      originalZipSize: job.originalZipSize,
-                    })
-                  );
-
-                  job.lastProcessedBytes = job.processedBytes;
-                  job.lastUpdateTime = currentTime;
-                }
-              }, 250);
-
-              // The actual createFolderInZip call is made in fileRoutes.js
-              // This WebSocket handler is just for progress updates.
-              // Await the completion promise from fileRoutes.js
-              job.controller.signal.addEventListener("abort", () => {
-                console.log(
-                  "[websocket] Abort signal received for job:",
-                  job.id
-                );
-                if (job.rejectCompletion) {
-                  // Ensure rejectCompletion exists
-                  job.rejectCompletion(new Error("Zip operation cancelled."));
-                }
-              });
-              await job.completionPromise;
-
-              job.status = "completed";
-              if (job.ws && job.ws.readyState === 1) {
-                job.ws.send(JSON.stringify({ type: "complete" }));
-                job.ws.close(1000, "Job Completed");
-              }
-            } catch (error) {
-              clearInterval(progressInterval);
-              if (job.status !== "cancelled") job.status = "failed";
-              if (job.ws && job.ws.readyState === 1) {
-                const type = job.status === "cancelled" ? "cancelled" : "error";
-                job.ws.send(JSON.stringify({ type, message: error.message }));
-                job.ws.close(1000, `Job finished with status: ${type}`);
-              }
-            } finally {
-              clearInterval(progressInterval);
-              // The job is deleted by fileRoutes.js after a timeout for non-zip operations
-              // For zip operations, we delete it here after completion/failure
-              if (
-                job.status === "completed" ||
-                job.status === "failed" ||
-                job.status === "cancelled"
-              ) {
-                setTimeout(() => activeZipOperations.delete(jobId), 5000);
-              }
-            }
-          })();
-        }
-
-        if (jobType === "decompress") {
+        } else if (jobType === "decompress") {
           (async () => {
             let zipfile;
             let progressInterval;
@@ -854,12 +902,17 @@ export function initializeWebSocketServer(
               progressInterval = setInterval(() => {
                 if (ws.readyState === 1) {
                   const currentTime = Date.now();
-                  const timeElapsed = Math.max(1, (currentTime - lastUpdateTime)); // Ensure timeElapsed is at least 1ms to avoid division by zero
-                  const bytesSinceLastUpdate = processedBytes - lastProcessedBytes;
-                  const instantaneousSpeed = (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
+                  const timeElapsed = Math.max(1, currentTime - lastUpdateTime); // Ensure timeElapsed is at least 1ms to avoid division by zero
+                  const bytesSinceLastUpdate =
+                    processedBytes - lastProcessedBytes;
+                  const instantaneousSpeed =
+                    (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
 
                   // Ensure instantaneousSpeed is a valid number, otherwise default to 0
-                  const displaySpeed = isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed) ? 0 : instantaneousSpeed;
+                  const displaySpeed =
+                    isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed)
+                      ? 0
+                      : instantaneousSpeed;
 
                   ws.send(
                     JSON.stringify({
@@ -1060,9 +1113,7 @@ export function initializeWebSocketServer(
               }
             }
           })();
-        }
-
-        if (jobType === "archive-test") {
+        } else if (jobType === "archive-test") {
           (async () => {
             let zipfile;
             const failedFiles = [];
@@ -1183,9 +1234,7 @@ export function initializeWebSocketServer(
               sendComplete();
             }
           })();
-        }
-
-        if (jobType === "copy-paths") {
+        } else if (jobType === "copy-paths") {
           (async () => {
             try {
               const allPaths = [];
@@ -1238,7 +1287,7 @@ export function initializeWebSocketServer(
                   ? `${job.basePath}${job.basePath.endsWith("/") ? "" : "/"}${
                       item.name
                     }` // Use posix style for zip paths
-                  : path.join(job.basePath, item.name); // Use system path for FS paths
+                  : path.join(job.basePath, item.name);
 
                 allPaths.push(fullPath);
                 count++;
@@ -1250,7 +1299,6 @@ export function initializeWebSocketServer(
 
                 if (job.includeSubfolders && item.type === "folder") {
                   if (zipPathMatch) {
-                    // Use zip-specific recursive function
                     const zipFilePath = zipPathMatch[1];
                     // Ensure pathInZip starts correctly relative to the zip root
                     const pathInZip = fullPath.substring(
@@ -1266,7 +1314,6 @@ export function initializeWebSocketServer(
                       }
                     );
                   } else {
-                    // Use filesystem recursive function
                     await getPathsRecursiveFS(fullPath);
                   }
                 }
@@ -1338,11 +1385,68 @@ export function initializeWebSocketServer(
           ) {
             job.status = "cancelled";
           }
+          // Ensure zip operations clean up correctly on close
+          if (isZipOperation && jobMap.has(jobId)) {
+            const zipJob = jobMap.get(jobId);
+            if (
+              zipJob &&
+              zipJob.status !== "completed" &&
+              zipJob.status !== "failed" &&
+              zipJob.status !== "cancelled"
+            ) {
+              console.log(
+                `[Job ${jobId}] WS closed unexpectedly, attempting cancellation.`
+              );
+              zipJob.status = "cancelled";
+              if (zipJob.controller) {
+                zipJob.controller.abort();
+              }
+              // Remove temp file if path exists
+              if (
+                zipJob.tempZipPath &&
+                (await fse.pathExists(zipJob.tempZipPath))
+              ) {
+                await fse
+                  .remove(zipJob.tempZipPath)
+                  .catch((err) =>
+                    console.error(
+                      `Error removing temp zip ${zipJob.tempZipPath}:`,
+                      err
+                    )
+                  );
+              }
+              // Schedule deletion even on unexpected close
+              setTimeout(() => {
+                console.log(
+                  `[Job ${jobId}] Deleting job due to unexpected WS close.`
+                );
+                activeZipOperations.delete(jobId);
+              }, 5000);
+            }
+          }
         });
 
-        ws.on("error", (error) =>
-          console.error(`[ws] WebSocket error for job ${jobId}:`, error)
-        );
+        ws.on("error", (error) => {
+          console.error(`[ws] WebSocket error for job ${jobId}:`, error);
+          if (isZipOperation && jobMap.has(jobId)) {
+            const zipJob = jobMap.get(jobId);
+            if (
+              zipJob &&
+              zipJob.status !== "completed" &&
+              zipJob.status !== "failed"
+            ) {
+              zipJob.status = "failed"; // Mark as failed due to WS error
+              if (zipJob.controller) {
+                zipJob.controller.abort(); // Attempt to stop underlying operation
+              }
+              // Schedule deletion on error
+              setTimeout(() => {
+                console.log(`[Job ${jobId}] Deleting job due to WS error.`);
+                activeZipOperations.delete(jobId);
+              }, 5000);
+            }
+          }
+        });
       } else {
         console.warn(`[ws] Connection rejected for invalid job ID: ${jobId}`);
         ws.close();

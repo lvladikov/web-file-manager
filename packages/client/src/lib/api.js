@@ -142,11 +142,11 @@ const renameItem = async (oldPath, newName) => {
   return response.json();
 };
 
-const startCopyItems = async (sources, destination) => {
+const startCopyItems = async (sources, destination, isMove = false) => {
   const response = await fetch("/api/copy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sources, destination }),
+    body: JSON.stringify({ sources, destination, isMove }),
   });
   if (!response.ok) {
     const data = await response.json();
@@ -154,7 +154,7 @@ const startCopyItems = async (sources, destination) => {
       data.message || "An unknown server error occurred during copy initiation."
     );
   }
-  return response.json(); // Returns { jobId, totalSize }
+  return response.json();
 };
 
 const cancelCopy = async (jobId) => {
@@ -177,7 +177,7 @@ const startSizeCalculation = async (folderPath) => {
     body: JSON.stringify({ folderPath }),
   });
   if (!response.ok) throw new Error("Failed to start size calculation.");
-  return response.json(); // returns { jobId }
+  return response.json();
 };
 
 const cancelSizeCalculation = async (jobId) => {
@@ -361,10 +361,19 @@ const saveFileContent = async (path, content, signal = null, jobId = null) => {
     body: JSON.stringify({ path, content, jobId }),
     signal,
   });
+
+  // Check if the response is 202 Accepted (for async zip operation)
+  if (response.status === 202) {
+    // Job started asynchronously, return the jobId
+    const data = await response.json();
+    return { jobId: data.jobId, async: true };
+  }
+
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.message || "Failed to save file content.");
   }
+  // For non-zip or synchronous completion (though zip is now always async)
   return response.json();
 };
 

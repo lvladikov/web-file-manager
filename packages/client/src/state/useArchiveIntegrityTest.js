@@ -55,9 +55,7 @@ const useArchiveIntegrityTest = ({
       : panels[sourcePanelId].items;
 
     const itemsToTest = [...selections[sourcePanelId]]
-      .map((itemName) =>
-        itemsToConsider.find((item) => item.name === itemName)
-      )
+      .map((itemName) => itemsToConsider.find((item) => item.name === itemName))
       .filter(Boolean)
       .filter((item) => item.type === "archive"); // Only consider archive files
 
@@ -66,7 +64,6 @@ const useArchiveIntegrityTest = ({
       return;
     }
 
-    // Initialize state for the batch test
     setArchiveTestProgress((prev) => ({
       ...prev,
       isVisible: true,
@@ -108,7 +105,8 @@ const useArchiveIntegrityTest = ({
         currentJobId = jobId;
         setArchiveTestProgress((prev) => ({ ...prev, jobId: currentJobId }));
 
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsProtocol =
+          window.location.protocol === "https:" ? "wss:" : "ws:";
         const ws = new WebSocket(
           `${wsProtocol}//${window.location.host}/ws?jobId=${currentJobId}&type=archive-test`
         );
@@ -122,14 +120,18 @@ const useArchiveIntegrityTest = ({
                 setArchiveTestProgress((prev) => ({
                   ...prev,
                   totalFiles: data.totalFiles,
-                  currentFile: `Testing ${archiveItem.name}: ${data.currentFile ? truncatePath(data.currentFile, 60) : ''}`,
+                  currentFile: `Testing ${archiveItem.name}: ${
+                    data.currentFile ? truncatePath(data.currentFile, 60) : ""
+                  }`,
                 }));
                 break;
               case "progress":
                 setArchiveTestProgress((prev) => ({
                   ...prev,
                   testedFiles: data.testedFiles,
-                  currentFile: `Testing ${archiveItem.name}: ${data.currentFile ? truncatePath(data.currentFile, 60) : ''}`,
+                  currentFile: `Testing ${archiveItem.name}: ${
+                    data.currentFile ? truncatePath(data.currentFile, 60) : ""
+                  }`,
                 }));
                 break;
               case "complete":
@@ -223,8 +225,16 @@ const useArchiveIntegrityTest = ({
         setArchiveTestProgress((prev) => ({
           ...prev,
           testedArchives: prev.testedArchives + 1,
-          reports: [...prev.reports, { name: archiveItem.name, report: currentArchiveReport }],
-          errors: currentArchiveError ? [...prev.errors, { name: archiveItem.name, error: currentArchiveError }] : prev.errors,
+          reports: [
+            ...prev.reports,
+            { name: archiveItem.name, report: currentArchiveReport },
+          ],
+          errors: currentArchiveError
+            ? [
+                ...prev.errors,
+                { name: archiveItem.name, error: currentArchiveError },
+              ]
+            : prev.errors,
           jobId: isLastArchive ? null : prev.jobId, // Clear jobId only if it's the last archive
         }));
       }

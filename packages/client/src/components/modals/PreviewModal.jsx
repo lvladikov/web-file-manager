@@ -12,6 +12,7 @@ import {
   Undo2 as Undo,
   Redo2 as Redo,
   FilePenLine,
+  LoaderCircle,
 } from "lucide-react";
 
 import {
@@ -21,7 +22,6 @@ import {
   isPreviewableAudio,
   isPreviewableText,
   getFileTypeInfo,
-  isMac,
   metaKey,
   isModKey,
   matchZipPath,
@@ -44,6 +44,7 @@ import {
   cancelZipOperation,
 } from "../../lib/api";
 import Icon from "../ui/Icon";
+import useZipUpdate from "../../state/useZipUpdate";
 
 const PreviewInfo = ({ previewType }) => {
   if (
@@ -80,10 +81,15 @@ const PreviewModal = ({
   onDecompressToOtherPanel,
   startInEditMode,
   setZipUpdateProgressModal,
+  startZipUpdate,
+  hideZipUpdate,
+  connectZipUpdateWebSocket,
   onRefreshPanel,
   activePanel,
-  zipUpdateProgressModal,
+  showSavingOverlay,
 }) => {
+  const zipUpdate = useZipUpdate();
+
   const previewContainerRef = useRef(null);
   const videoRef = useRef(null);
   const audioRef = useRef(null);
@@ -527,9 +533,9 @@ const PreviewModal = ({
       if (jobIdToCancel) {
         cancelZipOperation(jobIdToCancel);
       }
-      setZipUpdateProgressModal({ isVisible: false });
+      zipUpdate.hideZipUpdate();
     },
-    [setZipUpdateProgressModal]
+    [zipUpdate.hideZipUpdate] // Depend on the function from the hook
   );
 
   const handleSave = async () => {
@@ -537,23 +543,28 @@ const PreviewModal = ({
     let saveResponse;
     const abortController = new AbortController();
     saveAbortControllerRef.current = abortController;
+    let clientJobId = null;
+    let isAsyncOperation = false;
 
     try {
       if (zipPathMatch) {
+        isAsyncOperation = true;
         const zipFileInfo = await fetchFileInfo(zipFilePath);
         const originalZipSize = zipFileInfo.size || 0;
 
-        const clientJobId = crypto.randomUUID(); // Generate jobId on client
+        clientJobId = crypto.randomUUID();
 
-        setZipUpdateProgressModal({
-          isVisible: true,
-          jobId: clientJobId, // Pass client-generated jobId immediately
+        // StartZipUpdate calls setZipUpdateProgressModal internally
+        startZipUpdate({
+          jobId: clientJobId,
           zipFilePath: zipPathMatch[1],
           filePathInZip: zipPathMatch[2].startsWith("/")
             ? zipPathMatch[2].substring(1)
             : zipPathMatch[2],
           originalZipSize,
-          onCancel: () => handleCancelZipUpdate(clientJobId), // Pass jobId to handler
+          title: "Saving file in zip...",
+          triggeredFromPreview: true,
+          // onCancel is handled by startZipUpdate setting up the modal state
         });
 
         saveResponse = await saveFileContent(
@@ -563,47 +574,90 @@ const PreviewModal = ({
           clientJobId
         );
 
-        if (saveResponse.jobId) {
-          setZipUpdateProgressModal((prev) => ({
-            ...prev,
-            jobId: saveResponse.jobId,
-          }));
+        // If the save operation started asynchronously (status 202)
+        if (saveResponse.async && saveResponse.jobId) {
+          // Update the modal state only if jobId differs (unlikely now)
+          setZipUpdateProgressModal((prev) => {
+            if (prev.jobId !== saveResponse.jobId) {
+              console.warn(
+                `[PreviewModal] Server jobId ${saveResponse.jobId} differs from client jobId ${clientJobId}. Updating.`
+              );
+              return {
+                ...prev,
+                jobId: saveResponse.jobId,
+                // Update the cancel handler to use the confirmed jobId
+                onCancel: () => handleCancelZipUpdate(saveResponse.jobId),
+              };
+            }
+            return prev; // No change needed if jobId matches
+          });
+          // Connect WebSocket using the confirmed jobId
+          connectZipUpdateWebSocket(saveResponse.jobId, "update-file-in-zip");
+
+          // Keep modal visible, WS handlers will hide it
+          setShowSuccessMessage(false); // Success shown on WS complete
+          setSaveError("");
+          // Update state optimistically
+          setTextContent(editedContent);
+          setUndoStack([editedContent]);
+          setRedoStack([]);
+          lastSavedItemRef.current = item;
+        } else {
+          // This case should ideally not happen for zip saves anymore
+          console.warn(
+            "[PreviewModal] Zip save responded synchronously. Hiding modal."
+          );
+          isAsyncOperation = false; // Treat as synchronous if it didn't return 202/async
+          setShowSuccessMessage(true);
+          setSaveError("");
+          setTextContent(editedContent);
+          setUndoStack([editedContent]);
+          setRedoStack([]);
+          lastSavedItemRef.current = item;
         }
       } else {
+        // Non-zip save remains synchronous
+        isAsyncOperation = false;
         saveResponse = await saveFileContent(
           item.fullPath,
           editedContent,
           abortController.signal
         );
-      }
-
-      setShowSuccessMessage(true);
-      setSaveError("");
-      setTextContent(editedContent);
-      setUndoStack([editedContent]);
-      setRedoStack([]);
-      lastSavedItemRef.current = item;
-      if (zipPathMatch) {
+        setShowSuccessMessage(true);
+        setSaveError("");
+        setTextContent(editedContent);
+        setUndoStack([editedContent]);
+        setRedoStack([]);
+        lastSavedItemRef.current = item;
+        // Refresh panel immediately for non-zip saves
         onRefreshPanel(activePanel);
       }
     } catch (error) {
+      isAsyncOperation = false; // Mark as failed synchronously if error occurs here
       if (error.name === "AbortError") {
         setSaveError("Save operation cancelled.");
       } else {
         console.error("[Client] handleSave: Caught error:", error);
-        setSaveError(error.message);
+        setSaveError(error.message || "Failed to save file.");
       }
     } finally {
       saveAbortControllerRef.current = null; // Clear the ref
-      // Always attempt to close the modal using a functional update to ensure latest state
-      setZipUpdateProgressModal((prev) => ({ ...prev, isVisible: false }));
+      // Only hide the modal here if the operation was NOT asynchronous
+      // or if an error occurred during the initial setup phase.
+      if (!isAsyncOperation) {
+        // Use hideZipUpdate for consistency, even though it might not have been fully shown
+        hideZipUpdate();
+      }
     }
   };
 
   const handleSaveAndClose = async () => {
     await handleSave();
-    setUnsavedChangesModalVisible(false);
-    onClose();
+    // Check if there was a save error before closing
+    if (!saveError) {
+      setUnsavedChangesModalVisible(false);
+      onClose();
+    }
   };
 
   const handleDiscardAndClose = () => {
@@ -777,88 +831,97 @@ const PreviewModal = ({
           </div>
         </div>
 
-        {!isEditing && isSearchVisible && previewType === "text" && (
-          <div className="w-full h-12 bg-gray-800 flex-shrink-0 flex justify-between items-center px-3 z-10 border-y border-gray-700">
-            <input
-              type="text"
-              placeholder="Find in file..."
-              className="bg-gray-700 text-white rounded mr-2 px-2 py-1 w-1/2 focus:outline-none focus:ring-2 focus:ring-sky-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (e.shiftKey) {
-                    goToPrevMatch();
-                  } else {
-                    goToNextMatch();
+        {!isEditing &&
+          isSearchVisible &&
+          (previewType === "text" || previewType === "zipText") && (
+            <div className="w-full h-12 bg-gray-800 flex-shrink-0 flex justify-between items-center px-3 z-10 border-y border-gray-700">
+              <input
+                type="text"
+                placeholder="Find in file..."
+                className="bg-gray-700 text-white rounded mr-2 px-2 py-1 w-1/2 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                      goToPrevMatch();
+                    } else {
+                      goToNextMatch();
+                    }
                   }
-                }
-              }}
-              autoFocus
-            />
-            <div className="flex items-center space-x-4 text-gray-400 text-sm">
-              <label className="flex items-center space-x-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useRegex}
-                  onChange={(e) => setUseRegex(e.target.checked)}
-                  className="h-4 w-4 text-sky-500 bg-gray-700 border-gray-600 rounded focus:ring-sky-500 focus:ring-offset-gray-800"
-                />
-                <span>Regex</span>
-              </label>
-              <label className="flex items-center space-x-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={caseSensitive}
-                  onChange={(e) => setCaseSensitive(e.target.checked)}
-                  className="h-4 w-4 text-sky-500 bg-gray-700 border-gray-600 rounded focus:ring-sky-500 focus:ring-offset-gray-800"
-                />
-                <span>Case</span>
-              </label>
-              {regexError ? (
-                <span className="text-red-400 text-xs">{regexError}</span>
-              ) : matches.length > 0 ? (
-                <span className="flex items-center space-x-1">
-                  <span>{currentMatchIndex + 1}</span>
-                  <span>/</span>
-                  <span>{matches.length}</span>
-                </span>
-              ) : (
-                <span className="w-20 text-center">
-                  {searchTerm ? "Not found" : ""}
-                </span>
-              )}
-              <button
-                onClick={goToPrevMatch}
-                disabled={matches.length === 0}
-                className="p-1 rounded hover:bg-gray-700 disabled:opacity-50"
-              >
-                <ChevronUp className="w-6 h-6" />
-              </button>
-              <button
-                onClick={goToNextMatch}
-                disabled={matches.length === 0}
-                className="p-1 rounded hover:bg-gray-700 disabled:opacity-50"
-              >
-                <ChevronDown className="w-6 h-6" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsSearchVisible(false);
-                  handleClearViewModeSearch(); // Clear state when clicking the X button
                 }}
-                className="p-1 rounded hover:bg-gray-700"
-              >
-                <XCircle className="w-6 h-6" />
-              </button>
+                autoFocus
+              />
+              <div className="flex items-center space-x-4 text-gray-400 text-sm">
+                <label className="flex items-center space-x-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useRegex}
+                    onChange={(e) => setUseRegex(e.target.checked)}
+                    className="h-4 w-4 text-sky-500 bg-gray-700 border-gray-600 rounded focus:ring-sky-500 focus:ring-offset-gray-800"
+                  />
+                  <span>Regex</span>
+                </label>
+                <label className="flex items-center space-x-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={caseSensitive}
+                    onChange={(e) => setCaseSensitive(e.target.checked)}
+                    className="h-4 w-4 text-sky-500 bg-gray-700 border-gray-600 rounded focus:ring-sky-500 focus:ring-offset-gray-800"
+                  />
+                  <span>Case</span>
+                </label>
+                {regexError ? (
+                  <span className="text-red-400 text-xs">{regexError}</span>
+                ) : matches.length > 0 ? (
+                  <span className="flex items-center space-x-1">
+                    <span>{currentMatchIndex + 1}</span>
+                    <span>/</span>
+                    <span>{matches.length}</span>
+                  </span>
+                ) : (
+                  <span className="w-20 text-center">
+                    {searchTerm ? "Not found" : ""}
+                  </span>
+                )}
+                <button
+                  onClick={goToPrevMatch}
+                  disabled={matches.length === 0}
+                  className="p-1 rounded hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <ChevronUp className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={goToNextMatch}
+                  disabled={matches.length === 0}
+                  className="p-1 rounded hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <ChevronDown className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={() => {
+                    setIsSearchVisible(false);
+                    handleClearViewModeSearch(); // Clear state when clicking the X button
+                  }}
+                  className="p-1 rounded hover:bg-gray-700"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {!isEditing && <PreviewInfo previewType={previewType} />}
 
         <div className="flex-1 min-h-0 flex flex-col rounded-b-lg overflow-auto">
+          {showSavingOverlay && (
+            <div className="absolute inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-40 pointer-events-auto">
+              <LoaderCircle className="w-8 h-8 animate-spin text-sky-400" />
+              <p className="text-gray-300 mt-2">Saving...</p>
+            </div>
+          )}
+
           {(previewType === "image" || previewType === "zipImage") && (
             <ImagePreview
               item={item}

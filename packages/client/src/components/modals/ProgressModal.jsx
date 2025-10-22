@@ -71,7 +71,7 @@ const ProgressModal = ({
                     : operation === "Duplicate"
                     ? "Duplicating"
                     : "Copying"
-                } in Progress...`}
+                }${isZipAdd ? " (inside zip)" : ""} in Progress...`}
           </h3>
         </div>
 

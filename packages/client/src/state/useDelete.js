@@ -94,7 +94,9 @@ export default function useDelete({
         startZipUpdate({
           title: "Deleting items from zip...",
           zipFilePath,
-          operationDescription: `Deleting ${deleteTargets.length} item(s)...`,
+          operationDescription: `Deleting ${deleteTargets.length} item${
+            deleteTargets.length > 1 ? "s" : ""
+          }...`,
         });
       }
 

@@ -282,7 +282,7 @@ export default function appState() {
     activePanel,
     panels,
     activeSelection,
-    filteredItems: sortedAndFilteredItems[activePanel], // Use sorted/filtered list
+    filteredItems: sortedAndFilteredItems[activePanel],
     handleNavigate: panelOps.handleNavigate,
     setError,
     panelRefs,
@@ -298,7 +298,7 @@ export default function appState() {
     panels,
     focusedItem,
     activeSelection,
-    filteredItems: sortedAndFilteredItems[activePanel], // Use sorted/filtered list
+    filteredItems: sortedAndFilteredItems[activePanel],
     handleNavigate: panelOps.handleNavigate,
     setError,
     panelRefs,
@@ -832,7 +832,9 @@ export default function appState() {
       if (!isMounted) return;
       // Watch any paths that were requested before the connection was open
       pathsToWatch.current.forEach((path) => {
-        wsFileWatcher.current.send(JSON.stringify({ type: "watch_path", path }));
+        wsFileWatcher.current.send(
+          JSON.stringify({ type: "watch_path", path })
+        );
       });
       pathsToWatch.current.clear();
     };
@@ -923,7 +925,7 @@ export default function appState() {
     ...archiveTest,
     ...copyPaths,
     ...zipUpdate,
-    
+
     // Connector Handlers
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,

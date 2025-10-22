@@ -61,6 +61,9 @@ export default function App() {
     panelRefs,
     sortConfig,
     handleSort,
+    startZipUpdate,
+    hideZipUpdate,
+    connectZipUpdateWebSocket,
     clipboard,
 
     // Setters & Handlers
@@ -155,6 +158,11 @@ export default function App() {
     setZipUpdateProgressModal,
   } = appState();
   const mainRef = useRef(null);
+
+  const showPreviewModalOverlay =
+    zipUpdateProgressModal &&
+    zipUpdateProgressModal.isVisible &&
+    zipUpdateProgressModal.triggeredFromPreview;
 
   const otherPanelId = activePanel === "left" ? "right" : "left";
   const destinationPath = panels[otherPanelId].path;
@@ -406,9 +414,12 @@ export default function App() {
         onDecompressToOtherPanel={handleDecompressToOtherPanel}
         startInEditMode={previewModal.isEditing}
         setZipUpdateProgressModal={setZipUpdateProgressModal}
+        startZipUpdate={startZipUpdate}
+        hideZipUpdate={hideZipUpdate}
+        connectZipUpdateWebSocket={connectZipUpdateWebSocket}
         onRefreshPanel={handleRefreshPanel}
         activePanel={activePanel}
-        zipUpdateProgressModal={zipUpdateProgressModal}
+        showSavingOverlay={showPreviewModalOverlay}
       />
       <ProgressModal
         {...copyProgress}
@@ -500,6 +511,7 @@ export default function App() {
         mode={copyPathsModal.mode}
         onCancel={copyPathsModal.onCancel}
       />
+
       <ZipUpdateProgressModal {...zipUpdateProgressModal} />
 
       <main

@@ -12,14 +12,27 @@ const buildFullPath = (basePath, fileName) =>
 const formatBytes = (bytes, spaceBeforeUnit = true) => {
   if (bytes === null || typeof bytes === "undefined") return "";
   if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", "BB", "GeB"];
+  const units = [
+    "B",
+    "KB",
+    "MB",
+    "GB",
+    "TB",
+    "PB",
+    "EB",
+    "ZB",
+    "YB",
+    "BB",
+    "GeB",
+  ];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-      const clampedI = Math.max(0, i); // Ensure i is not negative
-      const unit = units[clampedI];
-      const value = parseFloat((bytes / Math.pow(1024, clampedI)).toFixed(2));
-      const formattedString = `${value}${spaceBeforeUnit ? " " : ""}${unit}`;
-    
-      return formattedString;};
+  const clampedI = Math.max(0, i); // Ensure i is not negative
+  const unit = units[clampedI];
+  const value = parseFloat((bytes / Math.pow(1024, clampedI)).toFixed(2));
+  const formattedString = `${value}${spaceBeforeUnit ? " " : ""}${unit}`;
+
+  return formattedString;
+};
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
@@ -310,7 +323,6 @@ const truncatePath = (fullPath, maxLength = 60) => {
 const formatDate = (dateString) => {
   if (!dateString) return "";
   const date = new Date(dateString);
-  // Use toLocaleString with default options for user's locale
   return date.toLocaleString();
 };
 

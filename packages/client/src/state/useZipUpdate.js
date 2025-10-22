@@ -18,34 +18,73 @@ export default function useZipUpdate() {
     currentFileTotalSize: 0,
     instantaneousSpeed: 0,
     tempZipSize: 0,
+    title: "Updating Zip Archive...",
+    triggeredFromPreview: false,
   });
 
   const wsRef = useRef(null);
   const jobIdRef = useRef(null);
 
+  const hideZipUpdate = useCallback(() => {
+    setZipUpdateProgressModal((prev) => ({
+      ...prev,
+      isVisible: false,
+      jobId: null,
+      progress: 0,
+      total: 0,
+      currentFile: "",
+      tempZipSize: 0,
+      originalZipSize: 0,
+      error: null,
+    }));
+    // Clear refs as the operation associated with the modal is ending
+    wsRef.current = null;
+    jobIdRef.current = null;
+  }, [setZipUpdateProgressModal]);
+
   const cancelZipUpdate = useCallback(
     async (jobIdToCancel) => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         // Send cancellation request to the server
-        await cancelZipOperation(jobIdToCancel);
-        // The server will then close the WebSocket, triggering onclose
+        try {
+          await cancelZipOperation(jobIdToCancel);
+          // Server should close the WebSocket, triggering onclose which calls hideZipUpdate
+        } catch (error) {
+          console.error(
+            `[useZipUpdate] Failed to send cancel request for job ${jobIdToCancel}:`,
+            error
+          );
+          // Force hide modal if API call fails
+          hideZipUpdate();
+        }
       } else {
-        // If WebSocket is not open, just hide the modal
-        setZipUpdateProgressModal((prev) => ({ ...prev, isVisible: false }));
+        console.warn(
+          `[useZipUpdate] WebSocket not open for job ${jobIdToCancel}, hiding modal directly.`
+        );
+        hideZipUpdate();
       }
     },
-    [setZipUpdateProgressModal]
+    [hideZipUpdate]
   );
 
   const startZipUpdate = useCallback(
     ({
       zipFilePath,
       filePathInZip,
-      originalZipSize,
+      originalZipSize = 0,
       itemType = "file",
       operationDescription = "",
+      title = "Updating Zip Archive...",
+      jobId = null, // Allow passing jobId directly if known initially
+      triggeredFromPreview = false,
     }) => {
-      setZipUpdateProgressModal({
+      if (jobId) {
+        jobIdRef.current = jobId; // Store jobId immediately if provided
+      } else {
+        jobIdRef.current = null; // Reset if jobId is not provided initially
+      }
+
+      const newState = {
         isVisible: true,
         zipFilePath,
         filePathInZip,
@@ -53,90 +92,208 @@ export default function useZipUpdate() {
         itemType,
         operationDescription,
         onCancel: () => {
-          cancelZipUpdate(jobIdRef.current);
+          const idToCancel = jobIdRef.current;
+          if (idToCancel) {
+            cancelZipUpdate(idToCancel);
+          } else {
+            console.warn(
+              "[useZipUpdate] Attempted to cancel zip update before jobId was known."
+            );
+            hideZipUpdate();
+          }
         },
-        jobId: null, // jobId will be set later
+        jobId: jobId,
         progress: 0,
         total: originalZipSize,
-        currentFile: filePathInZip,
+        currentFile: filePathInZip || "Initializing...",
         currentFileBytesProcessed: 0,
         currentFileTotalSize: 0,
         instantaneousSpeed: 0,
-      });
+        tempZipSize: 0,
+        title: title,
+        triggeredFromPreview: triggeredFromPreview,
+      };
+
+      setZipUpdateProgressModal(newState);
     },
-    [setZipUpdateProgressModal, cancelZipUpdate]
+    [setZipUpdateProgressModal, cancelZipUpdate, hideZipUpdate]
   );
 
   const connectZipUpdateWebSocket = useCallback(
     (jobId, jobType) => {
-      if (!jobId || !jobType) return;
+      if (!jobId || !jobType) {
+        console.error(
+          "connectZipUpdateWebSocket called without jobId or jobType"
+        );
+        return;
+      }
 
-      jobIdRef.current = jobId;
+      // If there's an existing WebSocket for a different job, close it first.
+      if (wsRef.current && jobIdRef.current && jobIdRef.current !== jobId) {
+        wsRef.current.close(1000, "Starting new job connection");
+        // Setting refs to null immediately can be problematic if onclose hasn't fired
+        // Let the onclose handler manage clearing the refs based on the closed jobId
+      }
 
-      // Establish WebSocket connection
+      // If a WebSocket for the *same* job already exists, don't reconnect.
+      if (
+        wsRef.current &&
+        jobIdRef.current === jobId &&
+        wsRef.current.readyState < 2
+      ) {
+        // Check if not CLOSING or CLOSED
+        console.warn(
+          `[useZipUpdate] WebSocket already connected or connecting for job ${jobId}. Skipping reconnect.`
+        );
+        // Ensure the modal knows the correct jobId
+        setZipUpdateProgressModal((prev) =>
+          prev.jobId !== jobId
+            ? { ...prev, jobId: jobId, isVisible: true }
+            : { ...prev, isVisible: true }
+        );
+        return;
+      }
+
+      jobIdRef.current = jobId; // Store the new jobId as the *current* one
+
+      // Ensure modal state reflects the current jobId we are connecting for
+      setZipUpdateProgressModal((prev) => ({
+        ...prev,
+        jobId: jobId,
+        isVisible: true,
+      }));
+
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(
-        `ws://${window.location.host}/ws/zip-operations?jobId=${jobId}&type=${jobType}`
+        `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=${jobType}`
       );
-      wsRef.current = ws;
+      wsRef.current = ws; // Store the new WebSocket instance
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        setZipUpdateProgressModal((prev) => {
-          switch (data.type) {
-            case "start":
-              return {
-                ...prev,
-                total: data.totalSize,
-                originalZipSize: data.originalZipSize,
-                isVisible: true,
-                itemType: prev.itemType,
-              };
-            case "progress":
-              return {
-                ...prev,
-                progress: data.processed,
-                total: data.total,
-                currentFile: data.currentFile,
-                currentFileBytesProcessed: data.currentFileBytesProcessed,
-                currentFileTotalSize: data.currentFileTotalSize,
-                instantaneousSpeed: data.instantaneousSpeed,
-                tempZipSize: data.tempZipSize || 0,
-                originalZipSize: data.originalZipSize || 0,
-                itemType: prev.itemType,
-              };
-            case "complete":
-              ws.close();
-              return { ...prev, isVisible: false };
-            case "error":
-            case "cancelled":
-              ws.close();
-              return { ...prev, isVisible: false };
-            default:
-              return prev;
-          }
-        });
+        try {
+          const data = JSON.parse(event.data);
+          // Use the jobId captured in this specific WebSocket's closure scope
+          const currentWsJobId = jobId;
+
+          setZipUpdateProgressModal((prev) => {
+            // Update state ONLY if the modal's jobId matches THIS WebSocket's jobId
+            if (!prev.isVisible || prev.jobId !== currentWsJobId) {
+              console.warn(
+                `[useZipUpdate] Modal not visible or jobId mismatch (modal: ${prev.jobId}, connection: ${currentWsJobId}). Ignoring message.`
+              );
+              return prev; // Prevent updates if modal is closed or for a different job
+            }
+
+            let updatedState = { ...prev };
+
+            switch (data.type) {
+              case "start":
+                if (data.totalSize !== undefined)
+                  updatedState.total = data.totalSize;
+                if (data.originalZipSize !== undefined)
+                  updatedState.originalZipSize = data.originalZipSize;
+                break;
+              case "progress":
+                if (data.processed !== undefined)
+                  updatedState.progress = data.processed;
+                if (data.total !== undefined) updatedState.total = data.total;
+                if (data.currentFile !== undefined)
+                  updatedState.currentFile = data.currentFile;
+                if (data.currentFileBytesProcessed !== undefined)
+                  updatedState.currentFileBytesProcessed =
+                    data.currentFileBytesProcessed;
+                if (data.currentFileTotalSize !== undefined)
+                  updatedState.currentFileTotalSize = data.currentFileTotalSize;
+                if (data.instantaneousSpeed !== undefined)
+                  updatedState.instantaneousSpeed = data.instantaneousSpeed;
+                if (data.tempZipSize !== undefined)
+                  updatedState.tempZipSize = data.tempZipSize;
+                if (data.originalZipSize !== undefined)
+                  updatedState.originalZipSize = data.originalZipSize;
+                break;
+              case "complete":
+                ws.close(1000, "Job Completed");
+                updatedState.isVisible = false;
+                break;
+              case "error":
+                console.error(
+                  `[useZipUpdate] Job ${currentWsJobId} error via WebSocket:`,
+                  data.message
+                );
+                ws.close(1000, "Job Error");
+                updatedState.isVisible = false;
+                break;
+              case "cancelled":
+                ws.close(1000, "Job Cancelled");
+                updatedState.isVisible = false;
+                break;
+              default:
+                console.warn(
+                  `[useZipUpdate] Unhandled WS message type for job ${currentWsJobId}: ${data.type}`
+                );
+                return prev; // Return previous state if type is unhandled
+            }
+
+            return updatedState; // Return the calculated new state
+          });
+        } catch (e) {
+          console.error(
+            "[useZipUpdate] Error parsing WebSocket message:",
+            e,
+            "Data:",
+            event.data
+          );
+        }
+      };
+
+      ws.onopen = () => {
+        // Use the jobId captured in this specific WebSocket's closure
+        const currentWsJobId = jobId;
+        // Check if the connection belongs to the currently tracked job in the ref
+        if (jobIdRef.current !== currentWsJobId) {
+          // This connection is for an older job, the ref has been updated. Close it.
+          ws.close(1000, "Stale connection");
+        }
       };
 
       ws.onclose = () => {
-        setZipUpdateProgressModal((prev) => ({ ...prev, isVisible: false }));
-        wsRef.current = null;
-        jobIdRef.current = null;
+        // Use the jobId captured in this specific WebSocket's closure
+        const closedWsJobId = jobId;
+
+        // Only clear refs and hide modal if the closed WS corresponds to the *currently active* job reference
+        if (jobIdRef.current === closedWsJobId) {
+          hideZipUpdate();
+        } else {
+          console.warn(
+            `[useZipUpdate] Closed WebSocket for job ${closedWsJobId} is not the current tracked job (${jobIdRef.current}). No cleanup via this onclose.`
+          );
+          // Do not clear refs here, as they belong to the newer connection.
+          // Do not hide the modal, as it might be showing progress for the newer job.
+        }
       };
 
       ws.onerror = (error) => {
+        // Use the jobId captured in this specific WebSocket's closure
+        const errorWsJobId = jobId;
         console.error(
-          `[ws] WebSocket error for zip folder creation job ${jobId}:`,
-          error
+          `[useZipUpdate] WebSocket error for job ${errorWsJobId}:`,
+          error.message || "Unknown WS error"
         );
-        setZipUpdateProgressModal((prev) => ({ ...prev, isVisible: false }));
+        // Only clear refs and hide modal if the error is for the currently active job reference
+        if (jobIdRef.current === errorWsJobId) {
+          console.warn(
+            `[useZipUpdate] Cleaning up refs and hiding modal via onerror for currently active job ${errorWsJobId}.`
+          );
+          hideZipUpdate();
+        } else {
+          console.error(
+            `[useZipUpdate] Error on WebSocket for job ${errorWsJobId}, but current job is ${jobIdRef.current}. No cleanup via this onerror.`
+          );
+        }
       };
     },
-    [setZipUpdateProgressModal, cancelZipUpdate]
+    [setZipUpdateProgressModal, hideZipUpdate]
   );
-
-  const hideZipUpdate = useCallback(() => {
-    setZipUpdateProgressModal((prev) => ({ ...prev, isVisible: false }));
-  }, [setZipUpdateProgressModal]);
 
   return {
     zipUpdateProgressModal,

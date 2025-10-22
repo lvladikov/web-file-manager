@@ -31,7 +31,6 @@ const activeCopyPathsJobs = new Map();
 // In-memory store for active zip operations
 const activeZipOperations = new Map();
 
-// Initialize the WebSocket server
 initializeWebSocketServer(
   server,
   activeCopyJobs,

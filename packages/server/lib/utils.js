@@ -462,7 +462,6 @@ const copyWithProgress = async (source, destination, job) => {
       const sourceStream = fse.createReadStream(source);
       const destStream = fse.createWriteStream(tempDestination);
 
-      // Initialize current file progress tracking
       job.currentFile = path.basename(source);
       job.currentFileSize = sourceStats.size;
       job.currentFileBytesProcessed = 0;
@@ -785,13 +784,21 @@ const updateFileInZip = async (
   job = null,
   signal = null
 ) => {
-  // Check if the path is inside a nested zip.
+  // Use signal from job if provided and no direct signal
+  if (job && job.controller && !signal) {
+    signal = job.controller.signal;
+  }
+
+  // Check for cancellation signal early
+  if (signal && signal.aborted) {
+    throw new Error("Zip update cancelled.");
+  }
+
   const zipEndIndex = filePathInZip.toLowerCase().lastIndexOf(".zip/");
   if (zipEndIndex === -1) {
     // --- BASE CASE ---
-    // Not a nested zip, so we can update the file directly.
     const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
-    if (job) job.tempZipPath = tempZipPath;
+    if (job) job.tempZipPath = tempZipPath; // Set temp path on job object
     const output = fse.createWriteStream(tempZipPath);
     const archive = archiver("zip", {
       zlib: { level: 9 },
@@ -802,14 +809,25 @@ const updateFileInZip = async (
       : 0;
     if (job) {
       job.originalZipSize = originalZipSize;
-      job.totalBytes = originalZipSize; // Initialize totalBytes with original size
+      job.totalBytes = originalZipSize;
+      job.processedBytes = 0;
     }
 
     const archiveFinishedPromise = new Promise((resolve, reject) => {
       output.on("close", resolve);
-      archive.on("error", reject);
+      archive.on("error", (err) => {
+        console.error(`[Job ${job?.id}] Archiver error:`, err);
+        reject(err);
+      });
+      output.on("error", (err) => {
+        console.error(`[Job ${job?.id}] Output stream error:`, err);
+        reject(err);
+      });
       if (signal) {
         signal.addEventListener("abort", () => {
+          console.log(
+            `[Job ${job?.id}] Abort signal received, destroying archive.`
+          );
           archive.destroy();
           // reject(new Error("Zip update cancelled.")); //TODO investigate
         });
@@ -818,31 +836,57 @@ const updateFileInZip = async (
 
     archive.pipe(output);
 
-    const zipfile = await yauzl.open(zipFilePath);
+    let zipfile = null;
     try {
-      for await (const entry of zipfile) {
-        if (entry.filename !== filePathInZip) {
-          const stream = await entry.openReadStream();
-          archive.append(stream, { name: entry.filename });
+      if (await fse.pathExists(zipFilePath)) {
+        zipfile = await yauzl.open(zipFilePath);
+        for await (const entry of zipfile) {
+          if (signal && signal.aborted)
+            throw new Error("Zip update cancelled.");
+          if (entry.filename !== filePathInZip) {
+            const stream = await entry.openReadStream();
+            archive.append(stream, { name: entry.filename });
+          }
         }
+      } else {
+        console.warn(
+          `[Job ${job?.id}] Original zip file not found: ${zipFilePath}. Creating new archive.`
+        );
       }
 
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       archive.append(content, { name: filePathInZip });
 
       await archive.finalize();
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       await archiveFinishedPromise;
+      if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+      console.log(
+        `[Job ${job?.id}] Zip file updated successfully: ${zipFilePath}`
+      );
     } catch (error) {
+      console.error(
+        `[Job ${job?.id}] Error during zip update process:`,
+        error.message
+      );
       if (await fse.pathExists(tempZipPath)) {
-        await fse.remove(tempZipPath).catch(() => {});
+        await fse.remove(tempZipPath).catch((removeError) => {
+          console.error(
+            `[Job ${job?.id}] Error removing temp zip ${tempZipPath}:`,
+            removeError
+          );
+        });
       }
+      // Re-throw the error to be caught by the caller (WebSocket handler)
       throw error;
     } finally {
-      await zipfile.close();
+      if (zipfile) await zipfile.close();
     }
-    return;
+    return; // Successful completion
   }
-  // The path is inside a nested zip.
+
+  // --- RECURSIVE CASE for nested zips ---
   const nestedZipPathInParent = filePathInZip.substring(0, zipEndIndex + 4);
   const remainingPath = filePathInZip.substring(zipEndIndex + 5);
 
@@ -853,6 +897,7 @@ const updateFileInZip = async (
   );
 
   try {
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     // 2. Recursively call this function on the extracted (now outer) zip.
     await updateFileInZip(
       tempNestedZipPath,
@@ -862,13 +907,18 @@ const updateFileInZip = async (
       signal
     );
 
+    if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     // 3. Stream the now-modified nested zip back into the original parent zip.
     const modifiedZipStream = fse.createReadStream(tempNestedZipPath);
+    // Call updateFileInZip again for the parent, passing the stream
+    // Note: We create a *new* job object specific to this parent update step
+    // to avoid conflicts with progress reporting if needed at this level.
+    // However, for simplicity, we'll just pass the signal for cancellation.
     await updateFileInZip(
       zipFilePath,
       nestedZipPathInParent,
       modifiedZipStream,
-      job,
+      null, // Not passing the full job here to avoid conflicting progress tracking for nested steps
       signal
     );
   } finally {
@@ -955,6 +1005,7 @@ const createFileInZip = async (zipFilePath, newFilePathInZip, job = null) => {
       zipFilePath,
       nestedZipPathInParent,
       modifiedZipStream,
+      null, // Not passing full job for parent update
       job?.controller?.signal
     );
   } finally {
@@ -992,7 +1043,7 @@ const createFolderInZip = async (
       : 0;
 
     if (job) {
-      job.totalBytes = originalZipSize; // Initial total size
+      job.totalBytes = originalZipSize;
       job.processedBytes = 0;
       job.currentFile = newFolderPathInZip;
       job.currentFileTotalSize = 0; // Folders don't have a size in this context
@@ -1039,13 +1090,14 @@ const createFolderInZip = async (
   );
 
   try {
-    await createFolderInZip(tempNestedZipPath, remainingPath, signal);
+    await createFolderInZip(tempNestedZipPath, remainingPath, job);
     const modifiedZipStream = fse.createReadStream(tempNestedZipPath);
     await updateFileInZip(
       zipFilePath,
       nestedZipPathInParent,
       modifiedZipStream,
-      signal
+      null, // Not passing full job for parent update
+      job?.controller?.signal
     );
   } finally {
     await fse.remove(tempDir);
@@ -1084,7 +1136,7 @@ const deleteFromZip = async (zipFilePath, pathsInZip, job = null) => {
   const signal = job?.controller?.signal;
   const pathsToDelete = Array.isArray(pathsInZip) ? pathsInZip : [pathsInZip];
 
-  const tempZipPath = zipFilePath + ".tmp";
+  const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID(); // More unique temp name
   if (job) job.tempZipPath = tempZipPath;
   const output = fse.createWriteStream(tempZipPath);
   const archive = archiver("zip", {
@@ -1109,7 +1161,6 @@ const deleteFromZip = async (zipFilePath, pathsInZip, job = null) => {
     job.currentFile = "Deleting items...";
     job.currentFileTotalSize = 0;
     job.currentFileBytesProcessed = 0;
-    job.originalZipSize = job.originalZipSize; // Ensure originalZipSize is available
   }
 
   const zipfile = await yauzl.open(zipFilePath);
@@ -1179,7 +1230,7 @@ const renameInZip = async (
     job.currentFile = newPathInZip;
     job.currentFileTotalSize = 0;
     job.currentFileBytesProcessed = 0;
-    job.originalZipSize = job.originalZipSize; // Ensure originalZipSize is available
+    // job.originalZipSize already set in fileRoutes.js
   }
 
   const zipfile = await yauzl.open(zipFilePath);
@@ -1227,11 +1278,11 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
   const { signal } = job.controller;
   let zipfile = null; // Will hold the yauzl instance for the original zip
   const finalEntries = new Map(); // Map<entryName, { type: 'original' | 'new', data: EntryObject | FileInfo }>
-  const originalZipEntries = []; // Declare originalZipEntries here
+  const originalZipEntries = [];
 
-  let tempZipPath = null; // Declare tempZipPath here
-  let output = null; // Declare output here
-  let archive = null; // Declare archive here
+  let tempZipPath = null;
+  let output = null;
+  let archive = null;
 
   try {
     // --- Pass 1: Determine the final state of the archive and resolve conflicts ---
@@ -1402,10 +1453,10 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
     }
 
     // --- Pass 2: Build the new archive ---
-    const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+    tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
     job.tempZipPath = tempZipPath;
-    const output = fse.createWriteStream(tempZipPath);
-    const archive = archiver("zip", {
+    output = fse.createWriteStream(tempZipPath);
+    archive = archiver("zip", {
       zlib: { level: 9 },
     });
 
@@ -1463,8 +1514,11 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
     await fse.move(tempZipPath, zipFilePath, { overwrite: true });
     return { status: "completed" }; // Return status for successful completion
   } catch (error) {
-    await fse.remove(tempZipPath).catch(() => {});
-    throw error;
+    // Ensure temp file is removed on error
+    if (tempZipPath && (await fse.pathExists(tempZipPath))) {
+      await fse.remove(tempZipPath).catch(() => {});
+    }
+    throw error; // Re-throw the error
   } finally {
     if (zipfile) await zipfile.close(); // Close once here
   }
