@@ -6,7 +6,7 @@ import {
   startDuplicateItems,
   cancelDuplicate,
 } from "../lib/api";
-import { buildFullPath, truncatePath, basename, dirname, matchZipPath } from "../lib/utils";
+import { buildFullPath, basename, dirname, matchZipPath } from "../lib/utils";
 
 const getUniqueName = (originalName, existingNames) => {
   const dotIndex = originalName.lastIndexOf(".");
@@ -60,6 +60,8 @@ export default function useCopy({
     isDuplicate: false,
     sources: [],
     isZipAdd: false,
+    tempZipSize: 0,
+    originalZipSize: 0,
   });
 
   const latestProps = useRef({});
@@ -270,7 +272,7 @@ export default function useCopy({
         case "copy_progress":
           setCopyProgress((prev) => ({
             ...prev,
-            currentFile: truncatePath(data.file, 60),
+            currentFile: data.file,
           }));
           break;
         case "scan_complete":
@@ -283,13 +285,13 @@ export default function useCopy({
         case "progress":
           setCopyProgress((prev) => ({
             ...prev,
-            currentFile: data.currentFile
-              ? truncatePath(data.currentFile, 60)
-              : prev.currentFile,
+            currentFile: data.currentFile ? data.currentFile : prev.currentFile,
             copied: data.copied,
             currentFileBytesProcessed: data.currentFileBytesProcessed,
             currentFileSize: data.currentFileSize,
             lastUpdateTime: Date.now(),
+            tempZipSize: data.tempZipSize || 0,
+            originalZipSize: data.originalZipSize || 0,
           }));
           break;
         case "overwrite_prompt":

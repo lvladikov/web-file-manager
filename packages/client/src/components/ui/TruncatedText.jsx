@@ -29,7 +29,7 @@ const TruncatedText = ({ text, className, onClick }) => {
         1, // Ensure at least 1 character is visible at the start
         Math.floor(charsToFit * 0.4)
       );
-      const endSliceLength = charsToFit - startSliceLength;
+      const endSliceLength = charsToFit - startSliceLength - 1; // extra 1 character safety clip at the end
 
       if (endSliceLength <= 0) {
         // Fallback for extremely narrow containers

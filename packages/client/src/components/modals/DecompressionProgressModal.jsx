@@ -95,28 +95,27 @@ const DecompressionProgressModal = ({
             </div>
 
             {currentFileTotalSize > 0 && (
-              <div className="text-gray-300 space-y-2 mb-6">
-                <div className="mt-4">
-                  <p className="text-sm">Current File Progress:</p>
+              <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
+                <p className="text-sm">Current File Progress:</p>
+                <span title={currentFile}>
                   <TruncatedText
                     text={currentFile || "Scanning..."}
                     className="font-mono text-gray-300 mb-2"
-                    title={currentFile}
                   />
-                  <div className="w-full bg-gray-700 rounded-full h-2.5 mt-2">
-                    <div
-                      className="bg-blue-400 h-2.5 rounded-full"
-                      style={{ width: `${currentFileProgressPercentage}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between items-center text-sm text-gray-400 mt-1">
-                    <span>{currentFileProgressPercentage.toFixed(1)}%</span>
-                    <span>
-                      {formatBytes(currentFileBytesProcessed)} /{" "}
-                      {formatBytes(currentFileTotalSize)} (
-                      {formatSpeed(instantaneousSpeed)})
-                    </span>
-                  </div>
+                </span>
+                <div className="w-full bg-gray-700 rounded-full h-2.5 mt-2">
+                  <div
+                    className="bg-blue-400 h-2.5 rounded-full"
+                    style={{ width: `${currentFileProgressPercentage}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between items-center text-sm text-gray-400 mt-1">
+                  <span>{currentFileProgressPercentage.toFixed(1)}%</span>
+                  <span>
+                    {formatBytes(currentFileBytesProcessed)} /{" "}
+                    {formatBytes(currentFileTotalSize)} (
+                    {formatSpeed(instantaneousSpeed)})
+                  </span>
                 </div>
               </div>
             )}

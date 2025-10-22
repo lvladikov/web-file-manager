@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { decompressFiles, cancelDecompress } from "../lib/api";
-import { buildFullPath, truncatePath } from "../lib/utils";
+import { buildFullPath } from "../lib/utils";
 
 const useDecompress = ({
   activePanel,
@@ -10,10 +10,7 @@ const useDecompress = ({
   handleRefreshPanel,
   wsRef,
   setActivePanel,
-  setSelections,
-  setFocusedItem,
   panelRefs,
-  overwritePrompt,
   setOverwritePrompt,
   filter,
   filteredItems,
@@ -102,7 +99,7 @@ const useDecompress = ({
               case "progress":
                 setDecompressProgress((prev) => ({
                   ...prev,
-                  currentFile: truncatePath(data.currentFile, 60),
+                  currentFile: data.currentFile,
                   totalBytes: data.total,
                   processedBytes: data.processed,
                   currentFileTotalSize: data.currentFileTotalSize,

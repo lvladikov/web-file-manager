@@ -138,6 +138,11 @@ export function initializeWebSocketServer(
                   ? zipDestMatch[2].substring(1)
                   : zipDestMatch[2];
 
+                const originalZipSize = (await fse.pathExists(zipFilePath))
+                  ? (await fse.stat(zipFilePath)).size
+                  : 0;
+                job.originalZipSize = originalZipSize; // Initialize originalZipSize
+
                 let totalNewBytes = 0;
                 const filesToProcess = [];
                 const emptyDirsToAdd = [];
@@ -174,20 +179,26 @@ export function initializeWebSocketServer(
                 job.status = "copying";
                 job.lastProcessedBytes = 0;
                 job.lastUpdateTime = Date.now();
+                job.tempZipSize = 0; // Initialize tempZipSize
 
                 ws.send(
                   JSON.stringify({ type: "scan_complete", total: job.total })
                 );
 
-                progressInterval = setInterval(() => {
+                progressInterval = setInterval(async () => {
                   if (ws.readyState === 1) {
                     const currentTime = Date.now();
-                    const timeElapsed = Math.max(1, (currentTime - job.lastUpdateTime)); // Ensure timeElapsed is at least 1ms to avoid division by zero
+                    const timeElapsed = Math.max(1, (currentTime - job.lastUpdateTime));
                     const bytesSinceLastUpdate = job.copied - job.lastProcessedBytes;
                     const instantaneousSpeed = (bytesSinceLastUpdate / timeElapsed) * 1000; // Convert to bytes/second
 
-                    // Ensure instantaneousSpeed is a valid number, otherwise default to 0
                     const displaySpeed = isNaN(instantaneousSpeed) || !isFinite(instantaneousSpeed) ? 0 : instantaneousSpeed;
+
+                    // Get current size of the temporary zip file
+                    if (job.tempZipPath && await fse.pathExists(job.tempZipPath)) {
+                      const stats = await fse.stat(job.tempZipPath);
+                      job.tempZipSize = stats.size;
+                    }
 
                     ws.send(
                       JSON.stringify({
@@ -199,6 +210,8 @@ export function initializeWebSocketServer(
                           job.currentFileBytesProcessed,
                         currentFileSize: job.currentFileTotalSize,
                         instantaneousSpeed: displaySpeed,
+                        tempZipSize: job.tempZipSize,
+                        originalZipSize: job.originalZipSize, // Add originalZipSize
                       })
                     );
 
@@ -637,8 +650,10 @@ export function initializeWebSocketServer(
 
               job.lastProcessedBytes = 0;
               job.lastUpdateTime = Date.now();
+              job.tempZipSize = 0; // Initialize tempZipSize
+              job.originalZipSize = job.originalZipSize || 0; // Ensure originalZipSize is initialized
 
-              progressInterval = setInterval(() => {
+              progressInterval = setInterval(async () => {
                 if (job.ws && job.ws.readyState === 1) {
                   const currentTime = Date.now();
                   const timeElapsed = (currentTime - job.lastUpdateTime) / 1000;
@@ -646,6 +661,12 @@ export function initializeWebSocketServer(
                     job.processedBytes - job.lastProcessedBytes;
                   const instantaneousSpeed =
                     timeElapsed > 0 ? bytesSinceLastUpdate / timeElapsed : 0;
+
+                  // Get current size of the temporary zip file
+                  if (job.tempZipPath && await fse.pathExists(job.tempZipPath)) {
+                    const stats = await fse.stat(job.tempZipPath);
+                    job.tempZipSize = stats.size;
+                  }
 
                   job.ws.send(
                     JSON.stringify({
@@ -656,6 +677,8 @@ export function initializeWebSocketServer(
                       currentFileTotalSize: job.currentFileTotalSize,
                       currentFileBytesProcessed: job.currentFileBytesProcessed,
                       instantaneousSpeed: instantaneousSpeed,
+                      tempZipSize: job.tempZipSize,
+                      originalZipSize: job.originalZipSize,
                     })
                   );
 

@@ -17,6 +17,7 @@ export default function useZipUpdate() {
     currentFileBytesProcessed: 0,
     currentFileTotalSize: 0,
     instantaneousSpeed: 0,
+    tempZipSize: 0,
   });
 
   const wsRef = useRef(null);
@@ -52,10 +53,6 @@ export default function useZipUpdate() {
         itemType,
         operationDescription,
         onCancel: () => {
-          console.log(
-            "[useZipUpdate] onCancel called. Current jobIdRef.current:",
-            jobIdRef.current
-          );
           cancelZipUpdate(jobIdRef.current);
         },
         jobId: null, // jobId will be set later
@@ -71,14 +68,14 @@ export default function useZipUpdate() {
   );
 
   const connectZipUpdateWebSocket = useCallback(
-    (jobId) => {
-      if (!jobId) return;
+    (jobId, jobType) => {
+      if (!jobId || !jobType) return;
 
       jobIdRef.current = jobId;
 
       // Establish WebSocket connection
       const ws = new WebSocket(
-        `ws://${window.location.host}/ws/zip-operations?jobId=${jobId}&type=create-folder-in-zip`
+        `ws://${window.location.host}/ws/zip-operations?jobId=${jobId}&type=${jobType}`
       );
       wsRef.current = ws;
 
@@ -92,6 +89,7 @@ export default function useZipUpdate() {
                 total: data.totalSize,
                 originalZipSize: data.originalZipSize,
                 isVisible: true,
+                itemType: prev.itemType,
               };
             case "progress":
               return {
@@ -99,9 +97,12 @@ export default function useZipUpdate() {
                 progress: data.processed,
                 total: data.total,
                 currentFile: data.currentFile,
-                currentFileBytesProcessed: 0,
-                currentFileTotalSize: 0,
-                instantaneousSpeed: 0,
+                currentFileBytesProcessed: data.currentFileBytesProcessed,
+                currentFileTotalSize: data.currentFileTotalSize,
+                instantaneousSpeed: data.instantaneousSpeed,
+                tempZipSize: data.tempZipSize || 0,
+                originalZipSize: data.originalZipSize || 0,
+                itemType: prev.itemType,
               };
             case "complete":
               ws.close();

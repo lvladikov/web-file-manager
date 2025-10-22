@@ -18,6 +18,8 @@ const ProgressModal = ({
   isMove,
   isDuplicate,
   isZipAdd,
+  tempZipSize,
+  originalZipSize,
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
@@ -73,12 +75,31 @@ const ProgressModal = ({
           </h3>
         </div>
 
-        {isZipAdd && (
-          <p className="text-yellow-400 text-sm mb-4">
-            Note: Speed may appear lower because the ZIP file is being rebuilt
-            in the background.
-          </p>
-        )}
+        {/* Display rebuilt ZIP size if it's a zip-add operation */}
+        {isZipAdd &&
+          status === "copying" &&
+          (tempZipSize > 0 || originalZipSize > 0) && (
+            <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
+              {/* Indeterminate Progress Bar */}
+              <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2 overflow-hidden relative">
+                <div className="absolute inset-0 bg-sky-500 rounded-full animate-pulse-indeterminate"></div>
+              </div>
+              <div className="flex justify-between text-sm">
+                <div>
+                  <p>Original Zip Size:</p>
+                  <p className="font-bold text-sky-300">
+                    {formatBytes(originalZipSize)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p>Updated Zip Size:</p>
+                  <p className="font-bold text-sky-300">
+                    {formatBytes(tempZipSize)}
+                  </p>
+                </div>{" "}
+              </div>{" "}
+            </div>
+          )}
 
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
           <p className="text-sm">
@@ -107,30 +128,37 @@ const ProgressModal = ({
 
         {/* The progress bar is only shown during the copying phase */}
         {status === "copying" && currentFileSize > 0 && (
-          <div className="text-gray-300 space-y-2 mb-6">
-            <div className="mt-4">
-              <p className="text-sm">Current File Progress:</p>
+          <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
+            <p className="text-sm">Current File Progress:</p>
+            <span title={currentFile}>
               <TruncatedText
                 text={currentFile}
                 className="font-mono text-gray-300 mb-2"
               />
-              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-blue-400 h-3 rounded-full"
-                  style={{
-                    width: `${currentFileProgressPercentage}%`,
-                    transition: "width 0.1s linear",
-                  }}
-                ></div>
-              </div>
-              <p className="flex justify-between items-center text-sm text-gray-400 mt-1">
-                <span>{currentFileProgressPercentage.toFixed(1)}%</span>
-                <span>
-                  {formatBytes(currentFileBytesProcessed)} /{" "}
-                  {formatBytes(currentFileSize)} ({calculateSpeed()})
-                </span>
-              </p>
+            </span>
+            <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-blue-400 h-3 rounded-full"
+                style={{
+                  width: `${currentFileProgressPercentage}%`,
+                  transition: "width 0.1s linear",
+                }}
+              ></div>
             </div>
+            <p className="flex justify-between items-center text-sm text-gray-400 mt-1">
+              <span>{currentFileProgressPercentage.toFixed(1)}%</span>
+              <span>
+                {formatBytes(currentFileBytesProcessed)} /{" "}
+                {formatBytes(currentFileSize)} ({calculateSpeed()})
+              </span>
+            </p>
+
+            {isZipAdd && (
+              <p className="text-yellow-400 text-sm mb-4 mt-4">
+                Note: Speed may appear slower because the ZIP file is being
+                rebuilt in the background.
+              </p>
+            )}
           </div>
         )}
 

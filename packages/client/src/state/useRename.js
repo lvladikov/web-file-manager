@@ -46,21 +46,27 @@ export default function useRename({
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
 
-        const lastSlashIndex = oldFilePathInZip.lastIndexOf('/');
-        const dirPath = lastSlashIndex === -1 ? '' : oldFilePathInZip.substring(0, lastSlashIndex);
+        const lastSlashIndex = oldFilePathInZip.lastIndexOf("/");
+        const dirPath =
+          lastSlashIndex === -1
+            ? ""
+            : oldFilePathInZip.substring(0, lastSlashIndex);
         const newFilePathInZip = dirPath ? `${dirPath}/${value}` : value;
 
+        const item = panel.items.find((i) => i.name === name);
+        const type = item.type === "folder" ? "folder" : "file";
         startZipUpdate({
           title: "Renaming item in zip...",
           zipFilePath,
           filePathInZip: newFilePathInZip,
+          itemType: type,
         });
       }
 
       const response = await renameItem(oldPath, value);
 
       if (zipPathMatch) {
-        connectZipUpdateWebSocket(response.jobId);
+        connectZipUpdateWebSocket(response.jobId, "rename-in-zip");
       } else {
         await handleNavigate(panelId, panel.path, "");
         setFocusedItem((prev) => ({ ...prev, [panelId]: value }));

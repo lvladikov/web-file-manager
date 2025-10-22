@@ -101,7 +101,7 @@ export default function useDelete({
       const response = await deleteItem(pathsToDelete);
 
       if (zipPathMatch) {
-        connectZipUpdateWebSocket(response.jobId);
+        connectZipUpdateWebSocket(response.jobId, "delete-in-zip");
       } else {
         // For non-zip operations, refresh panels immediately
         const otherPanelId = activePanel === "left" ? "right" : "left";

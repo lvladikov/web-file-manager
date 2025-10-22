@@ -12,7 +12,7 @@ export default function useNewFolder({
   setError,
   startZipUpdate,
   hideZipUpdate,
-  connectZipUpdateWebSocket, // Back in destructured object
+  connectZipUpdateWebSocket,
 }) {
   const [creatingFolder, setCreatingFolder] = useState({
     panelId: null,
@@ -75,7 +75,7 @@ export default function useNewFolder({
 
       if (zipPathMatch) {
         // Now that we have the jobId, connect the WebSocket
-        connectZipUpdateWebSocket(jobId);
+        connectZipUpdateWebSocket(jobId, "create-folder-in-zip");
       }
 
       handleCancelNewFolder(); // Reset state before navigation

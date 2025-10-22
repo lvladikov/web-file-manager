@@ -1126,22 +1126,39 @@ export default function createFileRoutes(
     try {
       const zipPathMatch = matchZipPath(filePath);
       if (zipPathMatch) {
-        // Use client-provided jobId or generate if not provided (should always be provided now)
         const currentJobId = jobId || crypto.randomUUID();
         const abortController = new AbortController();
-        activeZipOperations.set(currentJobId, abortController);
+        const job = {
+          id: currentJobId,
+          status: "pending",
+          ws: null,
+          controller: abortController,
+          type: "update-file-in-zip",
+          zipFilePath: null,
+          filePathInZip: null,
+          originalZipSize: 0,
+          totalBytes: 0,
+          processedBytes: 0,
+          currentFile: "",
+          currentFileTotalSize: 0,
+          currentFileBytesProcessed: 0,
+        };
+        activeZipOperations.set(currentJobId, job);
 
         try {
           const zipFilePath = zipPathMatch[1];
           const filePathInZip = zipPathMatch[2].startsWith("/")
             ? zipPathMatch[2].substring(1)
             : zipPathMatch[2];
-          await updateFileInZip(
-            zipFilePath,
-            filePathInZip,
-            content,
-            abortController.signal
-          );
+
+          job.zipFilePath = zipFilePath;
+          job.filePathInZip = filePathInZip;
+          job.originalZipSize = (await fse.pathExists(zipFilePath))
+            ? (await fse.stat(zipFilePath)).size
+            : 0;
+
+          await updateFileInZip(zipFilePath, filePathInZip, content, job, abortController.signal);
+
           res
             .status(200)
             .json({ message: "File saved successfully.", jobId: currentJobId });

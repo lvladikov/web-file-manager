@@ -89,7 +89,7 @@ export default function useNewFile({
       jobId = response.jobId;
 
       if (zipPathMatch) {
-        connectZipUpdateWebSocket(jobId);
+        connectZipUpdateWebSocket(jobId, "create-file-in-zip");
       }
 
       handleCancelNewFile(); // Reset state before navigation

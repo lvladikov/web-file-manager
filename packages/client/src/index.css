@@ -40,3 +40,19 @@ html {
   scrollbar-width: thin;
   scrollbar-color: #4b5563 #1f2937; /* thumb color track color */
 }
+
+@keyframes pulse-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-pulse-indeterminate {
+  animation: pulse-indeterminate 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
