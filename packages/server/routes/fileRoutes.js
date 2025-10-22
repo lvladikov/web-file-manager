@@ -1191,6 +1191,7 @@ export default function createFileRoutes(
       basePath,
       isAbsolute,
       includeSubfolders,
+      controller: new AbortController(),
     };
     activeCopyPathsJobs.set(jobId, job);
 

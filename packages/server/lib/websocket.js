@@ -25,10 +25,10 @@ import {
   getZipFileStream,
   addFilesToZip,
   matchZipPath,
+  getAllZipEntriesRecursive,
   extractFilesFromZip,
   getDirTotalSizeInZip,
 } from "./utils.js";
-
 // Keep track of clients that are watching for file changes
 const watchingClients = new Map();
 
@@ -425,7 +425,9 @@ export function initializeWebSocketServer(
                 job.totalSize = totalSize;
 
                 if (ws.readyState === 1) {
-                  ws.send(JSON.stringify({ type: "complete", size: totalSize }));
+                  ws.send(
+                    JSON.stringify({ type: "complete", size: totalSize })
+                  );
                   ws.close(1000, "Job Completed");
                 }
               } else {
@@ -444,7 +446,9 @@ export function initializeWebSocketServer(
                 job.sizeSoFar = 0;
                 await getDirSizeWithProgress(job.folderPath, job);
                 if (ws.readyState === 1) {
-                  ws.send(JSON.stringify({ type: "complete", size: totalSize }));
+                  ws.send(
+                    JSON.stringify({ type: "complete", size: totalSize })
+                  );
                   ws.close(1000, "Job Completed");
                 }
               }
@@ -586,13 +590,18 @@ export function initializeWebSocketServer(
           })();
         }
 
-        if (jobType === "rename-in-zip" || jobType === "delete-in-zip" || jobType === "create-file-in-zip" || jobType === "create-folder-in-zip") {
+        if (
+          jobType === "rename-in-zip" ||
+          jobType === "delete-in-zip" ||
+          jobType === "create-file-in-zip" ||
+          jobType === "create-folder-in-zip"
+        ) {
           (async () => {
             let progressInterval;
             try {
               job.status = "running";
               // Wait for the WebSocket to be connected
-              await new Promise(resolve => {
+              await new Promise((resolve) => {
                 if (job.ws && job.ws.readyState === 1) {
                   resolve();
                 } else {
@@ -645,8 +654,12 @@ export function initializeWebSocketServer(
               // This WebSocket handler is just for progress updates.
               // Await the completion promise from fileRoutes.js
               job.controller.signal.addEventListener("abort", () => {
-                console.log("[websocket] Abort signal received for job:", job.id);
-                if (job.rejectCompletion) { // Ensure rejectCompletion exists
+                console.log(
+                  "[websocket] Abort signal received for job:",
+                  job.id
+                );
+                if (job.rejectCompletion) {
+                  // Ensure rejectCompletion exists
                   job.rejectCompletion(new Error("Zip operation cancelled."));
                 }
               });
@@ -669,7 +682,11 @@ export function initializeWebSocketServer(
               clearInterval(progressInterval);
               // The job is deleted by fileRoutes.js after a timeout for non-zip operations
               // For zip operations, we delete it here after completion/failure
-              if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
+              if (
+                job.status === "completed" ||
+                job.status === "failed" ||
+                job.status === "cancelled"
+              ) {
                 setTimeout(() => activeZipOperations.delete(jobId), 5000);
               }
             }
@@ -1132,45 +1149,59 @@ export function initializeWebSocketServer(
 
         if (jobType === "copy-paths") {
           (async () => {
-            const allPaths = [];
-            const visited = new Set();
-            let count = 0;
-
-            const getPathsRecursive = async (dir) => {
-              if (visited.has(dir)) return;
-              visited.add(dir);
-
-              try {
-                const files = await fse.readdir(dir, { withFileTypes: true });
-                for (const file of files) {
-                  const fullPath = path.join(dir, file.name);
-                  allPaths.push(fullPath);
-                  count++;
-                  if (ws.readyState === 1) {
-                    ws.send(
-                      JSON.stringify({
-                        type: "progress",
-                        path: fullPath,
-                        count,
-                      })
-                    );
-                  }
-                  if (file.isDirectory()) {
-                    await getPathsRecursive(fullPath);
-                  }
-                }
-              } catch (error) {
-                console.error(`Could not read directory: ${dir}`, error);
-              }
-            };
-
             try {
+              const allPaths = [];
+              let count = 0;
+              const visited = new Set(); // Keep track of visited directories for FS recursion
+
+              // Helper for filesystem recursion
+              const getPathsRecursiveFS = async (dir) => {
+                if (visited.has(dir)) return;
+                visited.add(dir);
+                try {
+                  const files = await fse.readdir(dir, { withFileTypes: true });
+                  for (const file of files) {
+                    const fullPath = path.join(dir, file.name);
+                    allPaths.push(fullPath);
+                    count++;
+                    if (ws.readyState === 1) {
+                      ws.send(
+                        JSON.stringify({
+                          type: "progress",
+                          path: fullPath,
+                          count,
+                        })
+                      );
+                    }
+                    if (file.isDirectory()) {
+                      await getPathsRecursiveFS(fullPath);
+                    }
+                  }
+                } catch (error) {
+                  console.error(`Could not read directory: ${dir}`, error);
+                  ws.send(
+                    JSON.stringify({
+                      type: "error",
+                      message: `Could not read directory: ${error}`,
+                    })
+                  );
+                }
+              };
+
               if (ws.readyState === 1) {
                 ws.send(JSON.stringify({ type: "start" }));
               }
 
+              const zipPathMatch = matchZipPath(job.basePath);
+
               for (const item of job.items) {
-                const fullPath = path.join(job.basePath, item.name);
+                // Construct the full path differently depending on whether it's in a zip or not
+                const fullPath = zipPathMatch
+                  ? `${job.basePath}${job.basePath.endsWith("/") ? "" : "/"}${
+                      item.name
+                    }` // Use posix style for zip paths
+                  : path.join(job.basePath, item.name); // Use system path for FS paths
+
                 allPaths.push(fullPath);
                 count++;
                 if (ws.readyState === 1) {
@@ -1178,14 +1209,51 @@ export function initializeWebSocketServer(
                     JSON.stringify({ type: "progress", path: fullPath, count })
                   );
                 }
+
                 if (job.includeSubfolders && item.type === "folder") {
-                  await getPathsRecursive(fullPath);
+                  if (zipPathMatch) {
+                    // Use zip-specific recursive function
+                    const zipFilePath = zipPathMatch[1];
+                    // Ensure pathInZip starts correctly relative to the zip root
+                    const pathInZip = fullPath.substring(
+                      zipFilePath.length + 1
+                    );
+                    await getAllZipEntriesRecursive(
+                      zipFilePath,
+                      pathInZip,
+                      job,
+                      allPaths,
+                      (newCount) => {
+                        count = newCount;
+                      }
+                    );
+                  } else {
+                    // Use filesystem recursive function
+                    await getPathsRecursiveFS(fullPath);
+                  }
                 }
               }
 
+              // Formatting happens *after* collecting all paths
               const formattedPaths = job.isAbsolute
                 ? allPaths
-                : allPaths.map((p) => path.relative(job.basePath, p));
+                : allPaths.map((p) => {
+                    // Adjust relative path calculation for zip entries
+                    if (zipPathMatch && p.startsWith(job.basePath)) {
+                      // Make relative to the *initial base path within the zip*
+                      const zipBaseDirInZip = job.basePath.substring(
+                        zipPathMatch[1].length + 1
+                      );
+                      const itemPathInZip = p.substring(
+                        zipPathMatch[1].length + 1
+                      );
+                      return path.posix.relative(
+                        zipBaseDirInZip,
+                        itemPathInZip
+                      );
+                    }
+                    return path.relative(job.basePath, p);
+                  });
 
               if (ws.readyState === 1) {
                 ws.send(
@@ -1194,13 +1262,13 @@ export function initializeWebSocketServer(
                 ws.close(1000, "Job Completed");
               }
             } catch (error) {
-              console.error(`Copy paths job ${jobId} failed:`, error.message);
-              if (ws.readyState === 1) {
-                ws.send(
-                  JSON.stringify({ type: "error", message: error.message })
-                );
-                ws.close(1000, `Job finished with status: error`);
-              }
+              if (ws.readyState !== 1) return;
+              if (job.status !== "cancelled") job.status = "failed";
+              console.error(`Copy paths job ${jobId} failed:`, error);
+              ws.send(
+                JSON.stringify({ type: "error", message: error.message })
+              );
+              ws.close(1000, `Job finished with status: error`);
             } finally {
               setTimeout(() => activeCopyPathsJobs.delete(jobId), 5000);
             }

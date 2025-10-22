@@ -1494,6 +1494,66 @@ const extractFilesFromZip = async (job) => {
   }
 };
 
+const getAllZipEntriesRecursive = async (
+  zipFilePath,
+  folderPathInZip,
+  job,
+  allPaths,
+  updateCount
+) => {
+  let zipfile;
+  try {
+    zipfile = await yauzl.open(zipFilePath);
+    // Ensure the folder path always ends with '/' for correct prefix matching
+    const prefix = folderPathInZip.endsWith("/")
+      ? folderPathInZip
+      : `${folderPathInZip}/`;
+
+    for await (const entry of zipfile) {
+      // Check for cancellation signal
+      if (job.controller.signal.aborted)
+        throw new Error("Copy paths cancelled");
+
+      // Check if the entry is *inside* the target folder, but not the folder entry itself
+      if (entry.filename.startsWith(prefix) && entry.filename !== prefix) {
+        // Construct the full path including the zip file path (using POSIX separator)
+        const fullZipEntryPath = `${zipFilePath}/${entry.filename}`;
+        allPaths.push(fullZipEntryPath);
+        updateCount(allPaths.length); // Update count via callback
+
+        // Send progress update via WebSocket
+        if (job.ws && job.ws.readyState === 1) {
+          job.ws.send(
+            JSON.stringify({
+              type: "progress",
+              path: fullZipEntryPath,
+              count: allPaths.length,
+            })
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error(
+      `Error recursively reading zip directory ${folderPathInZip} in ${zipFilePath}:`,
+      error
+    );
+    // Optionally send an error message via WebSocket
+    if (job.ws && job.ws.readyState === 1) {
+      job.ws.send(
+        JSON.stringify({
+          type: "error",
+          message: `Error reading zip folder: ${error.message}`,
+        })
+      );
+    }
+    throw error;
+  } finally {
+    // Ensure the zip file is closed even if errors occur
+    if (zipfile) await zipfile.close();
+  }
+};
+
 export {
   getFileType,
   getFilesInZip,
@@ -1518,4 +1578,5 @@ export {
   addFilesToZip,
   extractFilesFromZip,
   getDirTotalSizeInZip,
+  getAllZipEntriesRecursive,
 };
