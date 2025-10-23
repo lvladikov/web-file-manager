@@ -802,6 +802,7 @@ const updateFileInZip = async (
     const output = fse.createWriteStream(tempZipPath);
     const archive = archiver("zip", {
       zlib: { level: 9 },
+      forceZip64: true,
     });
 
     const originalZipSize = (await fse.pathExists(zipFilePath))
@@ -934,7 +935,7 @@ const createFileInZip = async (zipFilePath, newFilePathInZip, job = null) => {
     const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
     if (job) job.tempZipPath = tempZipPath;
     const output = fse.createWriteStream(tempZipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = archiver("zip", { zlib: { level: 9 }, forceZip64: true });
     archive.pipe(output);
 
     const archiveFinishedPromise = new Promise((resolve, reject) => {
@@ -1024,7 +1025,7 @@ const createFolderInZip = async (
     const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
     if (job) job.tempZipPath = tempZipPath;
     const output = fse.createWriteStream(tempZipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = archiver("zip", { zlib: { level: 9 }, forceZip64: true });
     archive.pipe(output);
 
     const archiveFinishedPromise = new Promise((resolve, reject) => {
@@ -1141,6 +1142,7 @@ const deleteFromZip = async (zipFilePath, pathsInZip, job = null) => {
   const output = fse.createWriteStream(tempZipPath);
   const archive = archiver("zip", {
     zlib: { level: 9 },
+    forceZip64: true,
   });
   archive.pipe(output);
 
@@ -1210,6 +1212,7 @@ const renameInZip = async (
   const output = fse.createWriteStream(tempZipPath);
   const archive = archiver("zip", {
     zlib: { level: 9 },
+    forceZip64: true,
   });
   archive.pipe(output);
 
@@ -1458,6 +1461,7 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
     output = fse.createWriteStream(tempZipPath);
     archive = archiver("zip", {
       zlib: { level: 9 },
+      forceZip64: true,
     });
 
     archive.pipe(output);
@@ -1475,12 +1479,9 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
         // This is an original entry that was kept
         const originalYauzlEntry = entryInfo.data;
         const stream = await originalYauzlEntry.openReadStream();
-        const chunks = [];
-        for await (const chunk of stream) {
-          chunks.push(chunk);
-        }
-        const buffer = Buffer.concat(chunks);
-        archive.append(buffer, { name: entryName });
+        // By piping the stream directly, we avoid buffering the entire file in memory,
+        // which is critical for large files and makes the process consistent with how new files are added.
+        archive.append(stream, { name: entryName });
       } else {
         // This is a new entry (either truly new or overwriting an original)
         const newItemData = entryInfo.data;
@@ -1488,7 +1489,7 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
           archive.append(null, { name: entryName });
         } else {
           const { fullPath, stats } = newItemData.data; // newItemData.data is the FileInfo object
-          job.currentFile = fullPath;
+          job.currentFile = entryName;
           job.currentFileTotalSize = stats.size;
           job.currentFileBytesProcessed = 0;
 
@@ -1497,6 +1498,7 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
             job.copied += chunk.length;
             job.currentFileBytesProcessed += chunk.length;
           });
+
           archive.append(sourceStream, { name: entryName, stats });
 
           await new Promise((resolve, reject) => {
@@ -1580,13 +1582,10 @@ const getDirTotalSizeInZip = async (zipFilePath, dirPathInZip, job) => {
 };
 
 const extractFilesFromZip = async (job) => {
-  const getCommonBasePath = (entriesToExtract) => {
-    if (entriesToExtract.length === 0) {
+  const getCommonBasePath = (filenames) => {
+    if (filenames.length === 0) {
       return "";
     }
-
-    // Extract just the filenames for common path calculation
-    const filenames = entriesToExtract.map((e) => e.filename);
 
     // If there's only one item, the base path to strip is its parent directory
     if (filenames.length === 1) {
@@ -1621,22 +1620,23 @@ const extractFilesFromZip = async (job) => {
     return commonPrefix;
   };
 
-  // Calculate the common base path to strip from all selected entries
-  const commonBasePathToStrip = getCommonBasePath(job.entriesToExtract);
+  let commonBasePathToStrip = "";
+  if (!job.preserveBasePath) {
+    commonBasePathToStrip = getCommonBasePath(job.filenamesToExtract || []);
+  }
 
   const { signal } = job.controller;
   const zipfile = await yauzl.open(job.zipFilePath);
   job.zipfile = zipfile;
 
+  const filenamesToExtractSet = new Set(job.filenamesToExtract || []);
+
   for await (const entry of zipfile) {
     if (signal.aborted) throw new Error("Zip extract cancelled.");
 
-    const isEntrySelected = job.entriesToExtract.some(
-      (e) =>
-        e.filename === entry.filename ||
-        entry.filename.startsWith(e.filename + "/")
-    );
-    if (!isEntrySelected) continue;
+    if (!filenamesToExtractSet.has(entry.filename)) {
+      continue;
+    }
 
     job.currentFile = entry.filename;
     job.currentFileTotalSize = entry.uncompressedSize;
@@ -1765,53 +1765,115 @@ const getAllFilesAndDirsRecursive = async (dirPath, basePath = dirPath) => {
   return { files: allFiles, dirs: allDirs };
 };
 
-const duplicateInZip = async (
-  zipFilePath,
-  sourcePathInZip,
-  destinationPathInZip,
-  job
-) => {
-  const signal = job?.controller?.signal;
-  if (signal && signal.aborted) {
-    throw new Error("Zip duplication cancelled.");
-  }
-  console.log(
-    `[Job ${job?.id}] Duplicating '${sourcePathInZip}' to '${destinationPathInZip}' in '${zipFilePath}'`
+const duplicateInZip = async (job) => {
+  const { zipFilePath, items, controller, ws } = job;
+  const { signal } = controller;
+
+  // Create a unique temporary directory for the duplication process
+  const tempDir = await fse.mkdtemp(
+    path.join(os.tmpdir(), `duplicate-zip-${job.id}-`)
   );
 
   try {
-    // 1. Get a stream for the source file content within the zip
-    const fileStream = await getZipFileStream(zipFilePath, sourcePathInZip);
-    console.log(
-      `[Job ${job?.id}] Obtained stream for source: ${sourcePathInZip}`
-    );
+    // STAGE 1: Extract items from the zip to the temporary directory
+    if (ws && ws.readyState === 1) {
+      ws.send(
+        JSON.stringify({
+          type: "progress",
+          stage: "extracting",
+          message: "Extracting items to a temporary location...",
+        })
+      );
+    }
 
-    // If fileStream itself has a 'stat' property (like fs streams do), use it.
-    // Otherwise, we might need a separate step to get the source entry size if needed for progress.
-    // For now, updateFileInZip's progress reporting might be sufficient.
-    const sourceSize = fileStream.uncompressedSize || 0; // Attempt to get size if available on the stream object (yauzl streams might have this)
-    job.currentFileTotalSize = sourceSize;
-    job.currentFileBytesProcessed = 0;
+    const zipfile = await yauzl.open(zipFilePath);
+    const filenamesToExtract = new Set();
+    const sourcePathsInZip = items
+      .map((item) => {
+        const match = matchZipPath(item.sourcePath);
+        return match ? match[2].substring(1) : null;
+      })
+      .filter((p) => p !== null);
 
-    // 2. Add the content stream back to the *same* zip under the new name
-    // Pass the existing job object for progress tracking within updateFileInZip
-    await updateFileInZip(
-      zipFilePath,
-      destinationPathInZip,
-      fileStream,
-      job,
-      signal
-    );
-    console.log(
-      `[Job ${job?.id}] Successfully duplicated to: ${destinationPathInZip}`
-    );
-  } catch (error) {
-    console.error(
-      `[Job ${job?.id}] Error duplicating '${sourcePathInZip}' to '${destinationPathInZip}':`,
-      error
-    );
-    // Ensure the stream is closed/destroyed if an error occurs before updateFileInZip finishes
-    throw error; // Re-throw the error to be caught by the caller (fileRoutes/websocket)
+    for await (const entry of zipfile) {
+      if (
+        sourcePathsInZip.some(
+          (p) => entry.filename === p || entry.filename.startsWith(`${p}/`)
+        )
+      ) {
+        filenamesToExtract.add(entry.filename);
+      }
+    }
+    await zipfile.close();
+
+    job.destination = tempDir;
+    job.filenamesToExtract = Array.from(filenamesToExtract); // Pass filenames instead of entry objects
+    job.preserveBasePath = true; // Preserve directory structure for duplication
+    await extractFilesFromZip(job);
+
+    if (signal.aborted) throw new Error("Zip duplication cancelled.");
+
+    // STAGE 2: Rename the extracted items in the temporary directory
+    if (ws && ws.readyState === 1) {
+      ws.send(
+        JSON.stringify({
+          type: "progress",
+          stage: "renaming",
+          message: "Renaming extracted items...",
+        })
+      );
+    }
+
+    for (const item of items) {
+      const zipPathParts = matchZipPath(item.sourcePath);
+      if (!zipPathParts) {
+        throw new Error(
+          `Invalid source path for in-zip duplication: ${item.sourcePath}`
+        );
+      }
+      const sourcePathInZip = zipPathParts[2].substring(1);
+      const originalExtractedPath = path.join(tempDir, sourcePathInZip);
+      const newPathInTemp = path.join(
+        path.dirname(originalExtractedPath),
+        item.newName
+      );
+      await fse.rename(originalExtractedPath, newPathInTemp);
+    }
+
+    if (signal.aborted) throw new Error("Zip duplication cancelled.");
+
+    // STAGE 3: Add the renamed items from the temp directory back to the zip
+    if (ws && ws.readyState === 1) {
+      ws.send(
+        JSON.stringify({
+          type: "progress",
+          stage: "adding",
+          message: "Adding duplicated items back to the archive...",
+        })
+      );
+    }
+
+    const { files: filesToProcess, dirs: emptyDirsToAdd } =
+      await getAllFilesAndDirsRecursive(tempDir);
+
+    // Modify the original job object for the add operation
+    job.filesToProcess = filesToProcess.map((f) => ({
+      ...f,
+      // The relativePath is already calculated, just ensure posix separators
+      relativePath: f.relativePath.replace(/\\/g, "/"),
+    }));
+    // The emptyDirsToAdd from the recursive function is already what we need:
+    // an array of relative paths with trailing slashes.
+    job.emptyDirsToAdd = emptyDirsToAdd;
+
+    // Add to the root of the zip, as the paths are relative to the temp dir root
+    // Pass the original, now-augmented, job object
+    await addFilesToZip(zipFilePath, "", job);
+
+    if (signal.aborted) throw new Error("Zip duplication cancelled.");
+  } finally {
+    // STAGE 4: Clean up the temporary directory
+    await fse.remove(tempDir);
   }
 };
 

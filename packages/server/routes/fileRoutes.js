@@ -556,6 +556,86 @@ export default function createFileRoutes(
       const zipDestMatch = matchZipPath(destination);
       const zipSourceMatch = matchZipPath(sources[0]);
 
+      if (
+        zipSourceMatch &&
+        zipDestMatch &&
+        zipSourceMatch[1] === zipDestMatch[1]
+      ) {
+        // This is an in-zip copy/duplication. The standard 'zip-add' flow can't handle this
+        // because the source is virtual. Reroute to the duplication logic.
+        const destPathInZip = zipDestMatch[2];
+        let items;
+
+        if (!destPathInZip || destPathInZip === "/") {
+          // Buggy client state detected: destination is the zip root.
+          // Ignore destination and create the new name from the source.
+          items = sources.map((sourcePath) => {
+            const sourcePathInZip = matchZipPath(sourcePath)[2];
+            const sourceName = path.posix.basename(sourcePathInZip);
+            const sourceExt = path.posix.extname(sourceName);
+            const sourceBase = path.posix.basename(sourceName, sourceExt);
+            const newName =
+              sourceExt !== ""
+                ? `${sourceBase} copy${sourceExt}`
+                : `${sourceBase} copy`;
+            return { sourcePath, newName };
+          });
+        } else {
+          // This seems to be a valid in-zip copy or duplicate request.
+          items = sources.map((sourcePath) => ({
+            sourcePath,
+            newName: path.basename(destination),
+          }));
+        }
+
+        const jobId = crypto.randomUUID();
+        const job = {
+          id: jobId,
+          status: "pending",
+          ws: null,
+          controller: new AbortController(),
+          items,
+          isZipDuplicate: true,
+          jobType: "duplicate",
+          originalZipSize: 0,
+          total: 0,
+        };
+        activeCopyJobs.set(jobId, job);
+
+        let resolveCompletion, rejectCompletion;
+        job.completionPromise = new Promise((res, rej) => {
+          resolveCompletion = res;
+          rejectCompletion = rej;
+        });
+        job.resolveCompletion = resolveCompletion;
+        job.rejectCompletion = rejectCompletion;
+
+        (async () => {
+          try {
+            const zipFilePath = zipSourceMatch[1];
+            job.zipFilePath = zipFilePath;
+            job.originalZipSize = (await fse.pathExists(zipFilePath))
+              ? (await fse.stat(zipFilePath)).size
+              : 0;
+            job.total = job.originalZipSize;
+            job.status = "copying";
+
+            await duplicateInZip(job);
+
+            job.status = "completed";
+            job.resolveCompletion();
+          } catch (error) {
+            console.error("Error during in-zip copy/duplicate process:", error);
+            job.status = job.controller.signal.aborted
+              ? "cancelled"
+              : "failed";
+            job.rejectCompletion(error);
+          }
+        })();
+
+        return res.status(202).json({ jobId });
+      }
+
       let jobType = "copy";
       const sourceZipPathMatch = matchZipPath(sources[0]);
       const sourceZipFilePath = sourceZipPathMatch
@@ -688,43 +768,9 @@ export default function createFileRoutes(
             }
             job.status = "copying"; // Move to copying state
 
-            for (const item of items) {
-              if (job.controller.signal.aborted)
-                throw new Error("Zip duplication cancelled.");
+            // The entire multi-step duplication process is now handled by the duplicateInZip function.
+            await duplicateInZip(job);
 
-              const itemZipMatch = matchZipPath(item.sourcePath);
-              if (!itemZipMatch || itemZipMatch[1] !== zipFilePath) {
-                console.warn(
-                  `Skipping item, not in the target zip: ${item.sourcePath}`
-                );
-                continue;
-              }
-              const sourcePathInZip = itemZipMatch[2].startsWith("/")
-                ? itemZipMatch[2].substring(1)
-                : itemZipMatch[2];
-              const destDirInZip = path.posix.dirname(sourcePathInZip);
-              const destinationPathInZip =
-                destDirInZip === "."
-                  ? item.newName
-                  : path.posix.join(destDirInZip, item.newName);
-
-              job.currentFile = destinationPathInZip; // Update current file for progress
-              if (job.ws && job.ws.readyState === 1) {
-                job.ws.send(
-                  JSON.stringify({
-                    type: "copy_progress",
-                    file: destinationPathInZip,
-                  })
-                );
-              }
-
-              await duplicateInZip(
-                zipFilePath,
-                sourcePathInZip,
-                destinationPathInZip,
-                job
-              );
-            }
             job.status = "completed";
             job.resolveCompletion(); // Signal success
           } catch (error) {
@@ -970,6 +1016,7 @@ export default function createFileRoutes(
     const output = fse.createWriteStream(outputPath);
     const archive = archiver("zip", {
       zlib: { level: 9 }, // Sets the compression level.
+      forceZip64: true,
     });
 
     let totalSize = 0;

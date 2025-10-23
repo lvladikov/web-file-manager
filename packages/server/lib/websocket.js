@@ -431,7 +431,7 @@ export function initializeWebSocketServer(
 
                 let zipfile = await yauzl.open(zipFilePath);
 
-                const entriesToExtract = [];
+                const filenamesToExtract = new Set();
                 let totalUncompressedSize = 0;
 
                 for await (const entry of zipfile) {
@@ -441,15 +441,16 @@ export function initializeWebSocketServer(
                       entry.filename === inZipPath ||
                       entry.filename.startsWith(inZipPath + "/")
                     ) {
-                      entriesToExtract.push(entry);
-                      totalUncompressedSize += entry.uncompressedSize;
-                      break;
+                      if (!filenamesToExtract.has(entry.filename)) {
+                        filenamesToExtract.add(entry.filename);
+                        totalUncompressedSize += entry.uncompressedSize;
+                      }
                     }
                   }
                 }
                 await zipfile.close();
 
-                job.entriesToExtract = entriesToExtract;
+                job.filenamesToExtract = Array.from(filenamesToExtract);
                 job.total = totalUncompressedSize;
                 job.copied = 0;
                 job.status = "copying";
