@@ -22,6 +22,7 @@ import {
   deleteFromZip,
   getSummaryFromZip,
   renameInZip,
+  duplicateInZip,
 } from "../lib/utils.js";
 
 export default function createFileRoutes(
@@ -601,7 +602,8 @@ export default function createFileRoutes(
 
   // Endpoint to duplicate files/folders
   router.post("/duplicate", async (req, res) => {
-    const { items } = req.body; // Expects an array of { sourcePath, newName }
+    const { items, isZipDuplicate } = req.body;
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Invalid items array." });
     }
@@ -619,8 +621,120 @@ export default function createFileRoutes(
         copied: 0,
         overwriteDecision: "prompt",
         resolveOverwrite: null,
+        isZipDuplicate: isZipDuplicate || false,
+        jobType: "duplicate", // Explicitly set job type for websocket
+        // Properties needed for zip operations, similar to saveFile
+        originalZipSize: 0,
+        processedBytes: 0,
+        currentFile: "",
+        currentFileTotalSize: 0,
+        currentFileBytesProcessed: 0,
+        tempZipPath: null,
       };
       activeDuplicateJobs.set(jobId, job);
+
+      if (isZipDuplicate) {
+        // Prepare a promise that the WebSocket handler can await
+        let resolveCompletion;
+        let rejectCompletion;
+        const completionPromise = new Promise((resolve, reject) => {
+          resolveCompletion = resolve;
+          rejectCompletion = reject;
+        });
+        job.completionPromise = completionPromise;
+        job.resolveCompletion = resolveCompletion;
+        job.rejectCompletion = rejectCompletion;
+
+        // Perform the zip duplication asynchronously
+        (async () => {
+          try {
+            // Assume all items are within the same zip for a single duplicate operation
+            const firstSourcePath = items[0]?.sourcePath;
+            if (!firstSourcePath)
+              throw new Error("No source path provided for zip duplicate.");
+
+            const zipPathMatch = matchZipPath(firstSourcePath);
+            if (!zipPathMatch)
+              throw new Error(
+                "Source path is not a valid zip path for duplication."
+              );
+
+            const zipFilePath = zipPathMatch[1];
+            job.zipFilePath = zipFilePath; // Store for potential use
+
+            // Calculate original size for progress reporting context
+            job.originalZipSize = (await fse.pathExists(zipFilePath))
+              ? (await fse.stat(zipFilePath)).size
+              : 0;
+            // Set total based on source file sizes (approximation for progress)
+            job.total = 0;
+            job.status = "scanning";
+
+            // Send initial start message if WS connects quickly (or handle in WS handler)
+            if (job.ws && job.ws.readyState === 1) {
+              job.ws.send(JSON.stringify({ type: "scan_start" }));
+            }
+
+            // Estimate total size (uncompressed) for progress bar - coarse estimate
+            // A more accurate way would be to get uncompressed sizes, but requires opening the zip first.
+            // For duplication, maybe total isn't as crucial as just seeing activity.
+            // Let's keep total simple for now, relying more on the temp zip size changes.
+            job.total = job.originalZipSize; // Use original size as a rough total indicator
+
+            if (job.ws && job.ws.readyState === 1) {
+              job.ws.send(
+                JSON.stringify({ type: "scan_complete", total: job.total })
+              );
+            }
+            job.status = "copying"; // Move to copying state
+
+            for (const item of items) {
+              if (job.controller.signal.aborted)
+                throw new Error("Zip duplication cancelled.");
+
+              const itemZipMatch = matchZipPath(item.sourcePath);
+              if (!itemZipMatch || itemZipMatch[1] !== zipFilePath) {
+                console.warn(
+                  `Skipping item, not in the target zip: ${item.sourcePath}`
+                );
+                continue;
+              }
+              const sourcePathInZip = itemZipMatch[2].startsWith("/")
+                ? itemZipMatch[2].substring(1)
+                : itemZipMatch[2];
+              const destDirInZip = path.posix.dirname(sourcePathInZip);
+              const destinationPathInZip =
+                destDirInZip === "."
+                  ? item.newName
+                  : path.posix.join(destDirInZip, item.newName);
+
+              job.currentFile = destinationPathInZip; // Update current file for progress
+              if (job.ws && job.ws.readyState === 1) {
+                job.ws.send(
+                  JSON.stringify({
+                    type: "copy_progress",
+                    file: destinationPathInZip,
+                  })
+                );
+              }
+
+              await duplicateInZip(
+                zipFilePath,
+                sourcePathInZip,
+                destinationPathInZip,
+                job
+              );
+            }
+            job.status = "completed";
+            job.resolveCompletion(); // Signal success
+          } catch (error) {
+            console.error("Error during zip duplication process:", error);
+            job.status = job.controller.signal.aborted ? "cancelled" : "failed";
+            job.rejectCompletion(error); // Signal failure
+          }
+        })();
+      }
+
       res.status(202).json({ jobId });
     } catch (error) {
       console.error("Duplicate error:", error);

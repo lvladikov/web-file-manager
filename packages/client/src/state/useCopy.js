@@ -103,12 +103,18 @@ export default function useCopy({
             return { sourcePath, newName };
           });
 
-          const { jobId } = await startDuplicateItems(itemsToDuplicate);
+          const isZipDuplicate = !!matchZipPath(sourceDir); // Check if the source directory is inside a zip
+
+          const { jobId } = await startDuplicateItems(
+            itemsToDuplicate,
+            isZipDuplicate
+          );
           setCopyProgress({
             isVisible: true,
             status: "scanning",
             copied: 0,
             total: 0,
+            isZipDuplicate,
             jobId,
             currentFile: "Initializing...",
             sourceCount: sources.length,

@@ -1765,6 +1765,56 @@ const getAllFilesAndDirsRecursive = async (dirPath, basePath = dirPath) => {
   return { files: allFiles, dirs: allDirs };
 };
 
+const duplicateInZip = async (
+  zipFilePath,
+  sourcePathInZip,
+  destinationPathInZip,
+  job
+) => {
+  const signal = job?.controller?.signal;
+  if (signal && signal.aborted) {
+    throw new Error("Zip duplication cancelled.");
+  }
+  console.log(
+    `[Job ${job?.id}] Duplicating '${sourcePathInZip}' to '${destinationPathInZip}' in '${zipFilePath}'`
+  );
+
+  try {
+    // 1. Get a stream for the source file content within the zip
+    const fileStream = await getZipFileStream(zipFilePath, sourcePathInZip);
+    console.log(
+      `[Job ${job?.id}] Obtained stream for source: ${sourcePathInZip}`
+    );
+
+    // If fileStream itself has a 'stat' property (like fs streams do), use it.
+    // Otherwise, we might need a separate step to get the source entry size if needed for progress.
+    // For now, updateFileInZip's progress reporting might be sufficient.
+    const sourceSize = fileStream.uncompressedSize || 0; // Attempt to get size if available on the stream object (yauzl streams might have this)
+    job.currentFileTotalSize = sourceSize;
+    job.currentFileBytesProcessed = 0;
+
+    // 2. Add the content stream back to the *same* zip under the new name
+    // Pass the existing job object for progress tracking within updateFileInZip
+    await updateFileInZip(
+      zipFilePath,
+      destinationPathInZip,
+      fileStream,
+      job,
+      signal
+    );
+    console.log(
+      `[Job ${job?.id}] Successfully duplicated to: ${destinationPathInZip}`
+    );
+  } catch (error) {
+    console.error(
+      `[Job ${job?.id}] Error duplicating '${sourcePathInZip}' to '${destinationPathInZip}':`,
+      error
+    );
+    // Ensure the stream is closed/destroyed if an error occurs before updateFileInZip finishes
+    throw error; // Re-throw the error to be caught by the caller (fileRoutes/websocket)
+  }
+};
+
 export {
   getFileType,
   getFilesInZip,
@@ -1791,4 +1841,5 @@ export {
   getDirTotalSizeInZip,
   getAllZipEntriesRecursive,
   getAllFilesAndDirsRecursive,
+  duplicateInZip,
 };

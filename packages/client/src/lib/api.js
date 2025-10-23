@@ -390,11 +390,11 @@ const cancelZipOperation = async (jobId) => {
   return response.json();
 };
 
-const startDuplicateItems = async (items) => {
+const startDuplicateItems = async (items, isZipDuplicate = false) => {
   const response = await fetch("/api/duplicate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, isZipDuplicate }),
   });
   if (!response.ok) {
     const data = await response.json();

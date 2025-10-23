@@ -512,66 +512,162 @@ export function initializeWebSocketServer(
               }
             })();
           } else {
-            // HANDLE FS-to-FS COPY
+            // HANDLE FS-to-FS COPY or ZIP DUPLICATION
             (async () => {
-              const currentJobType = jobType;
+              const currentJobType = job.jobType || jobType;
+              let progressInterval;
+
               try {
-                job.status = "scanning";
-                ws.send(JSON.stringify({ type: "scan_start" }));
+                if (currentJobType === "duplicate" && job.isZipDuplicate) {
+                  job.status = "running"; // Or 'copying', align with how zip ops are tracked
 
-                let totalSize = 0;
-                const sources =
-                  currentJobType === "duplicate"
-                    ? job.items.map((i) => i.sourcePath)
-                    : job.sources;
+                  // Wait for the WebSocket to be connected (important!)
+                  await new Promise((resolve) => {
+                    if (job.ws && job.ws.readyState === 1) {
+                      resolve();
+                    } else {
+                      const interval = setInterval(() => {
+                        if (job.ws && job.ws.readyState === 1) {
+                          clearInterval(interval);
+                          resolve();
+                        }
+                      }, 50);
+                    }
+                  });
 
-                for (const sourcePath of sources) {
-                  if (job.controller.signal.aborted)
-                    throw new Error("Scan cancelled");
-                  const stats = await fse.stat(sourcePath);
-                  totalSize += stats.isDirectory()
-                    ? await getDirSizeWithScanProgress(sourcePath, job)
-                    : stats.size;
+                  // Send initial start/scan message (optional, as progress updates will follow)
+                  if (job.ws && job.ws.readyState === 1) {
+                    job.ws.send(
+                      JSON.stringify({
+                        type: "scan_complete",
+                        total: job.total || job.originalZipSize,
+                      })
+                    ); // Estimate
+                  }
+
+                  job.lastProcessedBytes = 0; // Use tempZipSize for zip progress instead
+                  job.lastUpdateTime = Date.now();
+                  job.tempZipSize = 0;
+
+                  // Use progress interval similar to other zip operations
+                  progressInterval = setInterval(async () => {
+                    if (ws.readyState === 1) {
+                      // Get current size of the temporary zip file (if tempZipPath is set by updateFileInZip)
+                      let currentTempSize = job.tempZipSize;
+                      if (
+                        job.tempZipPath &&
+                        (await fse.pathExists(job.tempZipPath))
+                      ) {
+                        try {
+                          const stats = await fse.stat(job.tempZipPath);
+                          currentTempSize = stats.size;
+                          job.tempZipSize = currentTempSize;
+                        } catch (statError) {
+                          console.warn(
+                            `[Job ${jobId}] Error stating temp file ${job.tempZipPath}:`,
+                            statError.message
+                          );
+                        }
+                      }
+
+                      // Simplified progress for zip duplicate - focus on temp size change
+                      ws.send(
+                        JSON.stringify({
+                          type: "progress",
+                          copied: currentTempSize, // Use temp size as 'copied' progress
+                          total: job.total, // Original size as total estimate
+                          currentFile: job.currentFile, // Should be updated by duplicateInZip/updateFileInZip
+                          // Include other relevant fields if available from job object
+                          tempZipSize: currentTempSize,
+                          originalZipSize: job.originalZipSize,
+                          // Speed calculation might be less meaningful here, could be omitted or based on temp size change
+                        })
+                      );
+                    } else {
+                      clearInterval(progressInterval);
+                    }
+                  }, 250); // Send updates frequently
+
+                  // Await the completion promise set up in fileRoutes.js
+                  if (job.completionPromise) {
+                    job.controller.signal.addEventListener("abort", () => {
+                      if (job.rejectCompletion) {
+                        job.rejectCompletion(
+                          new Error("Zip duplication cancelled.")
+                        );
+                      }
+                    });
+                    await job.completionPromise;
+                  } else {
+                    console.warn(
+                      `[Job ${jobId}] No completionPromise found for zip duplicate job.`
+                    );
+                    // Handle potential error or assume completion if no promise
+                  }
+
+                  job.status = "completed";
+                  if (ws.readyState === 1) {
+                    ws.send(JSON.stringify({ type: "complete" }));
+                    ws.close(1000, "Zip Duplication Completed");
+                  }
+                } else {
+                  job.status = "scanning";
+                  ws.send(JSON.stringify({ type: "scan_start" }));
+
+                  let totalSize = 0;
+                  const sources =
+                    currentJobType === "duplicate"
+                      ? job.items.map((i) => i.sourcePath)
+                      : job.sources;
+
+                  for (const sourcePath of sources) {
+                    if (job.controller.signal.aborted)
+                      throw new Error("Scan cancelled");
+                    const stats = await fse.stat(sourcePath);
+                    totalSize += stats.isDirectory()
+                      ? await getDirSizeWithScanProgress(sourcePath, job)
+                      : stats.size;
+                  }
+                  job.total = totalSize;
+                  job.copied = 0;
+
+                  job.status = "copying";
+                  ws.send(
+                    JSON.stringify({ type: "scan_complete", total: job.total })
+                  );
+
+                  const itemsToProcess =
+                    currentJobType === "duplicate"
+                      ? job.items.map((item) => ({
+                          sourcePath: item.sourcePath,
+                          destPath: path.join(
+                            path.dirname(item.sourcePath),
+                            item.newName
+                          ),
+                        }))
+                      : job.sources.map((sourcePath) => ({
+                          sourcePath,
+                          destPath: path.join(
+                            job.destination,
+                            path.basename(sourcePath)
+                          ),
+                        }));
+
+                  for (const item of itemsToProcess) {
+                    await copyWithProgress(item.sourcePath, item.destPath, job);
+                  }
+
+                  job.status = "completed";
+                  ws.send(JSON.stringify({ type: "complete" }));
+                  ws.close(1000, "Job Completed");
                 }
-                job.total = totalSize;
-                job.copied = 0;
-
-                job.status = "copying";
-                ws.send(
-                  JSON.stringify({ type: "scan_complete", total: job.total })
-                );
-
-                const itemsToProcess =
-                  currentJobType === "duplicate"
-                    ? job.items.map((item) => ({
-                        sourcePath: item.sourcePath,
-                        destPath: path.join(
-                          path.dirname(item.sourcePath),
-                          item.newName
-                        ),
-                      }))
-                    : job.sources.map((sourcePath) => ({
-                        sourcePath,
-                        destPath: path.join(
-                          job.destination,
-                          path.basename(sourcePath)
-                        ),
-                      }));
-
-                for (const item of itemsToProcess) {
-                  await copyWithProgress(item.sourcePath, item.destPath, job);
-                }
-
-                job.status = "completed";
-                ws.send(JSON.stringify({ type: "complete" }));
-                ws.close(1000, "Job Completed");
               } catch (error) {
+                // Generic error handling for both zip and FS duplication
                 if (job.status !== "cancelled") {
                   job.status = "failed";
                 }
-
                 console.error(
-                  `Copy job ${jobId} failed or was cancelled:`,
+                  `${currentJobType} job ${jobId} failed or was cancelled:`,
                   error.message
                 );
 
@@ -582,11 +678,12 @@ export function initializeWebSocketServer(
                   ws.close(1000, `Job finished with status: ${type}`);
                 }
               } finally {
-                const jobMapToClear =
-                  currentJobType === "duplicate"
-                    ? activeDuplicateJobs
-                    : activeCopyJobs;
-                setTimeout(() => jobMapToClear.delete(jobId), 5000);
+                clearInterval(progressInterval);
+                const jobMapToClear = activeDuplicateJobs; // Always use duplicate map for this endpoint
+                setTimeout(() => {
+                  // Deleting job from activeDuplicateJobs
+                  jobMapToClear.delete(jobId);
+                }, 5000);
               }
             })();
           }
