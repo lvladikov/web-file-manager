@@ -176,6 +176,12 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
   - **Text & Code:** A wide variety of text and code files are supported, including Text (`txt`), Markdown (`md`), JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), JSON (`json`), CSS (`css`), HTML (`html`), YAML (`yml`, `yaml`), Python (`py`), Shell Scripts (`sh`), XML (`xml`), and more.
   - **Archives:** ZIP
 
+- **Terminal**: You can open a built-in terminal directly within the application, either in the current panel\'s path or in the other panel\'s path. This allows you to execute shell commands without leaving the file manager.
+  - **Clear Terminal**: Clears the current terminal screen.
+  - **Clear Scrollback**: Clears the terminal\'s scrollback history.
+
+  ![Terminal Screenshot](packages/client/screenshots/built-in-terminal.png)
+
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions.
 
   - **New _Submenu_**: You can create a new folder or a new empty text file directly from the application.
@@ -257,6 +263,8 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
   - <kbd>F7</kbd>: Create a new folder in the active panel.
 
   - <kbd>F8</kbd>: Delete the selected items.
+
+  - <kbd>F9</kbd>: Open a terminal in the current panel's path.
 
     ![Action Bar Screenshot](packages/client/screenshots/action-bar.png)
 

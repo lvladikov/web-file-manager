@@ -19,6 +19,7 @@ import favouritesMenuScreenshot from "../../../screenshots/favourites-menu.png";
 import fileMenuScreenshot from "../../../screenshots/file-menu.png";
 import actionBarScreenshot from "../../../screenshots/action-bar.png";
 import overwriteModalScreenshot from "../../../screenshots/overwrite-modal.png";
+import builtInTerminalScreenshot from "../../../screenshots/built-in-terminal.png";
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -48,6 +49,7 @@ const HelpModal = ({ isVisible, onClose }) => {
     "Favourites",
     "Top Menus",
     "Function Key Actions",
+    "Terminal",
     "Copy/Move Operation & Conflict Modes",
   ];
 
@@ -688,10 +690,53 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <kbd>F8</kbd>: Delete the selected items.
               </li>
+              <li>
+                <kbd>F9</kbd>: Open app's built-in terminal in the current
+                panel's path.
+              </li>
             </ul>
             <img
               src={actionBarScreenshot}
               alt="Action Bar Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
+          </HelpSection>
+
+          <HelpSection id="terminal" title="Terminal">
+            <p>
+              You can open a built-in terminal directly within the application,
+              either in the current panel's path or in the other panel's path.
+              This allows you to execute shell commands without leaving the file
+              manager.
+            </p>
+            <ul className="list-disc list-inside space-y-1 pl-4">
+              <li>
+                <strong>Open Terminal to Current Panel:</strong> Opens a
+                terminal session with the working directory set to the path of
+                the currently active panel.
+              </li>
+              <li>
+                <strong>Open Terminal to Other Panel:</strong> Opens a terminal
+                session with the working directory set to the path of the
+                inactive panel.
+              </li>
+              <li>
+                Once the Terminal is open, one can use the modal's icons to:
+                <ul className="list-disc list-inside space-y-1 pl-4">
+                  <li>
+                    <strong>Clear Terminal:</strong> Clears the current terminal
+                    screen.
+                  </li>
+                  <li>
+                    <strong>Clear Scrollback:</strong> Clears the terminal's
+                    scrollback history.
+                  </li>
+                </ul>
+              </li>
+            </ul>
+            <img
+              src={builtInTerminalScreenshot}
+              alt="Built-in Terminal Screenshot"
               className="w-3/4 mx-auto rounded-lg shadow-lg"
             />
           </HelpSection>

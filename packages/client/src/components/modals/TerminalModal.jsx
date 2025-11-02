@@ -196,7 +196,7 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
             <button
               className="p-1 text-gray-300 hover:text-white"
               onClick={onClose}
-              title="Close (Esc)"
+              title="Close"
             >
               <XCircle className="w-6 h-6" />
             </button>
