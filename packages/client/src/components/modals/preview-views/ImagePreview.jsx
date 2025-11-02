@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, ImageOff } from "lucide-react";
 
-const ImagePreview = ({ item, fullPath, isFullscreen, fileUrl, previewType }) => {
+const ImagePreview = ({ item, fullPath, isFullscreen, fileUrl, previewType, setAllowContextMenu }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [imageSrc, setImageSrc] = useState(null);
@@ -88,10 +88,10 @@ const ImagePreview = ({ item, fullPath, isFullscreen, fileUrl, previewType }) =>
             width: "auto",
             height: "auto",
           }}
+          onContextMenu={(e) => e.stopPropagation()}
         />
       )}
     </div>
   );
 };
-
 export default ImagePreview;

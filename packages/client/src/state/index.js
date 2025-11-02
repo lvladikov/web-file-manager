@@ -61,6 +61,7 @@ export default function appState() {
   });
   const [recentPaths, setRecentPaths] = useState([]);
   const [clipboard, setClipboard] = useState({ sources: [], isMove: false });
+  const [allowContextMenu, setAllowContextMenu] = useState(false);
 
   // --- Core Refs ---
   const wsRef = useRef(null);
@@ -900,6 +901,7 @@ export default function appState() {
     sortConfig,
     recentPaths,
     clipboard,
+    allowContextMenu,
     // Core Setters
     setActivePanel,
     setPanels,
@@ -910,6 +912,7 @@ export default function appState() {
     setError,
     setEditingPath,
     setOverwritePrompt,
+    setAllowContextMenu,
     // State & Handlers from Hooks
     ...settings,
     ...modals,

@@ -83,6 +83,8 @@ const FilePanel = React.forwardRef(
       onQuickUnselect,
       onQuickFilter,
       onSwapPanels,
+      onTerminal,
+      onTerminalOtherPanel,
       onPreview,
       onOpen,
       onOpenWith,
@@ -496,12 +498,15 @@ const FilePanel = React.forwardRef(
               <PathContextMenu
                 onChooseFolder={() => onChooseFolder(panelId)}
                 onSwapPanels={onSwapPanels}
+                onTerminal={onTerminal}
+                onTerminalOtherPanel={onTerminalOtherPanel}
                 onCopyPathToClipboard={() =>
                   navigator.clipboard.writeText(panelData.path)
                 }
               >
                 <div
                   onDoubleClick={onPathDoubleClick}
+                  onContextMenu={handlePanelClick}
                   title={`${panelData.path || "..."} | Double click to edit`}
                   className="truncate"
                 >
@@ -595,6 +600,8 @@ const FilePanel = React.forwardRef(
           onQuickUnselect={() => onQuickUnselect(panelId)}
           onQuickFilter={() => onQuickFilter(panelId)}
           onSwapPanels={() => onSwapPanels(panelId)}
+          onTerminal={onTerminal}
+          onTerminalOtherPanel={onTerminalOtherPanel}
           onPasteFromClipboard={onPasteFromClipboard}
           clipboard={clipboard}
         >
@@ -677,6 +684,8 @@ const FilePanel = React.forwardRef(
                   onRefreshPanel={() => onRefreshPanel(panelId)}
                   onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
                   onSwapPanels={() => onSwapPanels(panelId)}
+                  onTerminal={onTerminal}
+                  onTerminalOtherPanel={onTerminalOtherPanel}
                   clipboard={clipboard}
                   onCopyToClipboard={onCopyToClipboard}
                   onCutToClipboard={onCutToClipboard}

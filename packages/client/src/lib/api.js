@@ -1,55 +1,59 @@
-const createNewFile = async (newFilePath) => {
-  const response = await fetch("/api/new-file", {
+const post = async (
+  url,
+  data,
+  errorMessage = "An unknown server error occurred."
+) => {
+  const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ newFilePath }),
+    body: data ? JSON.stringify(data) : undefined,
   });
   if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to create file.");
+    const errorData = await response.json().catch(() => ({})); // Catch JSON parsing error for non-JSON error responses
+    throw new Error(errorData.message || errorMessage);
   }
+  // If response is 204 No Content, return null
+  if (response.status === 204) {
+    return null;
+  }
+  // Return the response object directly, let the caller parse JSON if needed
+  return response;
+};
+
+const createNewFile = async (newFilePath) => {
+  const response = await post(
+    "/api/new-file",
+    { newFilePath },
+    "Failed to create file."
+  );
   return response.json();
 };
 
 const createNewFolder = async (newFolderPath) => {
-  const response = await fetch("/api/new-folder", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ newFolderPath }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to create folder.");
-  }
+  const response = await post(
+    "/api/new-folder",
+    { newFolderPath },
+    "Failed to create folder."
+  );
   return response.json();
 };
 
 const deleteItem = async (targetPaths) => {
-  const response = await fetch("/api/delete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      paths: Array.isArray(targetPaths) ? targetPaths : [targetPaths],
-    }),
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.message || "Failed to delete item(s).");
-  }
+  const response = await post(
+    "/api/delete",
+    { paths: Array.isArray(targetPaths) ? targetPaths : [targetPaths] },
+    "Failed to delete item(s)."
+  );
   return response.json();
 };
 
 const fetchDeleteSummary = async (targetPath) => {
-  const response = await fetch("/api/delete-summary", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: targetPath }),
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.message || "Failed to analyze folder.");
-  }
-  return response.json(); // Expected: { files: number, folders: number }
+  const response = await post(
+    "/api/delete-summary",
+    { path: targetPath },
+    "Failed to analyze folder."
+  );
+  return response.json();
 };
 
 const fetchDirectory = async (basePath, target = "") => {
@@ -96,15 +100,9 @@ const fetchFileInfo = async (filePath) => {
 };
 
 const openFile = async (filePath, appName) => {
-  const response = await fetch("/api/open-file", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filePath, appName }),
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to open file.");
-  }
+  // The post function returns a promise that resolves to JSON.
+  // openFile doesn't return anything, so we just call post and don't return its result.
+  await post("/api/open-file", { filePath, appName }, "Failed to open file.");
 };
 
 const parseTrackInfo = (filename = "") => {
@@ -130,62 +128,47 @@ const parseTrackInfo = (filename = "") => {
 };
 
 const renameItem = async (oldPath, newName) => {
-  const response = await fetch("/api/rename", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ oldPath, newName }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to rename item.");
-  }
+  const response = await post(
+    "/api/rename",
+    { oldPath, newName },
+    "Failed to rename item."
+  );
   return response.json();
 };
 
 const startCopyItems = async (sources, destination, isMove = false) => {
-  const response = await fetch("/api/copy", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sources, destination, isMove }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(
-      data.message || "An unknown server error occurred during copy initiation."
-    );
-  }
+  const response = await post(
+    "/api/copy",
+    { sources, destination, isMove },
+    "An unknown server error occurred during copy initiation."
+  );
   return response.json();
 };
 
 const cancelCopy = async (jobId) => {
-  const response = await fetch("/api/copy/cancel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jobId }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to cancel copy.");
-  }
+  const response = await post(
+    "/api/copy/cancel",
+    { jobId },
+    "Failed to cancel copy."
+  );
   return response.json();
 };
 
 const startSizeCalculation = async (folderPath) => {
-  const response = await fetch("/api/folder-size", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ folderPath }),
-  });
-  if (!response.ok) throw new Error("Failed to start size calculation.");
+  const response = await post(
+    "/api/folder-size",
+    { folderPath },
+    "Failed to start size calculation."
+  );
   return response.json();
 };
 
 const cancelSizeCalculation = async (jobId) => {
-  await fetch("/api/folder-size/cancel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jobId }),
-  });
+  await post(
+    "/api/folder-size/cancel",
+    { jobId },
+    "Failed to cancel size calculation."
+  );
 };
 
 const fetchFavourites = async () => {
@@ -195,12 +178,11 @@ const fetchFavourites = async () => {
 };
 
 const addFavourite = async (path) => {
-  const response = await fetch("/api/favourites", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path }),
-  });
-  if (!response.ok) throw new Error("Could not add favourite.");
+  const response = await post(
+    "/api/favourites",
+    { path },
+    "Could not add favourite."
+  );
   return response.json();
 };
 
@@ -221,11 +203,7 @@ const fetchPaths = async () => {
 };
 
 const savePaths = async (paths) => {
-  await fetch("/api/paths", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(paths),
-  });
+  await post("/api/paths", paths, "Could not save paths.");
 };
 
 const fetchLayout = async () => {
@@ -235,11 +213,7 @@ const fetchLayout = async () => {
 };
 
 const saveLayout = async (columnWidths) => {
-  await fetch("/api/layout", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ columnWidths }),
-  });
+  await post("/api/layout", { columnWidths }, "Could not save layout.");
 };
 
 const fetchAutoLoadLyrics = async () => {
@@ -249,76 +223,55 @@ const fetchAutoLoadLyrics = async () => {
 };
 
 const saveAutoLoadLyrics = async (autoLoadLyrics) => {
-  const response = await fetch("/api/config/auto-load-lyrics", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ autoLoadLyrics }),
-  });
-  if (!response.ok) throw new Error("Could not save auto-load setting.");
+  await post(
+    "/api/config/auto-load-lyrics",
+    { autoLoadLyrics },
+    "Could not save auto-load setting."
+  );
 };
 
 const compressFiles = async (sources, destination, sourceDirectory) => {
-  const response = await fetch("/api/compress", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sources, destination, sourceDirectory }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to compress items.");
-  }
+  const response = await post(
+    "/api/compress",
+    { sources, destination, sourceDirectory },
+    "Failed to compress items."
+  );
   return response.json();
 };
 
 const decompressFiles = async (source, destination, itemsToExtract = null) => {
-  const response = await fetch("/api/decompress", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source, destination, itemsToExtract }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to decompress archive.");
-  }
+  const response = await post(
+    "/api/decompress",
+    { source, destination, itemsToExtract },
+    "Failed to decompress archive."
+  );
   return response.json();
 };
 
 const cancelDecompress = async (jobId) => {
-  const response = await fetch("/api/decompress/cancel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jobId }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to cancel decompression.");
-  }
+  const response = await post(
+    "/api/decompress/cancel",
+    { jobId },
+    "Failed to cancel decompression."
+  );
   return response.json();
 };
 
 const testArchive = async (source) => {
-  const response = await fetch("/api/archive-test", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to test archive.");
-  }
+  const response = await post(
+    "/api/archive-test",
+    { source },
+    "Failed to test archive."
+  );
   return response.json();
 };
 
 const cancelArchiveTest = async (jobId) => {
-  const response = await fetch("/api/archive-test/cancel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jobId }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to cancel archive test.");
-  }
+  const response = await post(
+    "/api/archive-test/cancel",
+    { jobId },
+    "Failed to cancel archive test."
+  );
   return response.json();
 };
 
@@ -355,12 +308,11 @@ const fetchZipMediaStreamUrl = (zipFilePath, filePathInZip) => {
 };
 
 const saveFileContent = async (path, content, signal = null, jobId = null) => {
-  const response = await fetch("/api/save-file", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path, content, jobId }),
-    signal,
-  });
+  const response = await post(
+    "/api/save-file",
+    { path, content, jobId },
+    "Failed to save file content."
+  );
 
   // Check if the response is 202 Accepted (for async zip operation)
   if (response.status === 202) {
@@ -369,54 +321,39 @@ const saveFileContent = async (path, content, signal = null, jobId = null) => {
     return { jobId: data.jobId, async: true };
   }
 
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to save file content.");
-  }
   // For non-zip or synchronous completion (though zip is now always async)
   return response.json();
 };
 
 const cancelZipOperation = async (jobId) => {
-  const response = await fetch("/api/zip/operation/cancel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jobId }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to cancel zip operation.");
-  }
+  const response = await post(
+    "/api/zip/operation/cancel",
+    { jobId },
+    "Failed to cancel zip operation."
+  );
   return response.json();
 };
 
 const startDuplicateItems = async (items, isZipDuplicate = false) => {
-  const response = await fetch("/api/duplicate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items, isZipDuplicate }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to duplicate items.");
-  }
+  const response = await post(
+    "/api/duplicate",
+    { items, isZipDuplicate },
+    "Failed to duplicate items."
+  );
   return response.json();
 };
 
 const cancelDuplicate = async (jobId) => {
-  const response = await fetch("/api/duplicate/cancel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jobId }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to cancel duplicate.");
-  }
+  const response = await post(
+    "/api/duplicate/cancel",
+    { jobId },
+    "Failed to cancel duplicate."
+  );
   return response.json();
 };
 
 export {
+  post,
   createNewFile,
   createNewFolder,
   deleteItem,

@@ -42,6 +42,8 @@ const AppContextMenu = ({
   onDecompressToOtherPanel,
   onTestArchive,
   onSwapPanels,
+  onTerminal,
+  onTerminalOtherPanel,
   boundaryRef,
   isRenaming,
   onRenameCancel,
@@ -606,6 +608,23 @@ const AppContextMenu = ({
                 Refresh both panels
               </ContextMenu.Item>
               <div className={separatorClassName}></div>
+              <ContextMenu.Item
+                onSelect={() => {
+                  onTerminal();
+                }}
+                className={itemClassName}
+              >
+                <span>Terminal in active panel</span>
+              </ContextMenu.Item>
+              <ContextMenu.Item
+                onSelect={() => {
+                  onTerminalOtherPanel();
+                }}
+                className={itemClassName}
+              >
+                <span>Terminal in other panel</span>
+              </ContextMenu.Item>
+              <ContextMenu.Separator className={separatorClassName} />
               <ContextMenu.Item
                 onSelect={onSwapPanels}
                 className={itemClassName}

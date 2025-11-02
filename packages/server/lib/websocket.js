@@ -7,6 +7,7 @@ import { Writable, Readable } from "stream";
 import watcher from "./watcher.js";
 import os from "os";
 import * as yauzl from "yauzl-promise";
+import pty from "node-pty";
 
 // A Writable stream that does nothing, used to consume read streams for integrity testing
 class NullWritable extends Writable {
@@ -58,7 +59,8 @@ export function initializeWebSocketServer(
   activeArchiveTestJobs,
   activeDuplicateJobs,
   activeCopyPathsJobs,
-  activeZipOperations
+  activeZipOperations,
+  activeTerminalJobs
 ) {
   const wss = new WebSocketServer({ server });
 
@@ -99,6 +101,9 @@ export function initializeWebSocketServer(
           jobMap = activeZipOperations;
           isZipOperation = true;
           break;
+        case "terminal":
+          jobMap = activeTerminalJobs;
+          break;
         default:
           jobMap = activeCopyJobs;
           break;
@@ -106,7 +111,9 @@ export function initializeWebSocketServer(
 
       if (jobMap.has(jobId)) {
         const job = jobMap.get(jobId);
-        job.ws = ws;
+        if (job) {
+          job.ws = ws;
+        }
         console.log(`[ws] Client connected for ${jobType} job: ${jobId}`);
 
         ws.on("message", (message) => {
@@ -126,6 +133,16 @@ export function initializeWebSocketServer(
             } else if (job.resolveOverwrite) {
               job.overwriteDecision = data.decision;
               job.resolveOverwrite();
+            }
+          } else if (jobType === "terminal") {
+            const job = activeTerminalJobs.get(jobId);
+            if (job && job.ptyProcess) {
+              const term = job.ptyProcess;
+              if (data.type === "resize") {
+                term.resize(data.cols, data.rows);
+              } else if (data.type === "data") {
+                term.write(data.data);
+              }
             }
           }
         });
@@ -1456,6 +1473,40 @@ export function initializeWebSocketServer(
               setTimeout(() => activeCopyPathsJobs.delete(jobId), 5000);
             }
           })();
+        } else if (jobType === "terminal") {
+          const job = activeTerminalJobs.get(jobId);
+          if (job && job.ptyProcess) {
+            const term = job.ptyProcess;
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({ type: "cwd", data: job.initialCwd }));
+            }
+
+            term.on("data", (data) => {
+              if (ws.readyState === 1) {
+                ws.send(data);
+              }
+            });
+
+
+
+            ws.on("close", () => {
+              term.kill();
+              activeTerminalJobs.delete(jobId);
+            });
+
+            term.on('exit', (code, signal) => {
+              console.log(`[pty] Process for job ${jobId} exited with code ${code} and signal ${signal}`);
+              if (ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: "exit", code, signal })); // Inform frontend
+                ws.close(1000, "Terminal process exited"); // Close WebSocket
+              }
+              activeTerminalJobs.delete(jobId);
+            });
+
+          } else {
+            console.warn(`[ws] No terminal found for job ID: ${jobId}`);
+            ws.close();
+          }
         }
 
         ws.on("close", async () => {

@@ -6,6 +6,8 @@ import { metaKey } from "../../lib/utils.js";
 const PathContextMenu = ({
   onChooseFolder,
   onSwapPanels,
+  onTerminal,
+  onTerminalOtherPanel,
   onCopyPathToClipboard,
   children,
 }) => {
@@ -32,6 +34,16 @@ const PathContextMenu = ({
             Copy path to clipboard
           </ContextMenu.Item>
           <div className={separatorClassName}></div>
+          <ContextMenu.Item onSelect={onTerminal} className={itemClassName}>
+            <span>Terminal in active panel</span>
+          </ContextMenu.Item>
+          <ContextMenu.Item
+            onSelect={onTerminalOtherPanel}
+            className={itemClassName}
+          >
+            <span>Terminal in other panel</span>
+          </ContextMenu.Item>
+          <ContextMenu.Separator className={separatorClassName} />
           <ContextMenu.Item onSelect={onSwapPanels} className={itemClassName}>
             <span>Swap panels</span>
             <span className="text-gray-400">{metaKey}+U</span>

@@ -40,6 +40,11 @@ export default function useModals() {
     mode: "clipboard",
   });
 
+  const [terminalModal, setTerminalModal] = useState({
+    isVisible: false,
+    jobId: null,
+  });
+
   return {
     previewModal,
     setPreviewModal,
@@ -55,5 +60,7 @@ export default function useModals() {
     setDestinationBrowserModal,
     copyPathsModal,
     setCopyPathsModal,
+    terminalModal,
+    setTerminalModal,
   };
 }

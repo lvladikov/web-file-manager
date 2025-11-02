@@ -482,6 +482,15 @@ const FileMenu = ({ ...props }) => {
         />
         <div className={separatorClassName} />
         <MenuItem
+          label="Terminal in active panel"
+          onClick={() => handleItemClick(props.onTerminal)}
+        />
+        <MenuItem
+          label="Terminal in other panel"
+          onClick={() => handleItemClick(props.onTerminalOtherPanel)}
+        />
+        <div className={separatorClassName} />
+        <MenuItem
           label="Swap panels"
           shortcut={`${metaKey}+U`}
           onClick={() => handleItemClick(onSwapPanels)}

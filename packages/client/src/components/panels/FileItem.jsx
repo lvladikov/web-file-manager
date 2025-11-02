@@ -38,6 +38,8 @@ const FileItem = ({
   onDecompressToOtherPanel,
   onTestArchive,
   onSwapPanels,
+  onTerminal,
+  onTerminalOtherPanel,
   onRefreshPanel,
   onRefreshBothPanels,
   onSelectAll,
@@ -198,6 +200,8 @@ const FileItem = ({
       onDecompressToOtherPanel={onDecompressToOtherPanel}
       onTestArchive={onTestArchive}
       onSwapPanels={onSwapPanels}
+      onTerminal={onTerminal}
+      onTerminalOtherPanel={onTerminalOtherPanel}
       onRefreshPanel={onRefreshPanel}
       onRefreshBothPanels={onRefreshBothPanels}
       onSelectAll={onSelectAll}

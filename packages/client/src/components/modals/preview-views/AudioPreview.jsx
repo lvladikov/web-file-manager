@@ -13,6 +13,7 @@ const AudioPreview = ({
   onToggleAutoLoadLyrics,
   fileUrl,
   isVisible,
+  setAllowContextMenu,
 }) => {
   const [lyrics, setLyrics] = useState(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
@@ -237,7 +238,10 @@ const AudioPreview = ({
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
-            <pre className="flex-grow min-h-0 overflow-y-auto text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md">
+            <pre
+              className="flex-grow min-h-0 overflow-y-auto text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md"
+              onContextMenu={(e) => e.stopPropagation()}
+            >
               {lyrics}
             </pre>
           </>

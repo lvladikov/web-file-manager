@@ -20,6 +20,8 @@ const EmptyAreaContextMenu = ({
   onQuickUnselect,
   onQuickFilter,
   onSwapPanels,
+  onTerminal,
+  onTerminalOtherPanel,
   onPasteFromClipboard,
   clipboard,
   boundaryRef,
@@ -161,6 +163,16 @@ const EmptyAreaContextMenu = ({
                 Refresh both panels
               </ContextMenu.Item>
               <div className={separatorClassName}></div>
+              <ContextMenu.Item onSelect={onTerminal} className={itemClassName}>
+                <span>Terminal in active panel</span>
+              </ContextMenu.Item>
+              <ContextMenu.Item
+                onSelect={onTerminalOtherPanel}
+                className={itemClassName}
+              >
+                <span>Terminal in other panel</span>
+              </ContextMenu.Item>
+              <ContextMenu.Separator className={separatorClassName} />
               <ContextMenu.Item
                 onSelect={onSwapPanels}
                 className={itemClassName}

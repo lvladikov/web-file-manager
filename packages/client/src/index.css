@@ -56,3 +56,7 @@ html {
 .animate-pulse-indeterminate {
   animation: pulse-indeterminate 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+.xterm-container .xterm {
+  padding: 5px 0 0 7px;
+}

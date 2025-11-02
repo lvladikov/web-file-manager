@@ -1,13 +1,16 @@
-import { cancelSizeCalculation } from "./lib/api";
+import { useRef } from "react";
+
+import appState from "./state";
+
+import { cancelSizeCalculation, post } from "./lib/api";
 import {
   isItemPreviewable,
   buildFullPath,
   isPreviewableText,
   isEditable,
+  dirname,
+  matchZipPath,
 } from "./lib/utils";
-import { useRef } from "react";
-
-import appState from "./state";
 
 // Components
 import ActionBar from "./components/ui/ActionBar";
@@ -29,6 +32,7 @@ import DecompressionProgressModal from "./components/modals/DecompressionProgres
 import ArchiveTestIntegrityProgressModal from "./components/modals/ArchiveTestIntegrityProgressModal";
 import CopyPathsProgressModal from "./components/modals/CopyPathsProgressModal";
 import ZipUpdateProgressModal from "./components/modals/ZipUpdateProgressModal";
+import TerminalModal from "./components/modals/TerminalModal";
 
 export default function App() {
   const {
@@ -156,6 +160,10 @@ export default function App() {
     copyPathsModal,
     zipUpdateProgressModal,
     setZipUpdateProgressModal,
+    terminalModal,
+    setTerminalModal,
+    allowContextMenu,
+    setAllowContextMenu,
   } = appState();
   const mainRef = useRef(null);
 
@@ -202,13 +210,55 @@ export default function App() {
     }
   };
 
+  const handleTerminal = async () => {
+    try {
+      let terminalPath = panels[activePanel].path;
+      const zipMatch = matchZipPath(terminalPath);
+
+      if (zipMatch) {
+        // If inside a zip, open terminal in the parent directory of the zip file
+        const zipFilePath = zipMatch[1]; // The full path to the .zip file
+        terminalPath = dirname(zipFilePath); // The directory containing the .zip file
+      }
+
+      const response = await post("/api/terminals", { path: terminalPath });
+      const { jobId } = await response.json();
+      setTerminalModal({ isVisible: true, jobId });
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleTerminalOtherPanel = async () => {
+    try {
+      let terminalPath = panels[otherPanelId].path;
+      const zipMatch = matchZipPath(terminalPath);
+
+      if (zipMatch) {
+        // If inside a zip, open terminal in the parent directory of the zip file
+        const zipFilePath = zipMatch[1]; // The full path to the .zip file
+        terminalPath = dirname(zipFilePath);
+      }
+
+      const response = await post("/api/terminals", { path: terminalPath });
+      const { jobId } = await response.json();
+      setTerminalModal({ isVisible: true, jobId });
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
   // Create a closure for the top menu's Quick Filter using the activePanel ID.
   const handleMenuQuickFilter = () => handleStartFilter(activePanel);
 
   return (
     <div
       className="flex flex-col h-screen bg-gray-900 text-white"
-      onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={(e) => {
+        if (!allowContextMenu) {
+          e.preventDefault();
+        }
+      }}
     >
       <header className="bg-gray-800 p-2 flex justify-start items-center relative">
         <AppMenu
@@ -308,6 +358,8 @@ export default function App() {
           onDecompressToOtherPanel={handleDecompressToOtherPanel}
           onTestArchive={handleTestArchive}
           onSwapPanels={handleSwapPanels}
+          onTerminal={handleTerminal}
+          onTerminalOtherPanel={handleTerminalOtherPanel}
           onPreview={() => {
             if (selections[activePanel].size === 1) {
               const itemName = [...selections[activePanel]][0];
@@ -420,6 +472,7 @@ export default function App() {
         onRefreshPanel={handleRefreshPanel}
         activePanel={activePanel}
         showSavingOverlay={showPreviewModalOverlay}
+        setAllowContextMenu={setAllowContextMenu}
       />
       <ProgressModal
         {...copyProgress}
@@ -514,6 +567,13 @@ export default function App() {
 
       <ZipUpdateProgressModal {...zipUpdateProgressModal} />
 
+      <TerminalModal
+        isOpen={terminalModal.isVisible}
+        jobId={terminalModal.jobId}
+        onClose={() => setTerminalModal({ isVisible: false, jobId: null })}
+        setAllowContextMenu={setAllowContextMenu}
+      />
+
       <main
         ref={mainRef}
         className="flex-grow flex p-2 space-x-2 overflow-hidden"
@@ -603,6 +663,8 @@ export default function App() {
             onQuickUnselect={() => handleStartQuickUnselect(panelId)}
             onQuickFilter={() => handleStartFilter(panelId)}
             onSwapPanels={handleSwapPanels}
+            onTerminal={handleTerminal}
+            onTerminalOtherPanel={handleTerminalOtherPanel}
             onPreview={() => {
               if (selections[panelId].size === 1) {
                 const itemName = [...selections[panelId]][0];

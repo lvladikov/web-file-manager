@@ -31,6 +31,9 @@ const activeCopyPathsJobs = new Map();
 // In-memory store for active zip operations
 const activeZipOperations = new Map();
 
+// In-memory store for active terminal jobs
+const activeTerminalJobs = new Map();
+
 initializeWebSocketServer(
   server,
   activeCopyJobs,
@@ -40,7 +43,8 @@ initializeWebSocketServer(
   activeArchiveTestJobs,
   activeDuplicateJobs,
   activeCopyPathsJobs,
-  activeZipOperations
+  activeZipOperations,
+  activeTerminalJobs
 );
 
 const port = 3001;
@@ -57,7 +61,8 @@ initializeRoutes(
   activeArchiveTestJobs,
   activeDuplicateJobs,
   activeCopyPathsJobs,
-  activeZipOperations
+  activeZipOperations,
+  activeTerminalJobs
 );
 
 server.listen(port, () => {
