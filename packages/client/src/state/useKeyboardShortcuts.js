@@ -56,6 +56,7 @@ export default function useKeyboardShortcuts(props) {
         handleCutToClipboard,
         handlePasteFromClipboard,
         sortedAndFilteredItems,
+        handleTerminal,
       } = latestProps.current;
 
       if (!panels || !panels.left || !panels.right) {
@@ -537,7 +538,7 @@ export default function useKeyboardShortcuts(props) {
       }
       if (e.key === "F9") {
         e.preventDefault();
-        console.log(`Not yet implemented: ${activePanel}`);
+        handleTerminal();
         return;
       }
 

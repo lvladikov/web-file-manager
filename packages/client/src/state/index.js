@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { savePaths, fetchDirectory } from "../lib/api";
+import { savePaths, fetchDirectory, post } from "../lib/api";
 import {
   isMac,
   isPreviewableText,
   isItemPreviewable,
   buildFullPath,
   matchZipPath,
+  dirname,
 } from "../lib/utils";
 
 import useDelete from "./useDelete";
@@ -226,6 +227,46 @@ export default function appState() {
   });
 
   const { isCalculatingSize, ...sizeCalculationHandlers } = sizeCalculation;
+
+  const otherPanelId = activePanel === "left" ? "right" : "left";
+
+  const handleTerminal = useCallback(async () => {
+    try {
+      let terminalPath = panels[activePanel].path;
+      const zipMatch = matchZipPath(terminalPath);
+
+      if (zipMatch) {
+        // If inside a zip, open terminal in the parent directory of the zip file
+        const zipFilePath = zipMatch[1]; // The full path to the .zip file
+        terminalPath = dirname(zipFilePath); // The directory containing the .zip file
+      }
+
+      const response = await post("/api/terminals", { path: terminalPath });
+      const { jobId } = await response.json();
+      modals.setTerminalModal({ isVisible: true, jobId });
+    } catch (error) {
+      setError(error.message);
+    }
+  }, [activePanel, panels, modals.setTerminalModal, setError]);
+
+  const handleTerminalOtherPanel = useCallback(async () => {
+    try {
+      let terminalPath = panels[otherPanelId].path;
+      const zipMatch = matchZipPath(terminalPath);
+
+      if (zipMatch) {
+        // If inside a zip, open terminal in the parent directory of the zip file
+        const zipFilePath = zipMatch[1]; // The full path to the .zip file
+        terminalPath = dirname(zipFilePath);
+      }
+
+      const response = await post("/api/terminals", { path: terminalPath });
+      const { jobId } = await response.json();
+      modals.setTerminalModal({ isVisible: true, jobId });
+    } catch (error) {
+      setError(error.message);
+    }
+  }, [otherPanelId, panels, modals.setTerminalModal, setError]);
 
   // Feature hooks
   const rename = useRename({
@@ -733,7 +774,7 @@ export default function appState() {
       {
         label: "Terminal",
         f_key: "F9",
-        action: () => console.log("Not implemented"),
+        action: handleTerminal,
       },
     ],
     [
@@ -750,6 +791,7 @@ export default function appState() {
       modals,
       rename.handleStartRename,
       handleViewItem,
+      handleTerminal,
     ]
   );
 
@@ -821,6 +863,7 @@ export default function appState() {
     handleCutToClipboard,
     handlePasteFromClipboard,
     sortedAndFilteredItems,
+    handleTerminal,
   });
 
   const panelsRef = useRef(panels);
@@ -963,6 +1006,8 @@ export default function appState() {
     handleCutToClipboard,
     handlePasteFromClipboard,
     handleDuplicate,
+    handleTerminal,
+    handleTerminalOtherPanel,
     // UI Composition
     actionBarButtons,
   };

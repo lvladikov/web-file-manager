@@ -8,8 +8,6 @@ import {
   buildFullPath,
   isPreviewableText,
   isEditable,
-  dirname,
-  matchZipPath,
 } from "./lib/utils";
 
 // Components
@@ -164,6 +162,8 @@ export default function App() {
     setTerminalModal,
     allowContextMenu,
     setAllowContextMenu,
+    handleTerminal,
+    handleTerminalOtherPanel,
   } = appState();
   const mainRef = useRef(null);
 
@@ -207,44 +207,6 @@ export default function App() {
           handleOpenFile(activePath, item.name);
         }
       }
-    }
-  };
-
-  const handleTerminal = async () => {
-    try {
-      let terminalPath = panels[activePanel].path;
-      const zipMatch = matchZipPath(terminalPath);
-
-      if (zipMatch) {
-        // If inside a zip, open terminal in the parent directory of the zip file
-        const zipFilePath = zipMatch[1]; // The full path to the .zip file
-        terminalPath = dirname(zipFilePath); // The directory containing the .zip file
-      }
-
-      const response = await post("/api/terminals", { path: terminalPath });
-      const { jobId } = await response.json();
-      setTerminalModal({ isVisible: true, jobId });
-    } catch (error) {
-      setError(error.message);
-    }
-  };
-
-  const handleTerminalOtherPanel = async () => {
-    try {
-      let terminalPath = panels[otherPanelId].path;
-      const zipMatch = matchZipPath(terminalPath);
-
-      if (zipMatch) {
-        // If inside a zip, open terminal in the parent directory of the zip file
-        const zipFilePath = zipMatch[1]; // The full path to the .zip file
-        terminalPath = dirname(zipFilePath);
-      }
-
-      const response = await post("/api/terminals", { path: terminalPath });
-      const { jobId } = await response.json();
-      setTerminalModal({ isVisible: true, jobId });
-    } catch (error) {
-      setError(error.message);
     }
   };
 
