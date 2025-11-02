@@ -483,6 +483,7 @@ const FileMenu = ({ ...props }) => {
         <div className={separatorClassName} />
         <MenuItem
           label="Terminal in active panel"
+          shortcut="F9"
           onClick={() => handleItemClick(props.onTerminal)}
         />
         <MenuItem

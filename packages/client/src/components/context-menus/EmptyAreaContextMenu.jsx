@@ -165,6 +165,7 @@ const EmptyAreaContextMenu = ({
               <div className={separatorClassName}></div>
               <ContextMenu.Item onSelect={onTerminal} className={itemClassName}>
                 <span>Terminal in active panel</span>
+                <span className="text-gray-400">F9</span>
               </ContextMenu.Item>
               <ContextMenu.Item
                 onSelect={onTerminalOtherPanel}

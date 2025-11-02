@@ -535,6 +535,11 @@ export default function useKeyboardShortcuts(props) {
         }
         return;
       }
+      if (e.key === "F9") {
+        e.preventDefault();
+        console.log(`Not yet implemented: ${activePanel}`);
+        return;
+      }
 
       if (!panelItems || panelItems.length === 0) return;
       const currentFocusedName = focusedItem[activePanel];

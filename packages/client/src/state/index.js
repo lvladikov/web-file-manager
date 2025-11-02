@@ -730,6 +730,11 @@ export default function appState() {
         disabled:
           activeSelection.size === 0 || focusedItem[activePanel] === "..",
       },
+      {
+        label: "Terminal",
+        f_key: "F9",
+        action: () => console.log("Not implemented"),
+      },
     ],
     [
       focusedItem,
