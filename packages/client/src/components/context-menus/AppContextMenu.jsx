@@ -458,7 +458,7 @@ const AppContextMenu = ({
                     </ContextMenu.SubTrigger>
                     <ContextMenu.Portal>
                       <ContextMenu.SubContent
-                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-66"
+                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-64"
                         sideOffset={2}
                         alignOffset={-5}
                       >

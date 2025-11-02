@@ -20,7 +20,7 @@ const PathContextMenu = ({
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content
-          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-60"
+          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
           onClick={(e) => e.stopPropagation()}
         >
           <ContextMenu.Item onSelect={onChooseFolder} className={itemClassName}>
