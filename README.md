@@ -15,6 +15,7 @@ This project is inspired by applications like Midnight Commander and Double Comm
 /                                    # Project root directory
 ├── packages/                        # Contains the client and server applications
 │   ├── client/                      # React frontend application
+│   │   ├── icons/                   # Icons used by the application
 │   │   ├── screenshots/             # Screnshots used by README.md and Help Modal
 │   │   ├── src/                     # Source code for the React application
 │   │   │   ├── components/          # Reusable UI components
@@ -177,6 +178,7 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
   - **Archives:** ZIP
 
 - **Terminal**: You can open a built-in terminal directly within the application, either in the current panel\'s path or in the other panel\'s path. This allows you to execute shell commands without leaving the file manager.
+
   - **Clear Terminal**: Clears the current terminal screen.
   - **Clear Scrollback**: Clears the terminal\'s scrollback history.
 

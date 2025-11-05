@@ -22,6 +22,10 @@ export default defineConfig({
           // Copy it to the root of the output directory
           dest: ".",
         },
+        {
+          src: "icons",
+          dest: ".",
+        },
       ],
     }),
   ],
@@ -35,7 +39,7 @@ export default defineConfig({
       "/ws": {
         target: "ws://localhost:3001",
         ws: true,
-        rewrite: (path) => path.replace(/^\/ws/, ''),
+        rewrite: (path) => path.replace(/^\/ws/, ""),
       },
     },
   },
