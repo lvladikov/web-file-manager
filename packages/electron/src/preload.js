@@ -3,7 +3,7 @@ const { contextBridge } = require("electron");
 // Expose limited APIs to the renderer process
 contextBridge.exposeInMainWorld("electron", {
   app: {
-    getVersion: () => "1.1.0",
+    getVersion: () => "1.1.1",
   },
 });
 
@@ -45,21 +45,25 @@ contextBridge.exposeInMainWorld("electron", {
   `;
 
   try {
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
+    const script = document.createElement("script");
+    script.type = "text/javascript";
     script.textContent = code;
     (document.head || document.documentElement).appendChild(script);
     script.parentNode && script.parentNode.removeChild(script);
   } catch (e) {
     // If the DOM isn't available yet, attach to DOMContentLoaded as a fallback.
-    window.addEventListener('DOMContentLoaded', function () {
-      try {
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.textContent = code;
-        (document.head || document.documentElement).appendChild(script);
-        script.parentNode && script.parentNode.removeChild(script);
-      } catch (err) {}
-    }, { once: true });
+    window.addEventListener(
+      "DOMContentLoaded",
+      function () {
+        try {
+          const script = document.createElement("script");
+          script.type = "text/javascript";
+          script.textContent = code;
+          (document.head || document.documentElement).appendChild(script);
+          script.parentNode && script.parentNode.removeChild(script);
+        } catch (err) {}
+      },
+      { once: true }
+    );
   }
 })();
