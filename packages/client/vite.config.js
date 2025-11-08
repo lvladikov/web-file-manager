@@ -7,8 +7,22 @@ import path from "path";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
-// Now we can use require.resolve to robustly find the package path.
-const pdfjsDistPath = path.dirname(require.resolve("pdfjs-dist/package.json"));
+// Try to resolve the pdfjs-dist package that matches react-pdf first.
+// react-pdf pins a specific pdfjs version; prefer copying the worker that
+// corresponds to the version react-pdf will load to avoid API version mismatches.
+let pdfjsDistPath;
+try {
+  // Try nested resolution under react-pdf
+  const reactPdfPkg = require.resolve("react-pdf/package.json");
+  const reactPdfDir = path.dirname(reactPdfPkg);
+  // Attempt to resolve pdfjs-dist relative to react-pdf's directory
+  pdfjsDistPath = path.dirname(
+    require.resolve("pdfjs-dist/package.json", { paths: [reactPdfDir] })
+  );
+} catch (err) {
+  // Fallback to the normal resolution
+  pdfjsDistPath = path.dirname(require.resolve("pdfjs-dist/package.json"));
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
