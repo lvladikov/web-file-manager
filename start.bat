@@ -22,8 +22,6 @@ if %errorlevel% neq 0 (
 
 if not exist "node_modules" (
     set "error=1"
-) else if not exist "packages\client\node_modules" (
-    set "error=1"
 ) else if not exist "packages\server\node_modules" (
     set "error=1"
 )

@@ -30,7 +30,6 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 # Check for node_modules directories
 $modulePaths = @(
     "./node_modules",
-    "./packages/client/node_modules",
     "./packages/server/node_modules"
 )
 
