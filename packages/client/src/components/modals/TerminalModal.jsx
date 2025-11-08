@@ -51,12 +51,31 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
     setTimeout(() => {
       fitAddon.current.fit();
       const { cols, rows } = term;
+      // Send initial resize to ensure server PTY is sized correctly
       ws.send(JSON.stringify({ type: "resize", cols, rows }));
       term.focus();
     }, 150);
 
+    // Debounce resize events to avoid spamming the server
+    let resizeTimeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (terminalRef.current) {
+          fitAddon.current.fit();
+          const { cols, rows } = term;
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: "resize", cols, rows }));
+          }
+        }
+      }, 100); // Debounce for 100ms
+    };
+
     ws.onopen = () => {
       fitAddon.current.fit();
+      const { cols, rows } = term;
+      ws.send(JSON.stringify({ type: "resize", cols, rows }));
+
       term.onData((data) => {
         ws.send(JSON.stringify({ type: "data", data }));
       });
@@ -64,6 +83,12 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
       term.onResize(({ cols, rows }) => {
         ws.send(JSON.stringify({ type: "resize", cols, rows }));
       });
+
+      // Set up resize observer after websocket is open
+      const resizeObserver = new ResizeObserver(handleResize);
+      if (terminalRef.current) {
+        resizeObserver.observe(terminalRef.current.parentElement);
+      }
     };
 
     ws.onmessage = async (event) => {
@@ -83,12 +108,27 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
       term.write(text);
     };
 
-    term.parser.registerOscHandler(6, (data) => {
-      setCwd(data);
-      return true;
-    });
+    // Handle OSC sequences for setting the window/title. Historically the
+    // app used OSC 6, but OSC 0 is the conventional sequence for setting
+    // the window/icon title. Register handlers for both so we remain
+    // compatible with older versions and different terminal backends.
+    try {
+      term.parser.registerOscHandler(0, (data) => {
+        setCwd(data);
+        return true;
+      });
+      term.parser.registerOscHandler(6, (data) => {
+        setCwd(data);
+        return true;
+      });
+    } catch (err) {
+      // Some xterm builds may not expose parser.registerOscHandler; ignore
+      // if not available (the terminal will still function, but cwd
+      // display may not update from OSC sequences).
+    }
 
     ws.onclose = (event) => {
+      clearTimeout(resizeTimeout);
       term.dispose();
       onClose();
     };
@@ -97,16 +137,8 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
       console.error("[ws] Error:", error);
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      fitAddon.current.fit();
-    });
-
-    if (terminalRef.current) {
-      resizeObserver.observe(terminalRef.current.parentElement);
-    }
-
     return () => {
-      resizeObserver.disconnect();
+      clearTimeout(resizeTimeout);
       ws.close();
       term.dispose();
     };

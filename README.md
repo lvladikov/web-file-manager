@@ -13,7 +13,7 @@ This project is inspired by applications like Midnight Commander and Double Comm
 ```
 
 /                                    # Project root directory
-├── packages/                        # Contains the client and server applications
+├── packages/                        # Contains the client, server, and electron applications
 │   ├── client/                      # React frontend application
 │   │   ├── icons/                   # Icons used by the application
 │   │   ├── screenshots/             # Screnshots used by README.md and Help Modal
@@ -33,10 +33,16 @@ This project is inspired by applications like Midnight Commander and Double Comm
 │   │   ├── postcss.config.js        # PostCSS configuration
 │   │   ├── tailwind.config.js       # Tailwind CSS configuration
 │   │   └── vite.config.js           # Vite build configuration
-│   └── server/                      # Node.js backend application
-│       ├── lib/                     # Utility functions and server-side logic
-│       ├── routes/                  # API route definitions
-│       └── server.js                # Entry point for the Node.js server
+│   ├── server/                      # Node.js backend application
+│   │   ├── lib/                     # Utility functions and server-side logic
+│   │   ├── routes/                  # API route definitions
+│   │   └── server.js                # Entry point for the Node.js server
+│   └── electron/                    # Electron desktop application
+│       ├── src/                     # Electron main process (dynamic imports only)
+│       │   ├── main.js              # Main process with runtime module resolution
+│       │   └── preload.js           # Security preload script
+│       ├── build.js                 # Build assembly script
+│       └── package.json             # Electron and electron-builder config
 ├── misc/                            # Miscellaneous scripts and tools
 │   ├── create-corrupt-zip.js        # Utility for creating corrupt archives for testing
 │   └── README.md                    # Documentation for miscellaneous scripts
@@ -68,7 +74,7 @@ This project is inspired by applications like Midnight Commander and Double Comm
 - Run the Application:
   To start both the backend server and the frontend client in development mode, you can use one of the following methods.
 
-  ### Using npm
+  ### Using npm (Web Application)
 
   Run this command from the root directory:
 
@@ -81,6 +87,14 @@ This project is inspired by applications like Midnight Commander and Double Comm
   - Start the React development server on http://localhost:5173.
 
   Your browser should automatically open to the React application.
+
+  ### Using npm (Electron Desktop App)
+
+  To run the desktop application in development mode:
+
+  `npm run electron:dev`
+
+  This builds the client and launches the Electron desktop app with the server running internally.
 
   ### Using Start Scripts
 
@@ -273,3 +287,33 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 - **Copy/Move Operation & Conflict Modes**: When copying/moving, if an item exists in the target, a confirmation dialog appears with choices for handling conflicts (e.g., "Yes to All", "Copy/Move if New", "No to All", "Skip if Source is Empty", "Overwrite if Size Differs", "Replace if Smaller").
 
   ![Overwrite Modal Screenshot](packages/client/screenshots/overwrite-modal.png)
+
+## Electron Desktop Application
+
+The project includes a desktop application built with Electron that bundles the React frontend and Node.js backend into a standalone app for macOS, Windows, and Linux.
+
+![Standalone Electron App Screenshot](packages/client/screenshots/electron.png)
+
+### Features
+
+- **Self-Contained**: No external Node.js installation required
+- **Zero-Duplication Architecture**: Electron uses dynamic imports from workspace packages
+- **Multi-Platform**: Builds available for macOS (DMG/ZIP), Windows (NSIS/ZIP), and Linux (AppImage/deb/tar.gz)
+- **All Features Included**: Full file management capabilities in a desktop app
+
+### Quick Commands
+
+**Development:**
+
+```bash
+npm run electron:dev
+```
+
+**Build Distribution:**
+
+```bash
+npm run electron:dist:mac      # macOS DMG and ZIP
+npm run electron:dist:win      # Windows NSIS installer and ZIP
+npm run electron:dist:linux    # Linux AppImage, deb, and tar.gz
+npm run electron:dist:all      # All platforms
+```

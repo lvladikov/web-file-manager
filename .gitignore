@@ -17,3 +17,7 @@ vite.config.ts.timestamp-*
 
 # App personalised config - no need to check in as it's created by the script
 packages/server/config.json
+
+# Ignore generated dist folders
+packages/client/dist
+packages/electron/dist

@@ -241,7 +241,23 @@ export default function appState() {
         terminalPath = dirname(zipFilePath); // The directory containing the .zip file
       }
 
-      const response = await post("/api/terminals", { path: terminalPath });
+      // Calculate terminal dimensions based on modal size and character dimensions
+      // Modal will be 80vw x 80vh, estimate character size for xterm
+      const charWidth = 8; // pixels per character (approximate for xterm font)
+      const charHeight = 16; // pixels per character line (approximate for xterm font)
+
+      // Get viewport dimensions
+      const viewportWidth = window.innerWidth * 0.8 * 0.9; // 80vw * 90% (accounting for padding)
+      const viewportHeight = window.innerHeight * 0.8 * 0.85; // 80vh * 85% (accounting for header and padding)
+
+      const cols = Math.floor(viewportWidth / charWidth);
+      const rows = Math.floor(viewportHeight / charHeight);
+
+      const response = await post("/api/terminals", {
+        path: terminalPath,
+        cols,
+        rows,
+      });
       const { jobId } = await response.json();
       modals.setTerminalModal({ isVisible: true, jobId });
     } catch (error) {
@@ -260,7 +276,21 @@ export default function appState() {
         terminalPath = dirname(zipFilePath);
       }
 
-      const response = await post("/api/terminals", { path: terminalPath });
+      // Calculate terminal dimensions based on modal size and character dimensions
+      const charWidth = 8; // pixels per character (approximate for xterm font)
+      const charHeight = 16; // pixels per character line (approximate for xterm font)
+
+      const viewportWidth = window.innerWidth * 0.8 * 0.9;
+      const viewportHeight = window.innerHeight * 0.8 * 0.85;
+
+      const cols = Math.floor(viewportWidth / charWidth);
+      const rows = Math.floor(viewportHeight / charHeight);
+
+      const response = await post("/api/terminals", {
+        path: terminalPath,
+        cols,
+        rows,
+      });
       const { jobId } = await response.json();
       modals.setTerminalModal({ isVisible: true, jobId });
     } catch (error) {

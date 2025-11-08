@@ -7,7 +7,6 @@ import { Writable, Readable } from "stream";
 import watcher from "./watcher.js";
 import os from "os";
 import * as yauzl from "yauzl-promise";
-import pty from "node-pty";
 
 // A Writable stream that does nothing, used to consume read streams for integrity testing
 class NullWritable extends Writable {
@@ -141,7 +140,22 @@ export function initializeWebSocketServer(
               if (data.type === "resize") {
                 term.resize(data.cols, data.rows);
               } else if (data.type === "data") {
+                // Write to the child process stdin
                 term.write(data.data);
+
+                // If this is the non-PTY fallback, echo typed characters
+                // back to the client so they appear immediately in the
+                // terminal UI (the shell may not echo when not attached to
+                // a real TTY).
+                try {
+                  if (term.isPty === false && job.ws && job.ws.readyState === 1) {
+                    // send raw data so the renderer's onmessage will treat
+                    // it as terminal output and render it
+                    job.ws.send(data.data);
+                  }
+                } catch (e) {
+                  // ignore send errors
+                }
               }
             }
           }
@@ -1487,22 +1501,21 @@ export function initializeWebSocketServer(
               }
             });
 
-
-
             ws.on("close", () => {
               term.kill();
               activeTerminalJobs.delete(jobId);
             });
 
-            term.on('exit', (code, signal) => {
-              console.log(`[pty] Process for job ${jobId} exited with code ${code} and signal ${signal}`);
+            term.on("exit", (code, signal) => {
+              console.log(
+                `[pty] Process for job ${jobId} exited with code ${code} and signal ${signal}`
+              );
               if (ws.readyState === 1) {
                 ws.send(JSON.stringify({ type: "exit", code, signal })); // Inform frontend
                 ws.close(1000, "Terminal process exited"); // Close WebSocket
               }
               activeTerminalJobs.delete(jobId);
             });
-
           } else {
             console.warn(`[ws] No terminal found for job ID: ${jobId}`);
             ws.close();
@@ -1512,6 +1525,14 @@ export function initializeWebSocketServer(
         ws.on("close", async () => {
           console.log(`[ws] Client disconnected for ${jobType} job: ${jobId}`);
           if (job.ws === ws) job.ws = null;
+
+          if (jobType === "terminal") {
+            const job = activeTerminalJobs.get(jobId);
+            if (job && job.ptyProcess) {
+              job.ptyProcess.kill();
+              activeTerminalJobs.delete(jobId);
+            }
+          }
 
           if (
             jobType === "compress" &&

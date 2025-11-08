@@ -1,23 +1,24 @@
-import express from 'express';
-import { randomUUID } from 'crypto';
-import os from 'os';
-import pty from 'node-pty';
+import express from "express";
+import { randomUUID } from "crypto";
+import os from "os";
+import pty from "../lib/terminal-backend.js";
 
 export default function terminalRoutes(activeTerminalJobs) {
   const router = express.Router();
 
-  router.post('/terminals', (req, res) => {
-    const { path = process.env.HOME } = req.body;
+  router.post("/terminals", (req, res) => {
+    const { path = process.env.HOME, cols = 120, rows = 40 } = req.body;
     const jobId = randomUUID();
-    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+    const shell = os.platform() === "win32" ? "powershell.exe" : "bash";
+
     const ptyProcess = pty.spawn(shell, [], {
-      name: 'xterm-color',
-      cols: 80,
-      rows: 30,
+      name: "xterm-color",
+      cols,
+      rows,
       cwd: path,
       env: {
         ...process.env,
-        PS1: '$ ',
+        PS1: "\r\n$ ",
         PROMPT_COMMAND: 'printf "\x1b]6;%s\x07" "$PWD"',
       },
     });

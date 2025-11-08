@@ -1,0 +1,105 @@
+{
+  "name": "@web-file-manager/electron",
+  "version": "1.1.0",
+  "description": "Electron app for Web File Manager",
+  "author": {
+    "name": "Lachezar Vladikov",
+    "email": "lachezar@gmail.com"
+  },
+  "homepage": "https://github.com/lvladikov/web-file-manager",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "node build.js && electron .",
+    "build": "npm run build:client && npm run build:app",
+    "build:client": "npm run build --workspace=@web-file-manager/client",
+    "build:app": "node build.js",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac --publish=never",
+    "dist:win": "npm run build && electron-builder --win --publish=never",
+    "dist:linux": "npm run build && electron-builder --linux --publish=never",
+    "dist:all": "npm run build && electron-builder --mac --win --linux --publish=never"
+  },
+  "dependencies": {
+    "@web-file-manager/client": "file:../client",
+    "@web-file-manager/server": "file:../server",
+    "archiver": "^7.0.1",
+    "check-disk-space": "^3.4.0",
+    "chokidar": "^4.0.3",
+    "express": "^4.19.2",
+    "fs-extra": "^11.2.0",
+    "music-metadata": "^11.9.0",
+    "open": "^10.1.0",
+    "ws": "^8.13.0",
+    "yauzl-promise": "^4.0.0"
+  },
+  "optionalDependencies": {},
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.web-file-manager.app",
+    "productName": "Web File Manager",
+    "electronVersion": "30.5.1",
+    "directories": {
+      "buildResources": "../client/icons"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities",
+      "artifactName": "Web-File-Manager-${version}.${ext}",
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "artifactName": "Web-File-Manager-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "tar.gz"
+      ],
+      "category": "Utility",
+      "artifactName": "Web-File-Manager-${version}.${ext}",
+      "maintainer": "Lachezar Vladikov <lachezar@gmail.com>"
+    },
+    "files": [
+      "dist/main.js",
+      "dist/preload.js",
+      "dist/client/**/*",
+      "dist/server/**/*",
+      "package.json",
+      "!dist/mac*",
+      "!dist/*.dmg",
+      "!dist/*.zip",
+      "!dist/*.blockmap",
+      "!dist/*.yaml",
+      "!dist/*.yml"
+    ],
+    "asarUnpack": [
+      "dist/server/**/*"
+    ],
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  }
+}
