@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
-import { LoaderCircle, FileWarning } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+import { LoaderCircle, FileWarning } from "lucide-react";
 
 // Point pdfjs to the worker we copy into / during the Vite build.
 pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
-import { renderPdfPageToCanvas, getPdfNumPages } from '../../../lib/pdfOffscreenRenderer';
+import {
+  renderPdfPageToCanvas,
+  getPdfNumPages,
+} from "../../../lib/pdfOffscreenRenderer";
 
 const PdfPreview = ({ fileUrl, isFullscreen }) => {
   const [numPages, setNumPages] = useState(null);
@@ -72,18 +75,26 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
         }
 
         const targetWidth = Math.min(
-          measuredWidth > 0 ? (isFullscreen ? measuredWidth * 0.98 : measuredWidth * 0.95) : 1200,
+          measuredWidth > 0
+            ? isFullscreen
+              ? measuredWidth * 0.98
+              : measuredWidth * 0.95
+            : 1200,
           2400
         );
 
-        const canvas = await renderPdfPageToCanvas(fileUrl, pageNumber, targetWidth);
+        const canvas = await renderPdfPageToCanvas(
+          fileUrl,
+          pageNumber,
+          targetWidth
+        );
         if (ctrl.cancelled || !mounted) return;
 
         let dataUrl = null;
         try {
-          dataUrl = canvas.toDataURL('image/png');
+          dataUrl = canvas.toDataURL("image/png");
         } catch (e) {
-          console.warn('Failed to convert canvas to data URL', e);
+          console.warn("Failed to convert canvas to data URL", e);
         }
 
         if (dataUrl && mounted) {
@@ -97,7 +108,10 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
                 try {
                   // naturalWidth/naturalHeight are device pixels; use those as
                   // the intrinsic size for the <img> element.
-                  setFinalSize({ width: img.naturalWidth, height: img.naturalHeight });
+                  setFinalSize({
+                    width: img.naturalWidth,
+                    height: img.naturalHeight,
+                  });
                 } catch (e) {
                   setFinalSize(null);
                 }
@@ -110,7 +124,10 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
             // If loading fails, fall back to canvas-reported CSS sizes if present.
             try {
               if (canvas && canvas._cssWidth && canvas._cssHeight) {
-                setFinalSize({ width: canvas._cssWidth, height: canvas._cssHeight });
+                setFinalSize({
+                  width: canvas._cssWidth,
+                  height: canvas._cssHeight,
+                });
               } else {
                 setFinalSize(null);
               }
@@ -124,7 +141,7 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
         }
       } catch (err) {
         if (!ctrl.cancelled && mounted) {
-          console.error('PDF offscreen render error', err);
+          console.error("PDF offscreen render error", err);
           setHasPdfError(true);
           setIsLoading(false);
         }
@@ -140,16 +157,22 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
     };
   }, [fileUrl, pageNumber, isFullscreen]);
 
-  const goToPrevPage = useCallback(() => setPageNumber((p) => Math.max(p - 1, 1)), []);
-  const goToNextPage = useCallback(() => setPageNumber((p) => Math.min(p + 1, numPages)), [numPages]);
+  const goToPrevPage = useCallback(
+    () => setPageNumber((p) => Math.max(p - 1, 1)),
+    []
+  );
+  const goToNextPage = useCallback(
+    () => setPageNumber((p) => Math.min(p + 1, numPages)),
+    [numPages]
+  );
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'ArrowLeft') {
+      if (e.key === "ArrowLeft") {
         e.preventDefault();
         goToPrevPage();
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === "ArrowRight") {
         e.preventDefault();
         goToNextPage();
       }
@@ -157,10 +180,10 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
     const el = containerRef.current;
     if (el) {
       el.focus();
-      el.addEventListener('keydown', handleKeyDown);
+      el.addEventListener("keydown", handleKeyDown);
     }
     return () => {
-      if (el) el.removeEventListener('keydown', handleKeyDown);
+      if (el) el.removeEventListener("keydown", handleKeyDown);
     };
   }, [goToPrevPage, goToNextPage]);
 
@@ -169,25 +192,35 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
       ref={containerRef}
       tabIndex={-1}
       className={`flex flex-col bg-black rounded-b-lg transition-none duration-0 outline-none ${
-        isFullscreen ? 'w-full h-full' : ''
+        isFullscreen ? "w-full h-full" : ""
       }`}
-      
     >
       {/* Controls */}
       <div className="flex-shrink-0 bg-gray-800 p-2 flex items-center justify-center space-x-4 text-white shadow-md z-10 w-full">
-        <button onClick={goToPrevPage} disabled={pageNumber <= 1} className="px-3 py-1 bg-gray-600 rounded disabled:opacity-50 hover:bg-gray-500">
+        <button
+          onClick={goToPrevPage}
+          disabled={pageNumber <= 1}
+          className="px-3 py-1 bg-gray-600 rounded disabled:opacity-50 hover:bg-gray-500"
+        >
           Previous
         </button>
         <span>
-          Page {pageNumber} of {numPages || '...'}
+          Page {pageNumber} of {numPages || "..."}
         </span>
-        <button onClick={goToNextPage} disabled={pageNumber >= numPages} className="px-3 py-1 bg-gray-600 rounded disabled:opacity-50 hover:bg-gray-500">
+        <button
+          onClick={goToNextPage}
+          disabled={pageNumber >= numPages}
+          className="px-3 py-1 bg-gray-600 rounded disabled:opacity-50 hover:bg-gray-500"
+        >
           Next
         </button>
       </div>
 
       {/* PDF display */}
-      <div className="flex-grow flex justify-center items-center overflow-auto bg-gray-900 relative" style={{ padding: '1rem' }}>
+      <div
+        className="flex-grow flex justify-center items-center overflow-auto bg-gray-900 relative"
+        style={{ padding: "1rem" }}
+      >
         {!finalSrc && isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800 bg-opacity-75 z-10">
             <LoaderCircle className="w-10 h-10 animate-spin text-sky-400 mb-3" />
@@ -215,14 +248,14 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
                 height={finalSize?.height}
                 className="object-contain rounded-b-lg"
                 style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  width: 'auto',
-                  height: 'auto',
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "auto",
+                  height: "auto",
                 }}
               />
             ) : (
-              <div style={{ width: '100%', minHeight: 240 }} />
+              <div style={{ width: "100%", minHeight: 240 }} />
             )}
           </div>
         )}
