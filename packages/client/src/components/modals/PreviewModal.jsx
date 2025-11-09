@@ -54,7 +54,6 @@ const PreviewInfo = ({ previewType }) => {
   ) {
     return null;
   }
-
   return (
     <div className="flex items-start p-3 bg-gray-800 text-sm text-gray-400 border-b border-gray-700 flex-shrink-0">
       <Info className="w-5 h-5 mr-3 flex-shrink-0 text-sky-400" />
@@ -702,7 +701,7 @@ const PreviewModal = ({
             ? "w-full max-w-[50vw] max-h-[90vh] min-h-[30vh]"
             : previewType === "zip"
             ? "w-full max-w-4xl h-[80vh]"
-            : "max-w-[90vw] max-h-[90vh]"
+            : "w-full max-w-[90vw] max-h-[90vh]"
         }`}
         onClick={(e) => e.stopPropagation()}
       >

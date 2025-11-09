@@ -43,6 +43,17 @@ export default defineConfig({
       ],
     }),
   ],
+  // Ensure all imports of `pdfjs-dist` (including sub-paths like
+  // 'pdfjs-dist/legacy/build/pdf') resolve to the exact package
+  // directory we determined above (the version that matches react-pdf).
+  resolve: {
+    alias: [
+      {
+        find: /^pdfjs-dist(\/.*)?$/,
+        replacement: path.join(pdfjsDistPath) + "$1",
+      },
+    ],
+  },
   server: {
     port: 5173,
     proxy: {
