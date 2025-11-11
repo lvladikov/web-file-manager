@@ -236,6 +236,10 @@ try {
         let electronRebuildResult = null;
         try {
           console.log("Running electron-rebuild for node-pty...");
+
+          // Run electron-rebuild but capture output to avoid flooding the
+          // console with compiler warnings. We'll summarize results and
+          // write the full log to the cache directory for later inspection.
           electronRebuildResult = spawnSync(
             "npx",
             [
@@ -250,15 +254,51 @@ try {
               "--module-dir",
               moduleDir,
             ],
-            { stdio: "inherit", shell: true, env }
+            { stdio: "pipe", shell: true, env }
           );
+
+          // Normalize output
+          const out = (electronRebuildResult.stdout || "").toString();
+          const err = (electronRebuildResult.stderr || "").toString();
+          const combined = `${out}\n${err}`;
+
+          // Ensure cacheDir exists and write the full rebuild log for debugging
+          try {
+            await fs.ensureDir(cacheDir);
+            const rebuildLog = path.join(
+              cacheDir,
+              "electron-rebuild-node-pty.log"
+            );
+            await fs.writeFile(rebuildLog, combined, "utf8");
+          } catch (e) {
+            // non-fatal — continue even if we couldn't write the log
+          }
+
+          // Count warnings (simple heuristic)
+          const warningMatches = combined.match(/warning[:\s]|warning\)/gi);
+          const warnings = warningMatches ? warningMatches.length : 0;
+
           if (
             electronRebuildResult.error ||
             electronRebuildResult.status !== 0
           ) {
             console.warn(
-              "electron-rebuild failed — the native addon may not be compatible with Electron. Continuing copy but Electron may fall back to pipe terminal."
+              "electron-rebuild failed — the native addon may not be compatible with Electron. Continuing copy but Electron may fall back to pipe terminal. Full log written to:",
+              path.join(cacheDir, "electron-rebuild-node-pty.log")
             );
+            // Also print a short tail of stderr to help diagnose immediate problems
+            if (err) console.warn(err.split(/\r?\n/).slice(-10).join("\n"));
+          } else {
+            if (warnings > 0) {
+              console.log(
+                `electron-rebuild completed with ${warnings} warnings (full log: ${path.join(
+                  cacheDir,
+                  "electron-rebuild-node-pty.log"
+                )})`
+              );
+            } else {
+              console.log("electron-rebuild completed successfully");
+            }
           }
         } catch (e) {
           console.warn("Could not run electron-rebuild step:", e && e.message);

@@ -37,7 +37,14 @@ try {
         )
       );
       // Fallback in case node-pty was copied directly under app.asar.unpacked/node_modules
-      candidates.push(path.join(resourcesPath, "app.asar.unpacked", "node_modules", "node-pty"));
+      candidates.push(
+        path.join(
+          resourcesPath,
+          "app.asar.unpacked",
+          "node_modules",
+          "node-pty"
+        )
+      );
     }
   } catch (err) {
     // ignore issues reading resourcesPath

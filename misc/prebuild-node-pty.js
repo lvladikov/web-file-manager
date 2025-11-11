@@ -42,7 +42,7 @@ const style = (txt, ...codes) => {
 // Helper: check that the Python runtime available to node-gyp provides
 // the `distutils` module. Newer Python versions (3.12+) removed distutils
 // from the stdlib which might break node-gyp's `gyp` configure step.
-// If distutils is missing we print actionable instructions and exit so the
+// If distutils is missing actionable instructions are printed and script exits so the
 // developer can fix their environment before attempting a native build.
 function probePythonCandidates() {
   // Allow explicit override via CLI flag --venv-python or environment vars
@@ -495,7 +495,6 @@ function runElectronRebuild(electronVersion, arch) {
       moduleDir,
     ];
     // Use npx so we don't add a permanent devDependency. Run with shell to
-    // Use npx so we don't add a permanent devDependency. Run with shell to
     const res = spawnSync("npx", args, {
       stdio: "inherit",
       shell: true,
@@ -896,17 +895,63 @@ function atomicInstallNodePty() {
       "--loglevel",
       "verbose",
     ];
+    // Run npm but capture output to avoid flooding the console with verbose
+    // npm/electron/node-gyp logs. The full log is written to a cache file for
+    // later inspection, and print a concise summary here.
     const res = spawnSync("npm", args, {
-      stdio: "inherit",
+      stdio: "pipe",
       shell: true,
       env: process.env,
     });
-    if (res.error || res.status !== 0) {
-      console.error(style("Temporary install failed.", COLORS.red));
-      try {
-        spawnSync("rm", ["-rf", tmpBase], { stdio: "ignore" });
-      } catch (e) {}
-      return false;
+
+    const out = (res.stdout || "").toString();
+    const err = (res.stderr || "").toString();
+    const combined = `${out}\n${err}`;
+
+    // Ensure a cache dir for logs exists and write the full log
+    try {
+      const logDir = path.join(__dirname, "..", ".node-pty-cache");
+      fs.mkdirSync(logDir, { recursive: true });
+      const logPath = path.join(logDir, "prebuild-install.log");
+      fs.writeFileSync(logPath, combined, "utf8");
+      // Print concise summary
+      if (res.error || res.status !== 0) {
+        console.error(
+          style("Temporary install failed (see log):", COLORS.red),
+          logPath
+        );
+        // print a short tail of stderr to aid quick debugging
+        if (err) console.error(err.split(/\r?\n/).slice(-10).join("\n"));
+        try {
+          spawnSync("rm", ["-rf", tmpBase], { stdio: "ignore" });
+        } catch (e) {}
+        return false;
+      } else {
+        // Count warnings heuristically
+        const warningMatches = combined.match(/warning[:\s]|warning\)/gi);
+        const warnings = warningMatches ? warningMatches.length : 0;
+        if (warnings > 0) {
+          console.log(
+            style(
+              `Temporary install completed with ${warnings} warnings (log: ${logPath})`,
+              COLORS.yellow
+            )
+          );
+        } else {
+          console.log(
+            style("Temporary install completed successfully", COLORS.green)
+          );
+        }
+      }
+    } catch (e) {
+      // If log write failed, fall back to printing error and continue
+      if (res.error || res.status !== 0) {
+        console.error(style("Temporary install failed.", COLORS.red));
+        try {
+          spawnSync("rm", ["-rf", tmpBase], { stdio: "ignore" });
+        } catch (e2) {}
+        return false;
+      }
     }
 
     const src = path.join(tmpBase, "node_modules", "node-pty");
@@ -1647,19 +1692,44 @@ async function main() {
     console.log(
       style("Ensuring nan is installed for node-pty...", COLORS.cyan)
     );
-    const nanInstall = spawnSync(
-      "npm",
-      [
+    // Run `npm install nan` with captured output to keep logs concise.
+    try {
+      const nanArgs = [
         "--prefix",
         "packages/server",
         "install",
         "nan",
         "--loglevel",
         "verbose",
-      ],
-      { stdio: "inherit", shell: true }
-    );
-    if (nanInstall.error || nanInstall.status !== 0) {
+      ];
+      const nanRes = spawnSync("npm", nanArgs, {
+        stdio: "pipe",
+        shell: true,
+        env: process.env,
+      });
+      const nanOut = (nanRes.stdout || "").toString();
+      const nanErr = (nanRes.stderr || "").toString();
+      const nanCombined = `${nanOut}\n${nanErr}`;
+      try {
+        const logDir = path.join(__dirname, "..", ".node-pty-cache");
+        fs.mkdirSync(logDir, { recursive: true });
+        const nanLog = path.join(logDir, "prebuild-install-nan.log");
+        fs.writeFileSync(nanLog, nanCombined, "utf8");
+        if (nanRes.error || nanRes.status !== 0) {
+          console.warn(
+            style("Failed to install nan (see log):", COLORS.yellow),
+            nanLog
+          );
+          if (nanErr) console.warn(nanErr.split(/\r?\n/).slice(-10).join("\n"));
+        }
+      } catch (e) {
+        if (nanRes.error || nanRes.status !== 0) {
+          console.warn(
+            style("Failed to install nan, but continuing.", COLORS.yellow)
+          );
+        }
+      }
+    } catch (e) {
       console.warn(
         style("Failed to install nan, but continuing.", COLORS.yellow)
       );
