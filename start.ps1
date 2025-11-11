@@ -54,7 +54,7 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
     Write-Host "Download from the official FFmpeg website (https://ffmpeg.org/download.html) and add the 'bin' directory to your system's PATH."
 }
 
-# If Node.js and npm are available, proceed to run the dev server
-npm run dev
+# If Node.js and npm are available, proceed to run the starter script
+node .\misc\starter.js
 
-Write-Host "Dual-Panel File Manager development server stopped."
+Write-Host "Dual-Panel File Manager (starter) stopped."

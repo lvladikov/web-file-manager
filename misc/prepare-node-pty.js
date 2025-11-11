@@ -209,7 +209,10 @@ if (require.main === module) {
       await prepare();
       process.exit(0);
     } catch (err) {
-      console.error('[prepare-node-pty] failed:', err && err.stack ? err.stack : err);
+      console.error(
+        "[prepare-node-pty] failed:",
+        err && err.stack ? err.stack : err
+      );
       process.exit(1);
     }
   })();

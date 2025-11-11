@@ -39,6 +39,6 @@ if %errorlevel% neq 0 (
     echo Download from the official FFmpeg website (https://ffmpeg.org/download.html) and add the 'bin' directory to your system's PATH.
 )
 
-npm run dev
+node .\misc\starter.js
 
-echo Dual-Panel File Manager development server stopped.
+echo Dual-Panel File Manager (starter) stopped.

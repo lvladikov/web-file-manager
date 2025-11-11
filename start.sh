@@ -44,8 +44,8 @@ then
     echo "  - Ubuntu/Debian: sudo apt install ffmpeg"
 fi
 
-# If Node.js and npm are available, proceed to run the dev server
+# If Node.js and npm are available, proceed to run the starter script
 
-npm run dev
+node ./misc/starter.js
 
-echo "Dual-Panel File Manager development server stopped."
+echo "Dual-Panel File Manager (starter) stopped."
