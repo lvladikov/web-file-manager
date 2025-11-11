@@ -41,7 +41,10 @@ function buildOptions() {
       cmd: "powershell -ExecutionPolicy Bypass -File start.ps1",
     });
   } else {
-    options.push({ label: "Start Node app using start.sh", cmd: "./start.sh" });
+    options.push({
+      label: "Start Node app using npm run dev",
+      cmd: "npm run dev",
+    });
   }
 
   // Run Electron dev

@@ -8,13 +8,60 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 let nodePty = null;
 try {
-  // node-pty is an optional dependency: if it's not installed or fails to
-  // build, the code will gracefully fall back to the pure child_process
-  // implementation below.
+  // First try the normal resolution. This will succeed in dev or when the
+  // native addon is available on Node's module paths.
   // eslint-disable-next-line import/no-extraneous-dependencies
   nodePty = require("node-pty");
 } catch (e) {
-  nodePty = null;
+  // If that fails (common when running from an asar-packed Electron app),
+  // attempt a few likely filesystem locations where the build step puts
+  // the node-pty package (app.asar.unpacked or nearby node_modules).
+  const candidates = [];
+
+  // If running inside Electron, process.resourcesPath points at
+  // <app>.app/Contents/Resources. The build copies native artifacts into
+  // app.asar.unpacked/node_modules/... which we try first.
+  try {
+    const resourcesPath = process.resourcesPath;
+    if (resourcesPath) {
+      // Common layout used by our build: app.asar.unpacked/node_modules/@web-file-manager/server/node_modules/node-pty
+      candidates.push(
+        path.join(
+          resourcesPath,
+          "app.asar.unpacked",
+          "node_modules",
+          "@web-file-manager",
+          "server",
+          "node_modules",
+          "node-pty"
+        )
+      );
+      // Fallback in case node-pty was copied directly under app.asar.unpacked/node_modules
+      candidates.push(path.join(resourcesPath, "app.asar.unpacked", "node_modules", "node-pty"));
+    }
+  } catch (err) {
+    // ignore issues reading resourcesPath
+  }
+
+  // Also try a few relative locations useful during non-packaged runs
+  candidates.push(path.join(process.cwd(), "node_modules", "node-pty"));
+  candidates.push(path.join(process.cwd(), "..", "node_modules", "node-pty"));
+
+  for (const cand of candidates) {
+    try {
+      // Attempt to require the package directory directly. If it succeeds,
+      // we've located the native addon and can use it.
+      nodePty = require(cand);
+      console.info("[terminal-backend] node-pty loaded from:", cand);
+      break;
+    } catch (err) {
+      // ignore and try next candidate
+    }
+  }
+
+  if (!nodePty) {
+    // leave nodePty as null and fall back to pipe-based terminal below
+  }
 }
 
 // Developer toggle: set this to `true` to force the pipe-based fallback even
