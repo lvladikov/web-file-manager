@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, nativeImage } from "electron";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import { pathToFileURL } from "url";
 import http from "http";
@@ -13,6 +14,56 @@ import express from "express";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// When macOS launches GUI apps from Finder, they don't inherit the user's
+// login shell environment (notably PATH). Capture the user's PATH by
+// launching their login shell and reading the PATH. This lets spawned
+// child processes (and the in-app terminal) find tools like /opt/homebrew/bin
+// or other user-installed binaries when the app is launched from Finder.
+try {
+  if (process.platform === "darwin") {
+    const userShell = process.env.SHELL || "/bin/zsh";
+    try {
+      let shellPath = "";
+      try {
+        shellPath = execSync(`${userShell} -ilc 'printf "%s" "$PATH"'`, {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "ignore"],
+        }).trim();
+      } catch (shellErr) {
+        // ignore, we'll try launchctl next
+      }
+
+      // Fallback to launchctl (may contain PATH configured for GUI sessions)
+      if (!shellPath) {
+        try {
+          shellPath = execSync("/bin/launchctl getenv PATH", {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+          }).trim();
+        } catch (lcErr) {
+          // nothing
+        }
+      }
+
+      if (shellPath) {
+        // Prepend the shell path so system binaries remain available
+        process.env.PATH = `${shellPath}${path.delimiter}${
+          process.env.PATH || ""
+        }`;
+        console.log(
+          "Synchronized PATH from login shell/launchctl:",
+          process.env.PATH
+        );
+      }
+    } catch (e) {
+      // Non-fatal; if this fails we still continue with existing env
+      console.warn("Could not read login shell PATH:", e && e.message);
+    }
+  }
+} catch (e) {
+  // guard: fail quietly
+}
 
 // Set a friendly application name early so menu labels and OS UI show a
 // human-readable name instead of the package identifier. `app.setName`

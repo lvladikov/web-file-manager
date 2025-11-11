@@ -236,7 +236,8 @@ export default function createFileRoutes(
               name: file.name,
               type,
               size: fileStats.isFile() ? fileStats.size : null,
-              modified: fileStats.mtime.toLocaleString(),
+              // Use ISO timestamps to avoid locale-dependent string parsing on clients
+              modified: fileStats.mtime.toISOString(),
               fullPath: actualFullPath,
             };
           } catch (statError) {
@@ -626,9 +627,7 @@ export default function createFileRoutes(
             job.resolveCompletion();
           } catch (error) {
             console.error("Error during in-zip copy/duplicate process:", error);
-            job.status = job.controller.signal.aborted
-              ? "cancelled"
-              : "failed";
+            job.status = job.controller.signal.aborted ? "cancelled" : "failed";
             job.rejectCompletion(error);
           }
         })();

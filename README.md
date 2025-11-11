@@ -43,12 +43,14 @@ This project is inspired by applications like Midnight Commander and Double Comm
 │       │   └── preload.js           # Security preload script
 │       ├── build.js                 # Build assembly script
 │       └── package.json             # Electron and electron-builder config
-├── misc/                            # Miscellaneous scripts and tools
+├── misc/                            # Miscellaneous scripts and tools (packaging & native helpers)
 │   ├── create-corrupt-zip.js        # Utility for creating corrupt archives for testing
-│   ├── prebuild-node-pty.js         # Helper to prepare the optional native node-pty addon
+│   ├── prebuild-node-pty.js         # Helper to prepare the optional native node-pty addon (build/venv helpers)
 │   ├── prepare-node-pty.js          # Runtime prepare helper (copies/rebuilds cached node-pty for server/electron)
+│   ├── patch-node-pty-helperpath.js # Idempotent patcher to fix node-pty helper paths in vendor copies (use --prepack / --fix-replace-patterns)
+│   ├── instrument-node-pty.js       # On-demand instrumentation for native posix_spawn/pty diagnostics (gate via NODE_PTY_INSTRUMENT)
 │   ├── starter.js                   # Interactive starter menu (used by postinstall and start scripts)
-│   └── README.md                    # Documentation for miscellaneous scripts
+│   └── README.md                    # Documentation for miscellaneous scripts (see misc/README.md)
 ├── start.sh                         # Start script for macOS and Linux
 ├── start.bat                        # Start script for Windows (Command Prompt)
 ├── start.ps1                        # Start script for Windows (PowerShell)
@@ -81,32 +83,18 @@ npm install
 
 The server package optionally uses `node-pty` for an improved in-app terminal. If a matching native binary isn't available, the server falls back to a pipe-based terminal that still works but may lack some features.
 
-There is an included helper (`misc/prebuild-node-pty.js`) and a best-effort `postinstall` runner that assist on fresh clones:
+There are included helpers (`misc/prebuild-node-pty.js`) and (`misc/patch-node-pty-helperpath.js`) that assist on fresh clones:
 
 - The `postinstall` runs during `npm install` and will try to prepare `node-pty` locally when needed. It is conservative and never fails `npm install`.
-- When verification succeeds the helper writes a fast-skip marker at `packages/server/.node-pty-ready.json`. Subsequent `npm install` runs check that marker and skip the heavy steps if Node and native ABI haven't changed. The marker is git-ignored.
-- Force a re-check or re-run of the helper:
-
-```bash
-rm -f packages/server/.node-pty-ready.json
-node ./misc/prebuild-node-pty.js --apply-fixes --yes --auto-env
-```
 
 ## Developer notes
 
-There are two helpers related to `node-pty` in this repository:
+There are several helpers related to `node-pty` in this repository:
 
-- `misc/prebuild-node-pty.js` — an install-time, interactive/heavy helper that attempts to configure a build environment (creates a repo-local venv, adds a distutils shim if needed, and performs package installs). Use this when preparing a fresh clone or when `npm install` can't build the native addon automatically.
+- `misc/prebuild-node-pty.js` — an install-time, interactive/heavy helper that attempts to configure a build environment (creates a repo-local venv, adds a distutils shim if needed, and performs package installs)
 - `misc/prepare-node-pty.js` — a lightweight runtime helper used by the server (and the Electron build flow). It prefers cached ABI-matching binaries under `.node-pty-cache` and only falls back to rebuilding (using `npm rebuild` or `electron-rebuild`) when necessary.
-
-Force a rebuild / clear cache (developer helper)
-
-Run these from the repository root to clear cached binaries and re-run the runtime prepare helper:
-
-```bash
-rm -rf .node-pty-cache
-node ./misc/prepare-node-pty.js
-```
+- `misc/patch-node-pty-helperpath.js` — idempotent repo patcher that scans vendor copies of `node-pty` (source and compiled copies in `packages/server/node_modules`, `packages/electron/dist`, and packaged `app.asar.unpacked`) and hardens the helper path resolution. Use `--prepack` during packaging and `--fix-replace-patterns` to apply conservative repairs for naive string-replace patterns that can introduce duplicate `.unpacked` segments.
+- `misc/instrument-node-pty.js` — on-demand instrumentation utility that enables extra native-level logging for `node-pty` (captures posix_spawn argv, errno, and helper path resolution). Only enable this when debugging native spawn failures; gate it with `NODE_PTY_INSTRUMENT=1` to avoid noisy output.
 
 3. Starter & startup
 

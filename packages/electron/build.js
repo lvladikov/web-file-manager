@@ -94,6 +94,31 @@ if (fs.existsSync(serverDir)) {
   process.exit(1);
 }
 
+// Run the node-pty patcher early so the server copy inside electron dist is
+// already patched before we copy native artifacts or build into an asar.
+try {
+  const repoRoot = path.resolve(path.join(packageDir, "..", ".."));
+  const patcher = path.join(repoRoot, "misc", "patch-node-pty-helperpath.js");
+  if (fs.existsSync(patcher)) {
+    console.log(
+      "Running node-pty helper-path patcher (prepack) against electron dist/server..."
+    );
+    try {
+      spawnSync("node", [patcher, "--prepack"], {
+        stdio: "inherit",
+        shell: true,
+      });
+    } catch (e) {
+      console.warn(
+        "Prepack node-pty patcher execution failed:",
+        e && e.message
+      );
+    }
+  }
+} catch (e) {
+  // non-fatal
+}
+
 // Also copy node-pty native artifacts into dist so packaged/dev electron runs
 // that use the dist/server copy can load the native addon. We only copy the
 // node-pty package (not all server node_modules) to keep the dist footprint
@@ -235,6 +260,91 @@ try {
         // 2) Build for Electron ABI
         let electronRebuildResult = null;
         try {
+          // Run an optional instrumentation helper that injects native
+          // diagnostics into node-pty's pty.cc before we rebuild it for
+          // Electron. This helps capture posix_spawn failures on macOS
+          // during runtime. The helper is non-destructive (creates a
+          // backup) and its full output is saved to the node-pty cache.
+          try {
+            const instrumenter = path.join(
+              repoRoot,
+              "misc",
+              "instrument-node-pty.js"
+            );
+            if (fs.existsSync(instrumenter)) {
+              console.log("Running node-pty instrumentation helper...");
+              const instRes = spawnSync("node", [instrumenter], {
+                stdio: "pipe",
+                shell: true,
+                env,
+              });
+              const instOut = (instRes.stdout || "").toString();
+              const instErr = (instRes.stderr || "").toString();
+              try {
+                await fs.ensureDir(cacheDir);
+                await fs.writeFile(
+                  path.join(cacheDir, "instrument-node-pty.log"),
+                  `${instOut}\n${instErr}`,
+                  "utf8"
+                );
+              } catch (e) {
+                // non-fatal
+              }
+              if (instRes.error || instRes.status !== 0) {
+                console.warn(
+                  "node-pty instrumentation helper failed (see .node-pty-cache/instrument-node-pty.log)"
+                );
+              } else {
+                console.log(
+                  "node-pty instrumentation helper completed (log: .node-pty-cache/instrument-node-pty.log)"
+                );
+              }
+            }
+          } catch (e) {
+            console.warn(
+              "Could not run node-pty instrumentation helper:",
+              e && e.message
+            );
+          }
+
+          // Run a small idempotent patcher that ensures the node-pty JS wrapper
+          // deterministically resolves the spawn-helper path inside packaged
+          // Electron builds. This avoids fragile string replacements that can
+          // produce "app.asar.unpacked.unpacked" when multiple packaging steps
+          // run. The patcher is safe to run repeatedly and will no-op if the
+          // target is already patched.
+          try {
+            const patcher = path.join(
+              repoRoot,
+              "misc",
+              "patch-node-pty-helperpath.js"
+            );
+            if (fs.existsSync(patcher)) {
+              console.log("Running node-pty helper-path patcher...");
+              const pRes = spawnSync("node", [patcher], {
+                stdio: "pipe",
+                shell: true,
+                env,
+              });
+              const pout = (pRes.stdout || "").toString();
+              const perr = (pRes.stderr || "").toString();
+              if (pout) console.log(pout.trim());
+              if (perr) console.warn(perr.trim());
+              if (pRes.error || pRes.status !== 0) {
+                console.warn(
+                  "node-pty patcher returned non-zero status; build will continue but consider inspecting the patcher output."
+                );
+              } else {
+                console.log("node-pty helper-path patcher finished.");
+              }
+            }
+          } catch (e) {
+            console.warn(
+              "Could not run node-pty helper-path patcher:",
+              e && e.message
+            );
+          }
+
           console.log("Running electron-rebuild for node-pty...");
 
           // Run electron-rebuild but capture output to avoid flooding the
@@ -302,6 +412,41 @@ try {
           }
         } catch (e) {
           console.warn("Could not run electron-rebuild step:", e && e.message);
+        }
+
+        // Cleanup: if the instrumentation helper created a backup of the
+        // original pty.cc (pty.cc.orig), restore it now so the package
+        // sources remain clean. We record the restore action in the
+        // node-pty cache for auditing.
+        try {
+          const backup = path.join(nodePtyPkgDir, "src", "unix", "pty.cc.orig");
+          const original = path.join(nodePtyPkgDir, "src", "unix", "pty.cc");
+          if (await fs.pathExists(backup)) {
+            try {
+              await fs.copyFile(backup, original);
+              await fs.remove(backup);
+              console.log(
+                "Restored original node-pty/src/unix/pty.cc from backup"
+              );
+              try {
+                await fs.ensureDir(cacheDir);
+                await fs.writeFile(
+                  path.join(cacheDir, "instrument-restore.log"),
+                  `restored: ${backup}\n`,
+                  "utf8"
+                );
+              } catch (e) {
+                // non-fatal
+              }
+            } catch (e) {
+              console.warn(
+                "Could not restore original pty.cc:",
+                e && e.message
+              );
+            }
+          }
+        } catch (e) {
+          // ignore cleanup errors — not critical for the build
         }
 
         // Save electron-built Release binary (if present) and copy it into

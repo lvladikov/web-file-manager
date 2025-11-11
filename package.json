@@ -16,7 +16,7 @@
     "electron:dist:win": "npm run dist:win --workspace=@web-file-manager/electron",
     "electron:dist:linux": "npm run dist:linux --workspace=@web-file-manager/electron",
     "electron:dist:all": "npm run dist:all --workspace=@web-file-manager/electron",
-    "postinstall": "node ./misc/prebuild-node-pty.js --apply-fixes --yes --auto-env && node ./misc/starter.js",
+    "postinstall": "node ./misc/prebuild-node-pty.js --apply-fixes --yes --auto-env && node ./misc/patch-node-pty-helperpath.js && node ./misc/starter.js",
     "startup": "node ./misc/starter.js"
   },
   "devDependencies": {

@@ -7,11 +7,17 @@ import { createRequire } from "module";
 // module stays ESM while still allowing a synchronous require attempt.
 const require = createRequire(import.meta.url);
 let nodePty = null;
+let loadedNodePtyPath = null;
 try {
   // First try the normal resolution. This will succeed in dev or when the
   // native addon is available on Node's module paths.
   // eslint-disable-next-line import/no-extraneous-dependencies
   nodePty = require("node-pty");
+  try {
+    loadedNodePtyPath = require.resolve("node-pty");
+  } catch (e) {
+    loadedNodePtyPath = null;
+  }
 } catch (e) {
   // If that fails (common when running from an asar-packed Electron app),
   // attempt a few likely filesystem locations where the build step puts
@@ -59,6 +65,7 @@ try {
       // Attempt to require the package directory directly. If it succeeds,
       // we've located the native addon and can use it.
       nodePty = require(cand);
+      loadedNodePtyPath = cand;
       console.info("[terminal-backend] node-pty loaded from:", cand);
       break;
     } catch (err) {
@@ -95,6 +102,85 @@ try {
   }
 } catch (e) {
   // avoid any accidental logging errors affecting the application
+}
+
+// Additional diagnostics when node-pty is present to help detect ABI / binary
+// mismatches in packaged Electron builds. This logs resolved paths and whether
+// the native .node files exist so packager/runtime mismatches are easier to
+// spot during troubleshooting.
+try {
+  if (nodePty) {
+    try {
+      // Prefer any previously-recorded load path (from candidate require)
+      // otherwise try a normal resolve which may succeed in dev.
+      const resolved =
+        loadedNodePtyPath ||
+        (() => {
+          try {
+            return require.resolve("node-pty");
+          } catch (e) {
+            return null;
+          }
+        })();
+      if (resolved)
+        console.info("[terminal-backend] node-pty resolved to:", resolved);
+      // If `resolved` is a file (most common: path to index.js), use
+      // path.dirname(resolved). If it's already a directory (happens when
+      // our candidate path was used), use it directly. This prevents
+      // dropping the final `node-pty` path segment which produced an
+      // incorrect build/... path earlier.
+      let pkgDir;
+      try {
+        if (resolved) {
+          const fs = require("fs");
+          const st = fs.statSync(resolved);
+          pkgDir = st.isDirectory() ? resolved : path.dirname(resolved);
+        } else {
+          pkgDir = loadedNodePtyPath || "<unknown>";
+        }
+      } catch (e) {
+        // Fall back conservatively to dirname when in doubt
+        pkgDir = resolved
+          ? path.dirname(resolved)
+          : loadedNodePtyPath || "<unknown>";
+      }
+      const release = path.join(String(pkgDir), "build", "Release", "pty.node");
+      const debug = path.join(String(pkgDir), "build", "Debug", "pty.node");
+      const stat = (p) => {
+        try {
+          const s = require("fs").statSync(p);
+          return { exists: true, size: s.size };
+        } catch (e) {
+          return { exists: false };
+        }
+      };
+      const rStat = stat(release);
+      const dStat = stat(debug);
+      console.info(
+        "[terminal-backend] node-pty native binary (Release):",
+        release,
+        rStat.exists ? `${rStat.size} bytes` : "missing"
+      );
+      console.info(
+        "[terminal-backend] node-pty native binary (Debug):",
+        debug,
+        dStat.exists ? `${dStat.size} bytes` : "missing"
+      );
+      // Log runtime ABI/arch info
+      console.info(
+        "[terminal-backend] runtime:",
+        `platform=${process.platform}`,
+        `arch=${process.arch}`,
+        `node_modules_abi=${process.versions && process.versions.modules}`,
+        `node=${process.versions && process.versions.node}`,
+        `electron=${process.versions && process.versions.electron}`
+      );
+    } catch (e) {
+      // ignore diagnostic failures
+    }
+  }
+} catch (e) {
+  // ignore
 }
 
 // Minimal terminal backend that provides a small pty-like API used by
@@ -262,6 +348,154 @@ function spawn(shell, args = [], opts = {}) {
         }
       }
 
+      // Ensure the spawn environment has standard system PATH entries so
+      // posix_spawnp can find /bin/sh, bash, zsh, etc. When Electron apps
+      // are launched from the macOS GUI they often have a minimal PATH.
+      try {
+        const fs = require("fs");
+        const defaultPaths = [
+          "/usr/local/bin",
+          "/usr/bin",
+          "/bin",
+          "/usr/sbin",
+          "/sbin",
+        ];
+        const delim = path.delimiter || ":";
+        const cur = String(spawnOpts.env.PATH || process.env.PATH || "");
+        const parts = cur.split(delim).filter(Boolean);
+        for (const p of defaultPaths)
+          if (!parts.includes(p) && fs.existsSync(p)) parts.push(p);
+        spawnOpts.env.PATH = parts.join(delim);
+      } catch (ee) {
+        // ignore PATH normalization failures
+      }
+
+      // Prefer an absolute shell path when possible to avoid posix_spawnp
+      // failing due to a minimal PATH in GUI-launched Electron apps.
+      try {
+        if (process.platform !== "win32") {
+          const isSimpleName =
+            !path.isAbsolute(spawnCmd) && !spawnCmd.includes(path.sep);
+          if (isSimpleName) {
+            const fs = require("fs");
+            const candidates = [];
+            if (process.env.SHELL) candidates.push(process.env.SHELL);
+            // Common system shells
+            candidates.push(
+              "/bin/zsh",
+              "/bin/bash",
+              "/bin/sh",
+              "/usr/bin/zsh",
+              "/usr/bin/bash",
+              "/usr/bin/sh"
+            );
+            let found = null;
+            for (const c of candidates) {
+              try {
+                if (c && fs.existsSync(c)) {
+                  found = c;
+                  break;
+                }
+              } catch (ee) {}
+            }
+            if (found) {
+              console.info(
+                "[terminal-backend] resolving shell name",
+                spawnCmd,
+                "->",
+                found
+              );
+              spawnCmd = found;
+            }
+          }
+        }
+      } catch (e) {
+        // ignore resolution failures
+      }
+
+      // Diagnostic: try executing the node-pty spawn-helper directly to
+      // see whether it can be invoked from inside the packaged app. This
+      // helps surface why the native pty fork (`posix_spawnp`) fails.
+      try {
+        const fs = require("fs");
+        // Derive pkgDir similarly to the diagnostics above
+        const resolved =
+          loadedNodePtyPath ||
+          (() => {
+            try {
+              return require.resolve("node-pty");
+            } catch (e) {
+              return null;
+            }
+          })();
+        let pkgDir;
+        try {
+          if (resolved) {
+            const st = fs.statSync(resolved);
+            pkgDir = st.isDirectory() ? resolved : path.dirname(resolved);
+          } else {
+            pkgDir = loadedNodePtyPath || null;
+          }
+        } catch (ee) {
+          pkgDir = resolved
+            ? path.dirname(resolved)
+            : loadedNodePtyPath || null;
+        }
+        if (pkgDir) {
+          const helperRelease = path.join(
+            String(pkgDir),
+            "build",
+            "Release",
+            "spawn-helper"
+          );
+          const helperDebug = path.join(
+            String(pkgDir),
+            "build",
+            "Debug",
+            "spawn-helper"
+          );
+          const h = fs.existsSync(helperRelease)
+            ? helperRelease
+            : fs.existsSync(helperDebug)
+            ? helperDebug
+            : null;
+          if (h) {
+            try {
+              const spawnSync = require("child_process").spawnSync;
+              const check = spawnSync(
+                h,
+                [spawnOpts.cwd || process.cwd(), "/bin/echo", "ok"],
+                {
+                  encoding: "utf8",
+                  timeout: 2000,
+                }
+              );
+              console.info(
+                "[terminal-backend] spawn-helper check:",
+                h,
+                "code:",
+                check.status,
+                "stdout:",
+                (check.stdout || "").trim(),
+                "stderr:",
+                (check.stderr || "").trim()
+              );
+            } catch (ee) {
+              console.warn(
+                "[terminal-backend] spawn-helper check failed:",
+                ee && ee.message ? ee.message : ee
+              );
+            }
+          } else {
+            console.info(
+              "[terminal-backend] no spawn-helper found at expected locations"
+            );
+          }
+        }
+      } catch (diagErr) {
+        // ignore diagnostics errors
+      }
+
       const ptyProcess = nodePty.spawn(spawnCmd, spawnArgs, {
         name: spawnOpts.env.TERM || "xterm-256color",
         cols,
@@ -275,9 +509,71 @@ function spawn(shell, args = [], opts = {}) {
       // a PTY.
       return new TerminalProcess(ptyProcess, true, cols, rows);
     } catch (e) {
-      // If node-pty failed at runtime for any reason, fall back to the
-      // pipe-based approach below.
-      // console.warn("node-pty spawn failed, falling back to child_process", e);
+      // If node-pty failed at runtime for any reason, emit a concise
+      // diagnostic to help debugging and fall back to the pipe-based
+      // approach below. Include any additional error properties (errno,
+      // code) which the native addon may provide so we can see why
+      // posix_spawnp failed in packaged environments.
+      try {
+        try {
+          console.warn(
+            "[terminal-backend] node-pty spawn() threw, falling back to pipes:",
+            e && e.stack ? e.stack : e
+          );
+        } catch (logErr) {
+          // best-effort logging
+          console.warn(
+            "[terminal-backend] node-pty spawn() threw (logging failed):",
+            String(e)
+          );
+        }
+
+        // Dump structured error properties if present
+        try {
+          const extra = {};
+          if (e && typeof e === "object") {
+            for (const k of Object.getOwnPropertyNames(e)) {
+              try {
+                extra[k] = e[k];
+              } catch (ee) {
+                extra[k] = String(ee);
+              }
+            }
+          }
+          console.warn(
+            "[terminal-backend] node-pty error properties:",
+            JSON.stringify(extra)
+          );
+        } catch (ee) {
+          // ignore structured dump failures
+        }
+
+        if (loadedNodePtyPath) {
+          console.warn(
+            "[terminal-backend] node-pty was loaded from:",
+            loadedNodePtyPath
+          );
+          try {
+            const pkgDir = loadedNodePtyPath;
+            const release = path.join(pkgDir, "build", "Release", "pty.node");
+            const debug = path.join(pkgDir, "build", "Debug", "pty.node");
+            const fs = require("fs");
+            const rExists = fs.existsSync(release);
+            const dExists = fs.existsSync(debug);
+            console.warn(
+              "[terminal-backend] native Release exists:",
+              rExists,
+              "Debug exists:",
+              dExists
+            );
+          } catch (ee) {
+            // ignore
+          }
+        }
+      } catch (ee) {
+        // ignore logging failures
+      }
+      // continue to pipe fallback
     }
   }
 

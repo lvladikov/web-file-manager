@@ -161,7 +161,8 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
           name: childName,
           type: isFolder ? "folder" : getFileType(childName, false),
           size: isFolder ? null : entry.uncompressedSize,
-          modified: entry.getLastMod().toLocaleString(),
+          // Use ISO timestamp so clients can reliably parse across locales
+          modified: entry.getLastMod().toISOString(),
           fullPath: fullPath,
         });
       }
