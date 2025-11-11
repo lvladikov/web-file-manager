@@ -1,4 +1,4 @@
-# Dual-Panel File Manager Monorepo [ACTIVE WORK IN PROGRESS - DO NOT USE YET]
+# Dual-Panel File Manager Monorepo + Electron app [ACTIVE WORK IN PROGRESS - DO NOT USE YET]
 
 This is a dual-panel file manager designed for efficient file operations. The two independent panels allow you to browse two different locations simultaneously, making it easy to move, copy, and compare files and folders between them.
 
