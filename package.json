@@ -15,7 +15,9 @@
     "electron:dist:mac": "npm run dist:mac --workspace=@web-file-manager/electron",
     "electron:dist:win": "npm run dist:win --workspace=@web-file-manager/electron",
     "electron:dist:linux": "npm run dist:linux --workspace=@web-file-manager/electron",
-    "electron:dist:all": "npm run dist:all --workspace=@web-file-manager/electron"
+    "electron:dist:all": "npm run dist:all --workspace=@web-file-manager/electron",
+    "postinstall": "node ./misc/prebuild-node-pty.js --apply-fixes --yes --auto-env && node ./misc/starter.js",
+    "startup": "node ./misc/starter.js"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",

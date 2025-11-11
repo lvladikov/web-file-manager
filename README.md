@@ -45,6 +45,9 @@ This project is inspired by applications like Midnight Commander and Double Comm
 │       └── package.json             # Electron and electron-builder config
 ├── misc/                            # Miscellaneous scripts and tools
 │   ├── create-corrupt-zip.js        # Utility for creating corrupt archives for testing
+│   ├── prebuild-node-pty.js         # Helper to prepare the optional native node-pty addon
+│   ├── prepare-node-pty.js          # Runtime prepare helper (copies/rebuilds cached node-pty for server/electron)
+│   ├── starter.js                   # Interactive starter menu (used by postinstall and start scripts)
 │   └── README.md                    # Documentation for miscellaneous scripts
 ├── start.sh                         # Start script for macOS and Linux
 ├── start.bat                        # Start script for Windows (Command Prompt)
@@ -66,74 +69,57 @@ This project is inspired by applications like Midnight Commander and Double Comm
 
 ## Getting Started
 
-- Install Dependencies:
-  Open your terminal at the root of the project and run the following command. This will install dependencies for the root, the client, and the server all at once.
+1. Install dependencies
 
-`npm install`
+Run this from the repository root:
 
-- Run the Application:
-  To start both the backend server and the frontend client in development mode, you can use one of the following methods.
+```bash
+npm install
+```
 
-  ### Using npm (Web Application)
+2. About the optional native addon (node-pty)
 
-  Run this command from the root directory:
+The server package optionally uses `node-pty` for an improved in-app terminal. If a matching native binary isn't available, the server falls back to a pipe-based terminal that still works but may lack some features.
 
-  `npm run dev`
+There is an included helper (`misc/prebuild-node-pty.js`) and a best-effort `postinstall` runner that assist on fresh clones:
 
-  This command uses concurrently to:
+- The `postinstall` runs during `npm install` and will try to prepare `node-pty` locally when needed. It is conservative and never fails `npm install`.
+- When verification succeeds the helper writes a fast-skip marker at `packages/server/.node-pty-ready.json`. Subsequent `npm install` runs check that marker and skip the heavy steps if Node and native ABI haven't changed. The marker is git-ignored.
+- Force a re-check or re-run of the helper:
 
-  - Start the Node.js server on http://localhost:3001 (with nodemon for auto-restarting).
+```bash
+rm -f packages/server/.node-pty-ready.json
+node ./misc/prebuild-node-pty.js --apply-fixes --yes --auto-env
+```
 
-  - Start the React development server on http://localhost:5173.
+## Developer notes
 
-  Your browser should automatically open to the React application.
+There are two helpers related to `node-pty` in this repository:
 
-  ### Using npm (Electron Desktop App)
+- `misc/prebuild-node-pty.js` — an install-time, interactive/heavy helper that attempts to configure a build environment (creates a repo-local venv, adds a distutils shim if needed, and performs package installs). Use this when preparing a fresh clone or when `npm install` can't build the native addon automatically.
+- `misc/prepare-node-pty.js` — a lightweight runtime helper used by the server (and the Electron build flow). It prefers cached ABI-matching binaries under `.node-pty-cache` and only falls back to rebuilding (using `npm rebuild` or `electron-rebuild`) when necessary.
 
-  To run the desktop application in development mode:
+Force a rebuild / clear cache (developer helper)
 
-  `npm run electron:dev`
+Run these from the repository root to clear cached binaries and re-run the runtime prepare helper:
 
-  This builds the client and launches the Electron desktop app with the server running internally.
+```bash
+rm -rf .node-pty-cache
+node ./misc/prepare-node-pty.js
+```
 
-  ### Using Start Scripts
+3. Starter & startup
 
-  Alternatively, you can use the provided start scripts which will check for Node.js, npm, and the required `node_modules` directories before starting the application.
+An interactive starter (`misc/starter.js`) provides a short menu for common developer tasks (start Node app, run Electron dev, build dists).
 
-  - **For macOS and Linux:**
+4. Run the application
 
-    First, make the script executable:
+- Web (development): `npm run dev` — starts the server and the React dev server (concurrently).
+- Electron (development): `npm run electron:dev` — builds the client and launches Electron with the bundled server.
+- Start scripts: `./start.sh`, `start.bat`, or `start.ps1` perform basic environment checks and then run the starter menu.
 
-    ```bash
-    chmod +x ./start.sh
-    ```
-
-    Then run the script:
-
-    ```bash
-    ./start.sh
-    ```
-
-  - **For Windows (Command Prompt):**
-
-    ```batch
-    start.bat
-    ```
-
-  - **For Windows (PowerShell):**
-
-    You may need to change the execution policy to run the script.
-    You can do this by running the following command in PowerShell as an administrator:
-
-    ```powershell
-    Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-    ```
-
-    Then you can run the script:
-
-    ```powershell
-    .\start.ps1
-    ```
+These helpers are conservative and opt-out-friendly — they aim to make fresh-clone setup faster while avoiding risky global changes.
+You may need to change the execution policy to run the script.
 
 ## How It Works
 
@@ -142,6 +128,8 @@ The React client makes API calls to the Node.js server to get directory listings
 The Node.js server interacts with the local file system to provide the data requested by the client.
 
 A proxy is configured in the Vite settings (packages/client/vite.config.js) to forward requests from /api on the client to the backend server on port 3001. This avoids CORS issues during development.
+
+When running the Electron app, both client and server and the node binaries and dependancies are all bundled in the app.
 
 ## Features
 
@@ -316,4 +304,10 @@ npm run electron:dist:mac      # macOS DMG and ZIP
 npm run electron:dist:win      # Windows NSIS installer and ZIP
 npm run electron:dist:linux    # Linux AppImage, deb, and tar.gz
 npm run electron:dist:all      # All platforms
+```
+
+The result Electron apps would be output in the following folder:
+
+```
+packages/electron/dist
 ```

@@ -1,6 +1,47 @@
 import { spawn as spawnChild } from "child_process";
 import EventEmitter from "events";
 import path from "path";
+import { createRequire } from "module";
+
+// Try to require node-pty if it's available. We use createRequire so this
+// module stays ESM while still allowing a synchronous require attempt.
+const require = createRequire(import.meta.url);
+let nodePty = null;
+try {
+  // node-pty is an optional dependency: if it's not installed or fails to
+  // build, the code will gracefully fall back to the pure child_process
+  // implementation below.
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  nodePty = require("node-pty");
+} catch (e) {
+  nodePty = null;
+}
+
+// Developer toggle: set this to `true` to force the pipe-based fallback even
+// when `node-pty` is available. This is useful for iterating on and testing
+// the fallback terminal implementation without removing the native addon from
+// `node_modules`. Keep `false` in normal use so `node-pty` will be used when
+// available.
+const FORCE_PIPE_FALLBACK = false;
+
+// Small runtime hint to make it easy to see which backend is active in logs.
+try {
+  if (FORCE_PIPE_FALLBACK) {
+    console.info(
+      "[terminal-backend] FORCE_PIPE_FALLBACK enabled: using pipe-based fallback even if node-pty is present"
+    );
+  } else if (nodePty) {
+    console.info(
+      "[terminal-backend] node-pty loaded: native PTY will be used when available"
+    );
+  } else {
+    console.info(
+      "[terminal-backend] node-pty not available: using pipe-based fallback terminal"
+    );
+  }
+} catch (e) {
+  // avoid any accidental logging errors affecting the application
+}
 
 // Minimal terminal backend that provides a small pty-like API used by
 // the app. This intentionally avoids native modules and falls back to a
@@ -18,33 +59,54 @@ class TerminalProcess extends EventEmitter {
     this.cols = cols;
     this.rows = rows;
 
-    if (child.stdout) {
+    if (isPty) {
+      // node-pty: listen for 'data' and 'exit' events on the pty instance.
       try {
-        child.stdout.setEncoding && child.stdout.setEncoding("utf8");
-      } catch (e) {}
-      child.stdout.on("data", (d) => this.emit("data", d.toString()));
-    }
-    if (child.stderr) {
-      try {
-        child.stderr.setEncoding && child.stderr.setEncoding("utf8");
-      } catch (e) {}
-      child.stderr.on("data", (d) => this.emit("data", d.toString()));
-    }
-    child.on("exit", (code, signal) => this.emit("exit", code, signal));
-    child.on("error", (err) => this.emit("error", err));
+        child.on("data", (d) => this.emit("data", d.toString()));
+        child.on("exit", (code) => this.emit("exit", code, null));
+        child.on("error", (err) => this.emit("error", err));
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      if (child.stdout) {
+        try {
+          child.stdout.setEncoding && child.stdout.setEncoding("utf8");
+        } catch (e) {}
+        child.stdout.on("data", (d) => this.emit("data", d.toString()));
+      }
+      if (child.stderr) {
+        try {
+          child.stderr.setEncoding && child.stderr.setEncoding("utf8");
+        } catch (e) {}
+        child.stderr.on("data", (d) => this.emit("data", d.toString()));
+      }
+      child.on("exit", (code, signal) => this.emit("exit", code, signal));
+      child.on("error", (err) => this.emit("error", err));
 
-    if (child.stdin) {
-      try {
-        child.stdin.setDefaultEncoding &&
-          child.stdin.setDefaultEncoding("utf8");
-      } catch (e) {}
-      try {
-        child.stdin.resume && child.stdin.resume();
-      } catch (e) {}
+      if (child.stdin) {
+        try {
+          child.stdin.setDefaultEncoding &&
+            child.stdin.setDefaultEncoding("utf8");
+        } catch (e) {}
+        try {
+          child.stdin.resume && child.stdin.resume();
+        } catch (e) {}
+      }
     }
   }
 
   write(data) {
+    if (this.isPty && this.child && typeof this.child.write === "function") {
+      // node-pty: direct write
+      try {
+        this.child.write(data);
+      } catch (e) {
+        // ignore
+      }
+      return;
+    }
+
     if (this.child.stdin && !this.child.stdin.destroyed) {
       this.child.stdin.write(data);
     }
@@ -57,6 +119,15 @@ class TerminalProcess extends EventEmitter {
 
     // Send SIGWINCH signal to the process group so interactive programs
     // (like mc, vim, etc.) know to re-query the terminal size
+    if (this.isPty && this.child && typeof this.child.resize === "function") {
+      try {
+        this.child.resize(cols, rows);
+      } catch (e) {
+        // ignore
+      }
+      return;
+    }
+
     if (process.platform !== "win32" && this.child && this.child.pid) {
       try {
         // Send SIGWINCH to the entire process group (including all children)
@@ -68,6 +139,15 @@ class TerminalProcess extends EventEmitter {
   }
 
   kill(signal = "SIGTERM") {
+    if (this.isPty && this.child && typeof this.child.kill === "function") {
+      try {
+        this.child.kill();
+      } catch (e) {
+        // ignore
+      }
+      return;
+    }
+
     try {
       process.kill(-this.child.pid, signal);
     } catch (e) {
@@ -108,6 +188,45 @@ function spawn(shell, args = [], opts = {}) {
   // reads from stdin even when not attached to a real TTY. This is not a
   // full PTY emulation, but works for many interactive uses (prompts,
   // basic shells).
+  // If node-pty is available prefer a real PTY. We still keep the
+  // child_process-based fallback for environments where building the
+  // native addon failed or is undesirable. The `FORCE_PIPE_FALLBACK` flag
+  // above allows forcing the pipe-based implementation even when node-pty
+  // is present (useful for testing and iterative development of the
+  // fallback terminal).
+  if (!FORCE_PIPE_FALLBACK && nodePty) {
+    try {
+      // For common shells on unix, request an interactive shell flag so
+      // the shell behaves like an interactive session.
+      if (process.platform !== "win32") {
+        const base = path.basename(spawnCmd);
+        if (
+          (base === "bash" || base === "sh" || base === "zsh") &&
+          !spawnArgs.includes("-i")
+        ) {
+          spawnArgs = ["-i", ...spawnArgs];
+        }
+      }
+
+      const ptyProcess = nodePty.spawn(spawnCmd, spawnArgs, {
+        name: spawnOpts.env.TERM || "xterm-256color",
+        cols,
+        rows,
+        cwd: spawnOpts.cwd,
+        env: spawnOpts.env,
+      });
+
+      // node-pty doesn't need the "kick" used for pipes; it behaves like a
+      // proper terminal. Return a TerminalProcess wrapper that knows it's
+      // a PTY.
+      return new TerminalProcess(ptyProcess, true, cols, rows);
+    } catch (e) {
+      // If node-pty failed at runtime for any reason, fall back to the
+      // pipe-based approach below.
+      // console.warn("node-pty spawn failed, falling back to child_process", e);
+    }
+  }
+
   if (process.platform !== "win32") {
     const base = path.basename(spawnCmd);
     if (

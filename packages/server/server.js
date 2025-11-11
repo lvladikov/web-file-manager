@@ -1,8 +1,10 @@
 import express from "express";
 import http from "http";
 
-import { initializeWebSocketServer } from "./lib/websocket.js";
-import initializeRoutes from "./routes/index.js";
+// Delay importing modules which may require native addons (node-pty)
+// until we've prepared the correct native binary for the runtime. We
+// dynamically import `initializeWebSocketServer` and `initializeRoutes`
+// after calling the prepare script below.
 
 const app = express();
 const server = http.createServer(app);
@@ -33,6 +35,19 @@ const activeZipOperations = new Map();
 
 // In-memory store for active terminal jobs
 const activeTerminalJobs = new Map();
+// Prepare native addon binary for this runtime (node vs electron). This
+// may rebuild or copy a cached binary into place so modules that require
+// node-pty can load the correct ABI.
+try {
+  await (await import("../../misc/prepare-node-pty.js")).prepare();
+} catch (e) {
+  console.warn("[server] prepare-node-pty failed:", e && e.message);
+}
+
+// Dynamically import modules that may require native addons now that the
+// appropriate binary has been prepared.
+const { initializeWebSocketServer } = await import("./lib/websocket.js");
+const initializeRoutes = (await import("./routes/index.js")).default;
 
 initializeWebSocketServer(
   server,

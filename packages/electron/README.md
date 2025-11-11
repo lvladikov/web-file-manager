@@ -67,11 +67,23 @@ packages/electron/
    npm run build --workspace=@web-file-manager/client
    ```
 
-3. Run electron dev (builds and launches):
+3. Run electron dev (builds and launches). The Electron dev script now
+   runs the `misc/prebuild-node-pty.js` helper first (it will apply safe
+   fixes and attempt to fetch/build `node-pty` for the Electron ABI):
+
    ```bash
    npm run electron:dev
    # or
    npm run dev --workspace=@web-file-manager/electron
+   ```
+
+   If you prefer to run the helper manually before launching Electron, run:
+
+   ```bash
+   # run the helper and apply safe fixes non-interactively
+   node misc/prebuild-node-pty.js --apply-fixes --yes
+   # then start dev mode
+   npm run electron:dev
    ```
 
 The electron app will:

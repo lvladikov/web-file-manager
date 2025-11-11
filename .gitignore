@@ -21,3 +21,12 @@ packages/server/config.json
 # Ignore generated dist folders
 packages/client/dist
 packages/electron/dist
+packages/electron/packages
+
+# node_gyp build output
+packages/server/build
+
+# Temporary items created by node-pty prebuild script
+packages/server/.node-pty-ready.json
+.venv-node-pty
+.node-pty-cache

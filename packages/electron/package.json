@@ -15,6 +15,7 @@
     "build:client": "npm run build --workspace=@web-file-manager/client",
     "build:app": "node build.js",
     "dist": "npm run build && electron-builder",
+    "predist": "node ../../misc/prepare-node-pty.js",
     "dist:mac": "npm run build && electron-builder --mac --publish=never",
     "dist:win": "npm run build && electron-builder --win --publish=never",
     "dist:linux": "npm run build && electron-builder --linux --publish=never",
@@ -33,12 +34,12 @@
     "ws": "^8.13.0",
     "yauzl-promise": "^4.0.0"
   },
-  "optionalDependencies": {},
   "devDependencies": {
-    "electron": "^30.0.0",
+    "electron": "^30.5.1",
     "electron-builder": "^24.6.4"
   },
   "build": {
+    "npmRebuild": false,
     "appId": "com.web-file-manager.app",
     "productName": "Web File Manager",
     "electronVersion": "30.5.1",
