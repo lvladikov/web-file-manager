@@ -16,10 +16,10 @@
     "build:app": "node build.js",
     "dist": "npm run build && electron-builder",
     "predist": "node ../../misc/prepare-node-pty.js",
-    "dist:mac": "npm run build && electron-builder --mac --publish=never",
+    "dist:mac": "npm run build && electron-builder --mac --x64 --arm64 --publish=never",
     "dist:win": "npm run build && electron-builder --win --publish=never",
     "dist:linux": "npm run build && electron-builder --linux --publish=never",
-    "dist:all": "npm run build && electron-builder --mac --win --linux --publish=never"
+    "dist:all": "npm run build && electron-builder --mac --x64 --arm64 --win --linux --publish=never"
   },
   "dependencies": {
     "@web-file-manager/client": "file:../client",
@@ -48,7 +48,13 @@
     },
     "mac": {
       "target": [
-        "dmg",
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
         "zip"
       ],
       "category": "public.app-category.utilities",
