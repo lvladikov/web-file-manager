@@ -740,6 +740,20 @@ const HelpModal = ({ isVisible, onClose }) => {
               to search in a different folder without closing and reopening the
               dialog.
             </p>
+            <p>
+              The dialog exposes filters to fine-tune file name searches: toggle{" "}
+              <strong>Match case</strong>, enable <strong>Regex</strong>{" "}
+              patterns, recurse into <strong>Subfolders</strong>, and include
+              hidden files.
+            </p>
+            <p>
+              Toggle <strong>Content search</strong> when you need to look
+              inside files. Content search requires its own query and can be
+              tailored with options for match case, regex, whole-word only
+              matches, and an option to stop after the first matching file to
+              keep scans fast. The dialog also skips non-text files by default
+              but lets you include them if necessary.
+            </p>
             <img
               src={searchScreenshot}
               alt="Search Modal Screenshot"

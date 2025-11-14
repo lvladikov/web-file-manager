@@ -174,7 +174,9 @@ When running the Electron app, both client and server and the node binaries and 
 
   ![Terminal Screenshot](packages/client/screenshots/built-in-terminal.png)
 
-- **Search**: Search the active or other panel using the modal launched from the top `Commands` menu or from the first entries inside each context menu's Additional Commands submenu.
+- **Search**: Launches a modal from the top `Commands` menu or the Additional Commands submenu of any context menu to search either panel. The dialog starts in the active panel but lets you switch to the other panel's path or pick any folder without closing the modal.
+
+  The modal searches by name (wildcards/regex supported) through subfolders and can include hidden items when requested. Enabling **content search** lets you search inside files with options for match case, regex patterns, whole-word matches, ignoring non-text files, and stopping at the first matching file for faster results.
 
   ![Search Modal Screenshot](packages/client/screenshots/search.png)
 

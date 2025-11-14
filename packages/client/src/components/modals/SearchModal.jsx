@@ -22,6 +22,13 @@ const SearchModal = ({
   const [matchCase, setMatchCase] = useState(false);
   const [includeSubfolders, setIncludeSubfolders] = useState(true);
   const [includeHidden, setIncludeHidden] = useState(false);
+  const [contentSearchEnabled, setContentSearchEnabled] = useState(false);
+  const [contentMatchCase, setContentMatchCase] = useState(false);
+  const [contentUseRegex, setContentUseRegex] = useState(false);
+  const [stopAtFirstMatch, setStopAtFirstMatch] = useState(false);
+  const [wholeWords, setWholeWords] = useState(false);
+  const [ignoreNonTextFiles, setIgnoreNonTextFiles] = useState(true);
+  const [contentQuery, setContentQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -33,6 +40,8 @@ const SearchModal = ({
 
   const inputRef = useRef(null);
   const modalRef = useRef(null);
+
+  const previousBasePathRef = useRef(basePath);
 
   const regexExamples = `Files: 
 '^README\.md$' (exact)
@@ -53,6 +62,14 @@ Folders:
     "Include subfolders: search recursively into subfolders.";
   const includeHiddenTitle =
     "Include hidden items: include dotfiles and hidden folders in results.";
+  const contentMatchCaseTitle =
+    "Match case: make the content search case-sensitive.";
+  const contentUseRegexTitle = "Use regex for content search patterns.";
+  const stopAtFirstMatchTitle =
+    "Stop at first match: skip after finding the first matching file.";
+  const wholeWordsTitle = "Whole words: only match whole words in content.";
+  const ignoreNonTextFilesTitle =
+    "Ignore non-text files: skip binary files during content search.";
 
   const sortItemsFoldersFirst = (a, b) => {
     const aIsFolder = a.type === "folder";
@@ -89,6 +106,13 @@ Folders:
       setMatchCase(false);
       setIncludeSubfolders(true);
       setIncludeHidden(false);
+      setContentSearchEnabled(false);
+      setContentMatchCase(false);
+      setContentUseRegex(false);
+      setStopAtFirstMatch(false);
+      setWholeWords(false);
+      setIgnoreNonTextFiles(true);
+      setContentQuery("");
       setResults([]);
       setSelectedResult({ groupIndex: 0, itemIndex: null });
       setError("");
@@ -96,6 +120,26 @@ Folders:
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) {
+      previousBasePathRef.current = basePath;
+      return;
+    }
+
+    if (
+      previousBasePathRef.current &&
+      previousBasePathRef.current !== basePath &&
+      hasSearched
+    ) {
+      setResults([]);
+      setHasSearched(false);
+      setSelectedResult({ groupIndex: 0, itemIndex: null });
+      setError("");
+    }
+
+    previousBasePathRef.current = basePath;
+  }, [basePath, isVisible, hasSearched]);
 
   const selectedGroup = results[selectedResult.groupIndex];
   const selectedItem =
@@ -129,22 +173,39 @@ Folders:
       setError("No base path to search from.");
       return;
     }
-    if (!query.trim()) {
+    const trimmedFilenameQuery = query.trim();
+    if (!trimmedFilenameQuery && !contentSearchEnabled) {
       setError("Enter a search query.");
+      return;
+    }
+    if (contentSearchEnabled && !contentQuery.trim()) {
+      setError("Enter a content query when content search is enabled.");
       return;
     }
 
     setLoading(true);
     setError("");
+    setResults([]);
+    setHasSearched(false);
+    setSelectedResult({ groupIndex: 0, itemIndex: null });
     try {
       const payload = {
         basePath,
-        query,
+        query: trimmedFilenameQuery || "*",
         options: {
           useRegex,
           caseSensitive: matchCase,
           includeSubfolders,
           includeHidden,
+          contentSearch: {
+            enabled: contentSearchEnabled,
+            query: contentSearchEnabled ? contentQuery.trim() : "",
+            matchCase: contentMatchCase,
+            useRegex: contentUseRegex,
+            stopAtFirstMatch,
+            wholeWords,
+            ignoreNonTextFiles,
+          },
         },
       };
       const data = await searchFiles(payload);
@@ -301,7 +362,7 @@ Folders:
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-start justify-center z-50 p-3 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
@@ -336,10 +397,10 @@ Folders:
             focusableElements[nextIndex]?.focus();
           }
         }}
-        className="bg-gray-900 border border-gray-600 rounded-lg shadow-lg flex flex-col w-full max-w-4xl max-h-[85vh]"
+        className="bg-gray-900 border border-gray-600 rounded-xl shadow-2xl flex flex-col w-full max-w-[min(100%,68rem)] max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-full h-12 bg-black bg-opacity-60 flex-shrink-0 flex justify-between items-center px-3 rounded-t-lg z-20">
+        <div className="w-full h-11 bg-black bg-opacity-60 flex-shrink-0 flex justify-between items-center px-3 py-1.5 rounded-t-lg z-20">
           <div className="flex items-center space-x-4">
             <div className="flex items-center text-gray-400 text-sm">
               <div className="rounded-full bg-slate-800 border border-gray-700 p-1.5 text-sky-300 shadow-inner shadow-black/50 mr-3">
@@ -360,7 +421,7 @@ Folders:
             </button>
           </div>
         </div>
-        <div className="px-5 py-3 border-b border-gray-800 bg-[#0b1326]">
+        <div className="px-4 py-2.5 border-b border-gray-800 bg-[#0b1326]">
           <div className="flex items-center gap-3">
             <span className="text-lg font-semibold text-sky-400 whitespace-nowrap">
               Search Path:
@@ -387,7 +448,7 @@ Folders:
                     ? activePanelPath
                     : "Active panel path unavailable"
                 }
-                className={`rounded border px-4 py-2 text-sm font-semibold tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`rounded border px-3 py-1.5 text-sm font-semibold tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-50 ${
                   canUseActivePath
                     ? "border-gray-600 text-white hover:border-sky-400"
                     : "border-gray-700 text-gray-500"
@@ -404,7 +465,7 @@ Folders:
                     ? otherPanelPath
                     : "Other panel path unavailable"
                 }
-                className={`rounded border px-4 py-2 text-sm font-semibold tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`rounded border px-3 py-1.5 text-sm font-semibold tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-50 ${
                   canUseOtherPath
                     ? "border-gray-600 text-white hover:border-sky-400"
                     : "border-gray-700 text-gray-500"
@@ -416,7 +477,7 @@ Folders:
                 type="button"
                 onClick={handleOpenPathSelector}
                 title="Change to a different path"
-                className="rounded border border-gray-600 bg-gray-900 px-4 py-2 text-sm font-semibold tracking-wide text-white hover:border-sky-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                className="rounded border border-gray-600 bg-gray-900 px-3 py-1.5 text-sm font-semibold tracking-wide text-white hover:border-sky-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
               >
                 Different Path...
               </button>
@@ -424,11 +485,11 @@ Folders:
           </div>
         </div>
 
-        <main className="p-5 space-y-4 overflow-hidden flex flex-col flex-1">
+        <main className="flex-1 overflow-y-auto px-4 py-3 space-y-3 flex flex-col">
           <div className="space-y-2">
             <label
               htmlFor="search-query"
-              className="text-sm font-medium text-gray-300"
+              className="text-xs font-semibold text-gray-300 uppercase"
             >
               Search Query
             </label>
@@ -439,12 +500,16 @@ Folders:
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Enter query to match inside filename or folder name"
-              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+              placeholder={
+                contentSearchEnabled
+                  ? "Enter query to match filename"
+                  : "Enter query to match filename or folder name"
+              }
+              className="w-full rounded-lg bg-gray-800 border border-gray-700 px-2.5 py-1.5 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
+          <div className="grid grid-cols-2 gap-1 text-xs text-gray-300 sm:grid-cols-3 sm:gap-1.5 lg:grid-cols-6">
             <label className="flex items-center gap-2" title={matchCaseTitle}>
               <input
                 type="checkbox"
@@ -462,7 +527,7 @@ Folders:
                 className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded"
                 aria-label="Use Regular Expression"
               />
-              <span>Use Regular Expression</span>
+              <span>Use Regex</span>
             </label>
             <label
               className="flex items-center gap-2"
@@ -490,28 +555,135 @@ Folders:
             </label>
           </div>
 
-          <div className="text-xs text-gray-500">
+          <label
+            className="flex items-center gap-2 mt-2 text-xs font-semibold tracking-wide text-white"
+            title="Search inside file contents"
+          >
+            <input
+              type="checkbox"
+              checked={contentSearchEnabled}
+              onChange={(e) => setContentSearchEnabled(e.target.checked)}
+              className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded"
+            />
+            Content
+          </label>
+
+          {contentSearchEnabled && (
+            <div className="mt-2 space-y-2 rounded-lg border border-gray-700 bg-[#1e2938] p-3 text-xs text-gray-300">
+              <p>
+                Content search inspects the text inside each file. It can return
+                more precise results but will make the search slower, especially
+                on large files. This search runs alongside the filename search,
+                so both queries must match to return a result.
+              </p>
+              <div className="space-y-2">
+                <label
+                  htmlFor="content-query"
+                  className="text-[0.65rem] font-semibold uppercase tracking-wider text-gray-400"
+                >
+                  Content Query
+                </label>
+                <input
+                  id="content-query"
+                  type="text"
+                  value={contentQuery}
+                  onChange={(e) => setContentQuery(e.target.value)}
+                  placeholder="Enter text that should appear inside files"
+                  className="w-full rounded-lg bg-gray-900 border border-gray-700 px-2.5 py-1.5 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+              <fieldset className="space-y-1">
+                <legend className="text-[0.55rem] uppercase tracking-[0.3em] text-gray-400 mb-1">
+                  Content search options
+                </legend>
+                <div className="grid grid-cols-2 gap-1 text-[0.7rem] sm:grid-cols-3 lg:grid-cols-6">
+                  <label
+                    className="flex items-center gap-2"
+                    title={contentMatchCaseTitle}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={contentMatchCase}
+                      onChange={(e) => setContentMatchCase(e.target.checked)}
+                      className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded"
+                    />
+                    Match Case
+                  </label>
+                  <label
+                    className="flex items-center gap-2"
+                    title={contentUseRegexTitle}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={contentUseRegex}
+                      onChange={(e) => setContentUseRegex(e.target.checked)}
+                      className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded"
+                    />
+                    Use Regex
+                  </label>
+                  <label
+                    className="flex items-center gap-2"
+                    title={stopAtFirstMatchTitle}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={stopAtFirstMatch}
+                      onChange={(e) => setStopAtFirstMatch(e.target.checked)}
+                      className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded"
+                    />
+                    Stop at First Match
+                  </label>
+                  <label
+                    className="flex items-center gap-2"
+                    title={wholeWordsTitle}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={wholeWords}
+                      onChange={(e) => setWholeWords(e.target.checked)}
+                      className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded"
+                    />
+                    Whole Words
+                  </label>
+                  <label
+                    className="flex items-center gap-2"
+                    title={ignoreNonTextFilesTitle}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={ignoreNonTextFiles}
+                      onChange={(e) => setIgnoreNonTextFiles(e.target.checked)}
+                      className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded"
+                    />
+                    Ignore non-text Files
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+          )}
+
+          <div className="text-[0.7rem] text-gray-400">
             Searches follow symlinks automatically and will return files or
             folders whose names match the criteria. Use{" "}
             <span className="text-sky-300">* </span>for wildcard matching when
             regex is disabled.
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleSearch}
               disabled={loading}
-              className="px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:bg-gray-700 rounded font-semibold text-white"
+              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 disabled:bg-gray-700 rounded font-semibold text-white text-sm"
             >
               {loading ? "Searching…" : "Search"}
             </button>
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {error && <p className="text-red-400 text-[0.75rem]">{error}</p>}
           </div>
 
           {hasSearched && totalMatches > 0 && (
-            <div className="flex items-start gap-3 rounded-lg border border-gray-700 bg-gray-800 p-3 text-sm text-gray-400">
-              <Info className="w-5 h-5 flex-shrink-0 text-sky-400" />
-              <p className="leading-relaxed text-[0.85rem]">
+            <div className="flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-800 p-2.5 text-gray-400 text-[0.8rem]">
+              <Info className="w-4 h-4 flex-shrink-0 text-sky-400" />
+              <p className="leading-snug text-[0.78rem]">
                 Find the {totalMatches} search result item
                 {totalMatches === 1 ? "" : "s"} below. Use Page Up/Down and
                 Home/End keys or mouse scroll to scroll up and down the results,
@@ -529,7 +701,7 @@ Folders:
             ref={resultsContainerRef}
             tabIndex={0}
             onKeyDown={handleResultsKeyDown}
-            className="overflow-y-auto flex-1 space-y-4 max-h-[40vh] lg:max-h-[45vh] focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="overflow-y-auto flex-1 space-y-3 max-h-[34vh] lg:max-h-[42vh] focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
             {results.length === 0 && !loading ? (
               <p className="text-sm text-gray-400">No results yet.</p>
@@ -537,19 +709,19 @@ Folders:
               results.map((group, groupIndex) => (
                 <div
                   key={group.folder}
-                  className="border border-gray-700 rounded-lg p-3 bg-gray-900"
+                  className="border border-gray-700 rounded-lg p-2.5 bg-gray-900"
                 >
-                  <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                  <div className="flex items-center justify-between text-[0.65rem] text-gray-400 mb-1">
                     <span className="font-semibold">Folder</span>
                     <span>
                       {group.items.length} item
                       {group.items.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="text-sm font-mono text-gray-100 mb-2">
+                  <div className="text-xs font-mono text-gray-100 mb-1">
                     <TruncatedText text={group.folder} />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {group.items.map((item, itemIndex) => {
                       const isSelected =
                         selectedResult.groupIndex === groupIndex &&
@@ -580,7 +752,7 @@ Folders:
                               handleGoToSelection();
                             }
                           }}
-                          className={`w-full rounded-lg p-2 flex items-center gap-3 transition-colors text-left ${
+                          className={`w-full rounded-lg p-1.5 flex items-center gap-2.5 transition-colors text-left ${
                             isSelected ? "bg-blue-600" : "hover:bg-gray-800"
                           }`}
                         >
@@ -590,7 +762,7 @@ Folders:
                               text={item.name}
                               className="text-sm text-white"
                             />
-                            <div className="flex items-center justify-between text-xs text-gray-400 mt-0.5">
+                            <div className="flex items-center justify-between text-[0.65rem] text-gray-400 mt-0.5">
                               <span>{item.type}</span>
                               <span>
                                 {item.size != null
@@ -613,21 +785,21 @@ Folders:
           </div>
         </main>
 
-        <footer className="flex items-center justify-between px-5 py-4 border-t border-gray-700">
-          <div className="text-xs text-gray-400 min-w-[140px]">
+        <footer className="flex items-center justify-between px-4 py-3 border-t border-gray-700">
+          <div className="text-[0.75rem] text-gray-400 min-w-[140px]">
             {matchesLabel || "\u00a0"}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-semibold"
+              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded font-semibold text-sm"
             >
               Cancel
             </button>
             <button
               onClick={handleGoToSelection}
               disabled={!selectedItem}
-              className="px-4 py-2 bg-lime-600 hover:bg-lime-500 disabled:bg-gray-600 rounded font-semibold text-black"
+              className="px-3 py-1.5 bg-lime-600 hover:bg-lime-500 disabled:bg-gray-600 rounded font-semibold text-black text-sm"
             >
               Go To
             </button>
