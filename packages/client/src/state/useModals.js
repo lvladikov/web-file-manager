@@ -17,6 +17,10 @@ export default function useModals() {
     isVisible: false,
     targetPanelId: null,
     initialPath: "",
+    context: null,
+    title: "",
+    overlayClassName: "",
+    modalClassName: "",
   });
 
   const [previewModal, setPreviewModal] = useState({
@@ -30,6 +34,12 @@ export default function useModals() {
   const [quickSelectModal, setQuickSelectModal] = useState({
     isVisible: false,
     mode: "select", // 'select' or 'unselect'
+  });
+
+  const [searchModal, setSearchModal] = useState({
+    isVisible: false,
+    panelId: "left",
+    basePath: "",
   });
 
   const [copyPathsModal, setCopyPathsModal] = useState({
@@ -62,5 +72,7 @@ export default function useModals() {
     setCopyPathsModal,
     terminalModal,
     setTerminalModal,
+    searchModal,
+    setSearchModal,
   };
 }

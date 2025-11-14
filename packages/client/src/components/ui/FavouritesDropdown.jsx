@@ -36,7 +36,6 @@ const FavouritesDropdown = ({
               key={fav}
               onClick={() => onSelect(fav)}
               className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
-              title={fav}
             >
               <TruncatedText text={fav} />
             </li>
@@ -67,7 +66,6 @@ const FavouritesDropdown = ({
                     key={path}
                     onClick={() => onSelect(path)}
                     className="px-4 py-2 hover:bg-sky-600 cursor-pointer"
-                    title={path}
                   >
                     <TruncatedText text={path} />
                   </li>

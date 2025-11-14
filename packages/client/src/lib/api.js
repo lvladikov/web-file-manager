@@ -88,6 +88,15 @@ const fetchFiles = async (path) => {
   return response.json();
 };
 
+const searchFiles = async (payload) => {
+  const response = await post(
+    "/api/search",
+    payload,
+    "Failed to perform search."
+  );
+  return response.json();
+};
+
 const fetchFileInfo = async (filePath) => {
   const response = await fetch(
     `/api/file-info?filePath=${encodeURIComponent(filePath)}`
@@ -369,6 +378,7 @@ export {
   fetchDirectory,
   fetchDiskSpace,
   fetchFiles,
+  searchFiles,
   addFavourite,
   removeFavourite,
   fetchPaths,

@@ -50,10 +50,7 @@ const CopyPathsProgressModal = ({
         </div>
         <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-6 break-all">
           <p className="text-sm">Processing:</p>
-          <div
-            className="font-mono text-gray-300 mb-2 w-full truncate overflow-hidden whitespace-nowrap"
-            title={currentPath}
-          >
+          <div className="font-mono text-gray-300 mb-2 w-full truncate overflow-hidden whitespace-nowrap">
             <TruncatedText text={currentPath} />
           </div>
           <p

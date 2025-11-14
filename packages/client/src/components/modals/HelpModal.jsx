@@ -20,6 +20,8 @@ import fileMenuScreenshot from "../../../screenshots/file-menu.png";
 import actionBarScreenshot from "../../../screenshots/action-bar.png";
 import overwriteModalScreenshot from "../../../screenshots/overwrite-modal.png";
 import builtInTerminalScreenshot from "../../../screenshots/built-in-terminal.png";
+import electronScreenshot from "../../../screenshots/electron.png";
+import searchScreenshot from "../../../screenshots/search.png";
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -48,9 +50,11 @@ const HelpModal = ({ isVisible, onClose }) => {
     "Path Bar & Breadcrumbs",
     "Favourites",
     "Top Menus",
+    "Search",
     "Function Key Actions",
-    "Terminal",
     "Copy/Move Operation & Conflict Modes",
+    "Terminal",
+    "Electron App",
   ];
 
   const handleLinkClick = (e, section) => {
@@ -395,16 +399,16 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <strong>Viewing:</strong> Preview, Open, and Open with...
               </li>
               <li>
-                <strong>File Operations:</strong> Contains all major file
-                transfer actions, grouped under the "
+                <strong>More Operations in submenus:</strong> Contains all major
+                file transfer actions, grouped under the "
                 <strong>Copy & Move</strong>" submenu, the "
-                <strong>Copy Paths to clipboard</strong>" submenu, the "
-                <strong>Copy Paths and download</strong>" submenu, and the "
-                <strong>Archive</strong>" submenu.
+                <strong>Archive</strong>" submenu, the "
+                <strong>Select & Filter</strong>" submenu, and the "
+                <strong>Additional Commands</strong>" submenu.
                 <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
                   <li>
                     <kbd>Copy to other panel</kbd> | (<kbd>F5</kbd>): Performs
-                    the Copy operation on the selected item(s) to the
+                    the Copy operation on the selected item(s) to the&nbsp;
                     <strong>inactive</strong> panel.
                   </li>
                   <li>
@@ -416,24 +420,6 @@ const HelpModal = ({ isVisible, onClose }) => {
                   <li>
                     <kbd>Copy to...</kbd>: Opens a folder selector to choose a
                     specific destination for the copy operation.
-                  </li>
-                  <li>
-                    <strong>Copy Paths</strong> <em>Menu:</em> Contains options
-                    to copy absolute or relative paths of selected items
-                    (including or excluding subfolder items) to the OS
-                    clipboard, or to download them as a text file.
-                    <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
-                      <li>
-                        <strong>Copy Paths to clipboard:</strong> Copies
-                        absolute or relative paths of selected items (including
-                        or excluding subfolder items) to the OS clipboard.
-                      </li>
-                      <li>
-                        <strong>Copy Paths and download:</strong> Downloads a
-                        text file containing absolute or relative paths of
-                        selected items (including or excluding subfolder items).
-                      </li>
-                    </ul>
                   </li>
                   <li>
                     <kbd>Move to other panel</kbd> | <kbd>F6</kbd>: Performs the
@@ -481,6 +467,98 @@ const HelpModal = ({ isVisible, onClose }) => {
                         <kbd>Test Archive</kbd>: Verifies the integrity of a
                         selected ZIP archive, including multiple selected ZIP
                         archives, reporting any corrupt files or general issues.
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    <strong>Select & Filter</strong> <em>Menu:</em>
+                    <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
+                      <li>
+                        <kbd>Select All</kbd> | <kbd>{metaKey} + A</kbd>:
+                        Selects all items in the current panel.
+                      </li>
+                      <li>
+                        <kbd>Unselect All</kbd> | <kbd>{metaKey} + D</kbd>:
+                        Clears the current selection.
+                      </li>
+                      <li>
+                        <kbd>Invert Selection</kbd> | <kbd>*</kbd>: Inverts the
+                        current selection.
+                      </li>
+                      <li>
+                        <kbd>Quick Select</kbd> | <kbd>+</kbd>: Opens a dialog
+                        to select files and folders that match a specific
+                        pattern (wildcards or regex).
+                      </li>
+                      <li>
+                        <kbd>Quick Unselect</kbd> | <kbd>-</kbd>: Opens a dialog
+                        to unselect items based on a pattern.
+                      </li>
+                      <li>
+                        <kbd>Quick Filter</kbd> | <kbd>.</kbd>: Opens an input
+                        at the bottom of the panel to filter the visible items
+                        in real-time.
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    <strong>Additional Commands</strong> <em>Menu:</em>
+                    <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
+                      <li>
+                        <kbd>Search in active panel</kbd> |{" "}
+                        <kbd>{metaKey} + F</kbd>: Opens a search dialog to find
+                        files and folders by name within the current panel's
+                        directory and its subdirectories.
+                      </li>
+                      <li>
+                        <kbd>Search in other panel</kbd>: Opens a search dialog
+                        to find files and folders by name within the other
+                        panel's directory and its subdirectories.
+                      </li>
+                      <li>
+                        <strong>Copy Paths</strong> <em>Menu:</em> Contains
+                        options to copy absolute or relative paths of selected
+                        items (including or excluding subfolder items) to the OS
+                        clipboard, or to download them as a text file.
+                        <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
+                          <li>
+                            <strong>Copy Paths to clipboard:</strong> Copies
+                            absolute or relative paths of selected items
+                            (including or excluding subfolder items) to the OS
+                            clipboard.
+                          </li>
+                          <li>
+                            <strong>Copy Paths and download:</strong> Downloads
+                            a text file containing absolute or relative paths of
+                            selected items (including or excluding subfolder
+                            items).
+                          </li>
+                        </ul>
+                      </li>
+                      <li>
+                        <kbd>Terminal in active panel</kbd> |{" "}
+                        <kbd>{metaKey} + T</kbd>: Opens a built-in terminal at
+                        the current path of the active panel.
+                      </li>
+                      <li>
+                        <kbd>Terminal in other panel</kbd>: Opens a built-in
+                        terminal at the current path of the other panel.
+                      </li>
+                      <li>
+                        <kbd>Refresh active panel</kbd>: Refreshes the contents
+                        of the active panel.
+                      </li>
+                      <li>
+                        <kbd>Refresh other panel</kbd>: Refreshes the contents
+                        of the other panel.
+                      </li>
+                      <li>
+                        <kbd>Refresh both panels</kbd>: Refreshes the contents
+                        of both panels.
+                      </li>
+                      <li>
+                        <kbd>Swap panels</kbd>: Swaps the contents and paths of
+                        the two panels.
                       </li>
                     </ul>
                   </li>
@@ -647,6 +725,28 @@ const HelpModal = ({ isVisible, onClose }) => {
             />
           </HelpSection>
 
+          <HelpSection id="search" title="Search">
+            <p>
+              The search modal lets you find files and folders by name inside
+              the active panel or the other panel. It searches recursively
+              through the current directory tree of the active panel.
+            </p>
+            <p>
+              You can open the modal from the top <kbd>Commands</kbd> menu or
+              from the <strong>Additional Commands</strong>
+              &nbsp; submenu of any context menu. The modal will start with the
+              current active panel's path as search context, but will also let
+              you switch between active and other panels' paths, and allow you
+              to search in a different folder without closing and reopening the
+              dialog.
+            </p>
+            <img
+              src={searchScreenshot}
+              alt="Search Modal Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
+          </HelpSection>
+
           <HelpSection id="function-key-actions" title="Function Key Actions">
             <p>
               The bar at the bottom of the screen shows the primary actions
@@ -702,6 +802,43 @@ const HelpModal = ({ isVisible, onClose }) => {
             />
           </HelpSection>
 
+          <HelpSection
+            id="copy-move-operation-and-conflict-modes"
+            title="Copy/Move Operation & Conflict Modes"
+          >
+            <p>
+              When you press <kbd>F5</kbd> to copy (or <kbd>F6</kbd> to move),
+              items are copied/moved from the active panel to the directory
+              shown in the inactive panel. If an item being copied/moved already
+              exists in the target, a confirmation dialog appears.
+            </p>
+            <p>
+              This dialog gives you several choices for how to handle this and
+              all subsequent conflicts in the same operation. Hover over each
+              button in the dialog to see a detailed explanation of what it
+              does.
+            </p>
+            <img
+              src={overwriteModalScreenshot}
+              alt="Overwrite Modal Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-4">
+              <li>
+                <strong>For This Item Only:</strong> You can decide to overwrite
+                or skip the single conflicting item. If it's a folder, you are
+                asked about the folder itself first, and then about its
+                contents.
+              </li>
+              <li>
+                <strong>For All Subsequent Items:</strong> You can set a rule
+                for the rest of the copy operation, such as "Yes to All" (always
+                overwrite) or "Copy/Move if New" (a safe merge mode that never
+                overwrites).
+              </li>
+            </ul>
+          </HelpSection>
+
           <HelpSection id="terminal" title="Terminal">
             <p>
               You can open a built-in terminal directly within the application,
@@ -741,41 +878,40 @@ const HelpModal = ({ isVisible, onClose }) => {
             />
           </HelpSection>
 
-          <HelpSection
-            id="copy-move-operation-and-conflict-modes"
-            title="Copy/Move Operation & Conflict Modes"
-          >
+          <HelpSection id="electron-app" title="Electron App">
             <p>
-              When you press <kbd>F5</kbd> to copy (or <kbd>F6</kbd> to move),
-              items are copied/moved from the active panel to the directory
-              shown in the inactive panel. If an item being copied/moved already
-              exists in the target, a confirmation dialog appears.
+              A fully bundled desktop version is provided via Electron. It
+              packages the React client, the Node.js server, and all native
+              dependencies into a single application for macOS, Windows, and
+              Linux.
             </p>
-            <p>
-              This dialog gives you several choices for how to handle this and
-              all subsequent conflicts in the same operation. Hover over each
-              button in the dialog to see a detailed explanation of what it
-              does.
-            </p>
-            <img
-              src={overwriteModalScreenshot}
-              alt="Overwrite Modal Screenshot"
-              className="w-3/4 mx-auto rounded-lg shadow-lg"
-            />
-            <ul className="list-disc list-inside space-y-2 pl-4 mt-4">
+            <ul className="list-disc list-inside space-y-2 pl-4">
               <li>
-                <strong>For This Item Only:</strong> You can decide to overwrite
-                or skip the single conflicting item. If it's a folder, you are
-                asked about the folder itself first, and then about its
-                contents.
+                <strong>Self-Contained:</strong> No external Node.js
+                installation is required to run the app.
               </li>
               <li>
-                <strong>For All Subsequent Items:</strong> You can set a rule
-                for the rest of the copy operation, such as "Yes to All" (always
-                overwrite) or "Copy/Move if New" (a safe merge mode that never
-                overwrites).
+                <strong>Zero-Duplication Architecture:</strong> Electron uses
+                dynamic imports from the workspace packages to avoid copying
+                files between builds.
+              </li>
+              <li>
+                <strong>Multi-Platform Builds:</strong> macOS (DMG/ZIP), Windows
+                (NSIS/ZIP), and Linux (AppImage/deb/tar.gz) packages are
+                available.
               </li>
             </ul>
+            <img
+              src={electronScreenshot}
+              alt="Electron App Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
+            <p className="text-sm text-gray-400">
+              Development builds run with <code>npm run electron:dev</code>, and
+              distributable packages follow the `npm run electron:dist:*`
+              commands. The resulting apps land under&nbsp;
+              <code>packages/electron/dist</code>.
+            </p>
           </HelpSection>
         </main>
       </div>

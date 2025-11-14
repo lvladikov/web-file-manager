@@ -31,6 +31,8 @@ const BrowserModal = forwardRef(
       footer,
       onSelectionChange,
       onItemsLoad,
+      overlayClassName,
+      modalClassName,
     },
     ref
   ) => {
@@ -329,14 +331,17 @@ const BrowserModal = forwardRef(
     const isButtonDisabled =
       !confirmButtonText || (!isPathConfirmModal && !focusedItem);
 
+    const baseModalClassName = `bg-gray-800 rounded-lg shadow-xl p-4 flex flex-col ${
+      isEmbedded
+        ? "w-full h-full border-none"
+        : "w-full max-w-2xl h-3/4 border border-sky-500"
+    }`;
+    const modalClasses = modalClassName
+      ? `${baseModalClassName} ${modalClassName}`
+      : baseModalClassName;
+
     const modalContent = (
-      <div
-        className={`bg-gray-800 rounded-lg shadow-xl p-4 flex flex-col ${
-          isEmbedded
-            ? "w-full h-full border-none"
-            : "w-full max-w-2xl h-3/4 border border-sky-500"
-        }`}
-      >
+      <div className={modalClasses}>
         <h3 className="text-xl font-bold text-sky-400 flex-shrink-0 mb-4">
           {title}
         </h3>
@@ -451,11 +456,15 @@ const BrowserModal = forwardRef(
       return modalContent;
     }
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        {modalContent}
-      </div>
-    );
+    if (isEmbedded) {
+      return modalContent;
+    }
+
+    const overlayClasses =
+      overlayClassName ||
+      "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50";
+
+    return <div className={overlayClasses}>{modalContent}</div>;
   }
 );
 export default BrowserModal;

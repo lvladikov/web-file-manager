@@ -671,11 +671,21 @@ export default function appState() {
       isVisible: true,
       targetPanelId: panelId,
       initialPath: startPath,
+      context: null,
+      title: "",
+      overlayClassName: "",
+      modalClassName: "",
     });
   };
 
   const handleFolderBrowserConfirm = (selectedPath) => {
-    const { targetPanelId } = modals.folderBrowserModal;
+    const { targetPanelId, context } = modals.folderBrowserModal;
+    if (context === "search") {
+      modals.setSearchModal((prev) => ({
+        ...prev,
+        basePath: selectedPath,
+      }));
+    }
     if (targetPanelId) {
       panelOps.handleNavigate(targetPanelId, selectedPath, "");
     }
@@ -683,6 +693,36 @@ export default function appState() {
       isVisible: false,
       targetPanelId: null,
       initialPath: "",
+      context: null,
+      title: "",
+      overlayClassName: "",
+      modalClassName: "",
+    });
+  };
+
+  const handleChangeSearchBasePath = (path) => {
+    if (!path) return;
+    modals.setSearchModal((prev) => ({
+      ...prev,
+      basePath: path,
+    }));
+  };
+
+  const openFolderBrowserForSearch = (panelId) => {
+    const searchBasePath =
+      modals.searchModal.basePath ||
+      panels[panelId]?.path ||
+      panels[activePanel].path ||
+      "";
+    modals.setFolderBrowserModal({
+      isVisible: true,
+      targetPanelId: null,
+      initialPath: searchBasePath,
+      context: "search",
+      title: "Select a folder for searching...",
+      overlayClassName:
+        "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]",
+      modalClassName: "",
     });
   };
 
@@ -855,6 +895,8 @@ export default function appState() {
     sizeCalcModal: sizeCalculation.sizeCalcModal,
     helpModal: modals.helpModal,
     setHelpModal: modals.setHelpModal,
+    searchModal: modals.searchModal,
+    setSearchModal: modals.setSearchModal,
     error,
     setError,
     activePanel,
@@ -1010,6 +1052,8 @@ export default function appState() {
     // Connector Handlers
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,
+    handleChangeSearchBasePath,
+    openFolderBrowserForSearch,
     handlePathInputSubmit,
     handleSelectAll,
     handleUnselectAll,

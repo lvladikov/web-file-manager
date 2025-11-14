@@ -1,9 +1,16 @@
 import BrowserModal from "../../components/modals/BrowserModal";
 
-const FolderBrowserModal = (props) => (
+const FolderBrowserModal = ({
+  title = "Select a folder...",
+  overlayClassName,
+  modalClassName,
+  ...rest
+}) => (
   <BrowserModal
-    {...props}
-    title="Select a folder..."
+    {...rest}
+    title={title}
+    overlayClassName={overlayClassName}
+    modalClassName={modalClassName}
     confirmButtonText="Select Folder"
     filterItem={(item) => item.type === "folder" || item.type === "parent"}
   />

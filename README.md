@@ -167,12 +167,16 @@ When running the Electron app, both client and server and the node binaries and 
   - **Text & Code:** A wide variety of text and code files are supported, including Text (`txt`), Markdown (`md`), JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), JSON (`json`), CSS (`css`), HTML (`html`), YAML (`yml`, `yaml`), Python (`py`), Shell Scripts (`sh`), XML (`xml`), and more.
   - **Archives:** ZIP
 
-- **Terminal**: You can open a built-in terminal directly within the application, either in the current panel\'s path or in the other panel\'s path. This allows you to execute shell commands without leaving the file manager.
+- **Terminal**: You can open a built-in terminal directly within the application, either in the current panel's path or in the other panel's path. This allows you to execute shell commands without leaving the file manager.
 
   - **Clear Terminal**: Clears the current terminal screen.
   - **Clear Scrollback**: Clears the terminal\'s scrollback history.
 
   ![Terminal Screenshot](packages/client/screenshots/built-in-terminal.png)
+
+- **Search**: Search the active or other panel using the modal launched from the top `Commands` menu or from the first entries inside each context menu's Additional Commands submenu.
+
+  ![Search Modal Screenshot](packages/client/screenshots/search.png)
 
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions.
 
@@ -210,6 +214,8 @@ When running the Electron app, both client and server and the node binaries and 
   - **Organization:** Rename and Delete the item.
   - **Folder Tools:** For folders, you can also Calculate Size or set the folder's path in the opposite panel.
 
+    - **Additional Commands:** The bottom-most section in every context menu (item and empty area) holds the Additional Commands submenu. It begins with Search actions for both panels and continues with grouped utility actions like Copy Paths, Terminal, Refresh panels and Swap panels.
+
     ![Context Menu Screenshot](packages/client/screenshots/context-menu.png)
 
 - **Calculate Folder Size**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing <kbd>Spacebar</kbd> on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed.
@@ -228,13 +234,15 @@ When running the Electron app, both client and server and the node binaries and 
 
   ![Favourites Menu Screenshot](packages/client/screenshots/favourites-menu.png)
 
-- **Top Menus**: "File" and "Select" menus provide access to comprehensive file management and selection tools.
+-- **Top Menus**: "File", "Select & Filter", and "Commands" menu provide access to comprehensive file management, selection, filter and addtional tools including searching for files and folders.
 
-  - **File Menu:** Contains actions related to file operations such as **New (in a submenu)**, **Copy & Move (in a submenu)**, **Copy Paths to Clipboard (in a submenu)**, **Copy Paths and Download (in a submenu)**, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
+- **File Menu:** Contains actions related to file operations such as **New (in a submenu)**, **Copy & Move (in a submenu)**, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
 
-  - **Select Menu:** Offers various ways to manage selections, including Select All, Unselect All, Invert Selection, Quick Select, Quick Unselect, and Quick Filter.
+- **Select & Filter Menu:** Offers various ways to manage selections, including Select All, Unselect All, Invert Selection, Quick Select, Quick Unselect, and Quick Filter.
 
-    ![File Menu Screenshot](packages/client/screenshots/file-menu.png)
+- **Commands Menu:** Contains Search, Copy Paths to Clipboard, Copy Paths and Download, Terminal, Refresh and Swap panels.
+
+- ![File Menu Screenshot](packages/client/screenshots/file-menu.png)
 
 - **Function Key Actions**: The bar at the bottom of the screen shows primary actions mapped to F1-F8 keys for common operations.
 

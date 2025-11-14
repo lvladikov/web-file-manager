@@ -132,10 +132,7 @@ const ProgressModal = ({
                   <span className="inline-block whitespace-nowrap mr-1 flex-shrink-0">
                     Processing:
                   </span>
-                  <div
-                    className="text-sky-300 inline-block min-w-0 flex-1"
-                    title={currentFile}
-                  >
+                  <div className="text-sky-300 inline-block min-w-0 flex-1">
                     <TruncatedText
                       text={currentFile}
                       className="font-mono text-gray-300"
@@ -201,7 +198,7 @@ const ProgressModal = ({
                 currentFile !== "Initializing..." && (
                   <div className="mt-2 pt-2 border-t border-gray-700 flex items-center text-sm">
                     <span className="mr-1 flex-shrink-0">Scanning:</span>
-                    <div className="min-w-0 flex-1" title={currentFile}>
+                    <div className="min-w-0 flex-1">
                       <TruncatedText
                         text={currentFile}
                         className="font-mono text-gray-300 inline-block"
@@ -215,7 +212,7 @@ const ProgressModal = ({
             {status === "copying" && currentFileSize > 0 && (
               <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
                 <div className="text-sm">Current File Progress:</div>
-                <div title={currentFile}>
+                <div>
                   <TruncatedText
                     text={currentFile}
                     className="font-mono text-gray-300 mb-2"

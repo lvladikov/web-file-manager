@@ -30,6 +30,7 @@ import DecompressionProgressModal from "./components/modals/DecompressionProgres
 import ArchiveTestIntegrityProgressModal from "./components/modals/ArchiveTestIntegrityProgressModal";
 import CopyPathsProgressModal from "./components/modals/CopyPathsProgressModal";
 import ZipUpdateProgressModal from "./components/modals/ZipUpdateProgressModal";
+import SearchModal from "./components/modals/SearchModal";
 import TerminalModal from "./components/modals/TerminalModal";
 
 export default function App() {
@@ -104,6 +105,8 @@ export default function App() {
     handleSetOtherPanelPath,
     openFolderBrowserForPanel,
     handleFolderBrowserConfirm,
+    handleChangeSearchBasePath,
+    openFolderBrowserForSearch,
     handlePathInputSubmit,
     handleToggleFavourite,
     handleToggleAutoLoadLyrics,
@@ -160,6 +163,8 @@ export default function App() {
     setZipUpdateProgressModal,
     terminalModal,
     setTerminalModal,
+    searchModal,
+    setSearchModal,
     allowContextMenu,
     setAllowContextMenu,
     handleTerminal,
@@ -174,6 +179,7 @@ export default function App() {
 
   const otherPanelId = activePanel === "left" ? "right" : "left";
   const destinationPath = panels[otherPanelId].path;
+  const searchPanelId = searchModal.panelId || activePanel;
 
   const selectedNames = [...selections[activePanel]];
   const selectedItemsDetails = selectedNames
@@ -210,6 +216,31 @@ export default function App() {
     }
   };
 
+  const openSearchInPanel = (panelId) => {
+    const basePath = panels[panelId]?.path || "";
+    setSearchModal((prev) => ({
+      ...prev,
+      isVisible: true,
+      panelId,
+      basePath,
+    }));
+  };
+
+  const handleMenuSearchActivePanel = () => openSearchInPanel(activePanel);
+  const handleMenuSearchOtherPanel = () => openSearchInPanel(otherPanelId);
+
+  const handleSearchGoTo = async (panelId, folderPath, itemName) => {
+    setSearchModal((prev) => ({ ...prev, isVisible: false }));
+    await handleNavigate(panelId, folderPath, "");
+    setSelections((prev) => ({
+      ...prev,
+      [panelId]: new Set([itemName]),
+    }));
+    setFocusedItem((prev) => ({ ...prev, [panelId]: itemName }));
+  };
+
+  const handleMenuRefreshOtherPanel = () => handleRefreshPanel(otherPanelId);
+
   // Create a closure for the top menu's Quick Filter using the activePanel ID.
   const handleMenuQuickFilter = () => handleStartFilter(activePanel);
 
@@ -229,6 +260,8 @@ export default function App() {
           activePanelSelections={selections[activePanel]}
           filter={filter}
           filteredItems={filteredItems}
+          onSearchActivePanel={handleMenuSearchActivePanel}
+          onSearchOtherPanel={handleMenuSearchOtherPanel}
           onCopyToOtherPanel={() => {
             const sourcePanelId = activePanel;
             const destPanelId = sourcePanelId === "left" ? "right" : "left";
@@ -308,6 +341,7 @@ export default function App() {
           }}
           onRefreshPanel={() => handleRefreshPanel(activePanel)}
           onRefreshBothPanels={handleRefreshAllPanels}
+          onRefreshOtherPanel={handleMenuRefreshOtherPanel}
           onSelectAll={handleSelectAll}
           onUnselectAll={handleUnselectAll}
           onInvertSelection={handleInvertSelection}
@@ -370,12 +404,19 @@ export default function App() {
       <FolderBrowserModal
         isVisible={folderBrowserModal.isVisible}
         initialPath={folderBrowserModal.initialPath}
+        title={folderBrowserModal.title || undefined}
+        overlayClassName={folderBrowserModal.overlayClassName || undefined}
+        modalClassName={folderBrowserModal.modalClassName || undefined}
         onConfirm={handleFolderBrowserConfirm}
         onClose={() =>
           setFolderBrowserModal({
             isVisible: false,
             targetPanelId: null,
             initialPath: "",
+            context: null,
+            title: "",
+            overlayClassName: "",
+            modalClassName: "",
           })
         }
         onFileDoubleClick={(item) => {
@@ -536,187 +577,218 @@ export default function App() {
         setAllowContextMenu={setAllowContextMenu}
       />
 
+      <SearchModal
+        isVisible={searchModal.isVisible}
+        panelId={searchModal.panelId}
+        basePath={searchModal.basePath}
+        activePanelPath={panels[activePanel].path}
+        otherPanelPath={panels[otherPanelId].path}
+        onClose={() =>
+          setSearchModal((prev) => ({ ...prev, isVisible: false }))
+        }
+        onGoTo={handleSearchGoTo}
+        onChangeBasePath={handleChangeSearchBasePath}
+        onRequestPathSelection={() => openFolderBrowserForSearch(searchPanelId)}
+      />
+
       <main
         ref={mainRef}
         className="flex-grow flex p-2 space-x-2 overflow-hidden"
       >
-        {["left", "right"].map((panelId) => (
-          <FilePanel
-            ref={panelRefs[panelId]}
-            key={panelId}
-            boundaryRef={mainRef}
-            panelData={panels[panelId]}
-            activePanel={activePanel}
-            panelId={panelId}
-            renamingItem={renamingItem}
-            isCreating={creatingFolder.panelId === panelId}
-            newFolderValue={creatingFolder.value}
-            isCreatingFile={creatingFile.panelId === panelId}
-            newFileValue={creatingFile.value}
-            onStartRename={handleStartRename}
-            onRenameChange={(e) =>
-              setRenamingItem((prev) => ({ ...prev, value: e.target.value }))
-            }
-            onRenameSubmit={handleConfirmRename}
-            onRenameCancel={handleCancelRename}
-            onNewFolderChange={(e) =>
-              setCreatingFolder((prev) => ({ ...prev, value: e.target.value }))
-            }
-            onNewFolderSubmit={handleConfirmNewFolder}
-            onNewFolderCancel={handleCancelNewFolder}
-            onNewFileChange={(e) =>
-              setCreatingFile((prev) => ({ ...prev, value: e.target.value }))
-            }
-            onNewFileSubmit={handleConfirmNewFile}
-            onNewFileCancel={handleCancelNewFile}
-            setActivePanel={setActivePanel}
-            onNavigate={(target) =>
-              handleNavigate(panelId, panels[panelId].path, target)
-            }
-            onNavigateToPath={(absPath) => handleNavigate(panelId, absPath, "")}
-            onOpenFile={handleOpenFile}
-            loading={loading[panelId]}
-            selectedItems={selections[panelId]}
-            setSelectedItems={(newSel) =>
-              setSelections((s) => ({ ...s, [panelId]: newSel }))
-            }
-            focusedItem={focusedItem[panelId]}
-            setFocusedItem={(name) =>
-              setFocusedItem((s) => ({ ...s, [panelId]: name }))
-            }
-            selectionAnchor={selectionAnchor[panelId]}
-            setSelectionAnchor={(name) =>
-              setSelectionAnchor((s) => ({ ...s, [panelId]: name }))
-            }
-            isEditingPath={editingPath.panelId === panelId}
-            pathInputValue={editingPath.value}
-            onPathDoubleClick={() =>
-              setEditingPath({ panelId, value: panels[panelId].path })
-            }
-            onPathInputChange={(e) =>
-              setEditingPath((s) => ({ ...s, value: e.target.value }))
-            }
-            onPathInputSubmit={handlePathInputSubmit}
-            onPathInputCancel={() =>
-              setEditingPath({ panelId: null, value: "" })
-            }
-            isFavourite={favourites.includes(panels[panelId].path)}
-            onToggleFavourite={handleToggleFavourite}
-            favourites={favourites}
-            recentPaths={recentPaths}
-            columnWidths={columnWidths[panelId]}
-            setColumnWidths={setColumnWidths}
-            filter={filter[panelId]}
-            isFiltering={isFiltering[panelId]}
-            filterPanelId={filterPanelId}
-            onFilterChange={handleFilterChange}
-            onCloseFilter={handleCloseFilter}
-            filteredItems={filteredItems[panelId]}
-            onNewFolder={handleStartNewFolder}
-            onNewFile={handleStartNewFile}
-            copyAbsolutePaths={copyAbsolutePaths}
-            copyRelativePaths={copyRelativePaths}
-            onRefreshPanel={() => handleRefreshPanel(panelId)}
-            onRefreshBothPanels={handleRefreshAllPanels}
-            onSelectAll={() => handleSelectAll(panelId)}
-            onUnselectAll={() => handleUnselectAll(panelId)}
-            onInvertSelection={() => handleInvertSelection(panelId)}
-            onQuickSelect={() => handleStartQuickSelect(panelId)}
-            onQuickUnselect={() => handleStartQuickUnselect(panelId)}
-            onQuickFilter={() => handleStartFilter(panelId)}
-            onSwapPanels={handleSwapPanels}
-            onTerminal={handleTerminal}
-            onTerminalOtherPanel={handleTerminalOtherPanel}
-            onPreview={() => {
-              if (selections[panelId].size === 1) {
-                const itemName = [...selections[panelId]][0];
-                const item = panels[panelId].items.find(
-                  (i) => i.name === itemName
-                );
-                if (!item) return;
+        {["left", "right"].map((panelId) => {
+          const otherPanelIdForPanel = panelId === "left" ? "right" : "left";
+          return (
+            <FilePanel
+              ref={panelRefs[panelId]}
+              key={panelId}
+              boundaryRef={mainRef}
+              panelData={panels[panelId]}
+              activePanel={activePanel}
+              panelId={panelId}
+              renamingItem={renamingItem}
+              isCreating={creatingFolder.panelId === panelId}
+              newFolderValue={creatingFolder.value}
+              isCreatingFile={creatingFile.panelId === panelId}
+              newFileValue={creatingFile.value}
+              onStartRename={handleStartRename}
+              onRenameChange={(e) =>
+                setRenamingItem((prev) => ({ ...prev, value: e.target.value }))
+              }
+              onRenameSubmit={handleConfirmRename}
+              onRenameCancel={handleCancelRename}
+              onNewFolderChange={(e) =>
+                setCreatingFolder((prev) => ({
+                  ...prev,
+                  value: e.target.value,
+                }))
+              }
+              onNewFolderSubmit={handleConfirmNewFolder}
+              onNewFolderCancel={handleCancelNewFolder}
+              onNewFileChange={(e) =>
+                setCreatingFile((prev) => ({ ...prev, value: e.target.value }))
+              }
+              onNewFileSubmit={handleConfirmNewFile}
+              onNewFileCancel={handleCancelNewFile}
+              setActivePanel={setActivePanel}
+              onNavigate={(target) =>
+                handleNavigate(panelId, panels[panelId].path, target)
+              }
+              onNavigateToPath={(absPath) =>
+                handleNavigate(panelId, absPath, "")
+              }
+              onOpenFile={handleOpenFile}
+              loading={loading[panelId]}
+              selectedItems={selections[panelId]}
+              setSelectedItems={(newSel) =>
+                setSelections((s) => ({ ...s, [panelId]: newSel }))
+              }
+              focusedItem={focusedItem[panelId]}
+              setFocusedItem={(name) =>
+                setFocusedItem((s) => ({ ...s, [panelId]: name }))
+              }
+              selectionAnchor={selectionAnchor[panelId]}
+              setSelectionAnchor={(name) =>
+                setSelectionAnchor((s) => ({ ...s, [panelId]: name }))
+              }
+              isEditingPath={editingPath.panelId === panelId}
+              pathInputValue={editingPath.value}
+              onPathDoubleClick={() =>
+                setEditingPath({ panelId, value: panels[panelId].path })
+              }
+              onPathInputChange={(e) =>
+                setEditingPath((s) => ({ ...s, value: e.target.value }))
+              }
+              onPathInputSubmit={handlePathInputSubmit}
+              onPathInputCancel={() =>
+                setEditingPath({ panelId: null, value: "" })
+              }
+              isFavourite={favourites.includes(panels[panelId].path)}
+              onToggleFavourite={handleToggleFavourite}
+              favourites={favourites}
+              recentPaths={recentPaths}
+              columnWidths={columnWidths[panelId]}
+              setColumnWidths={setColumnWidths}
+              filter={filter[panelId]}
+              isFiltering={isFiltering[panelId]}
+              filterPanelId={filterPanelId}
+              onFilterChange={handleFilterChange}
+              onCloseFilter={handleCloseFilter}
+              filteredItems={filteredItems[panelId]}
+              onNewFolder={handleStartNewFolder}
+              onNewFile={handleStartNewFile}
+              copyAbsolutePaths={copyAbsolutePaths}
+              copyRelativePaths={copyRelativePaths}
+              onRefreshPanel={() => handleRefreshPanel(panelId)}
+              onRefreshBothPanels={handleRefreshAllPanels}
+              onRefreshOtherPanel={() =>
+                handleRefreshPanel(otherPanelIdForPanel)
+              }
+              onSelectAll={() => handleSelectAll(panelId)}
+              onUnselectAll={() => handleUnselectAll(panelId)}
+              onInvertSelection={() => handleInvertSelection(panelId)}
+              onQuickSelect={() => handleStartQuickSelect(panelId)}
+              onQuickUnselect={() => handleStartQuickUnselect(panelId)}
+              onQuickFilter={() => handleStartFilter(panelId)}
+              onSwapPanels={handleSwapPanels}
+              onTerminal={handleTerminal}
+              onTerminalOtherPanel={handleTerminalOtherPanel}
+              onSearchActivePanel={handleMenuSearchActivePanel}
+              onSearchOtherPanel={handleMenuSearchOtherPanel}
+              onPreview={() => {
+                if (selections[panelId].size === 1) {
+                  const itemName = [...selections[panelId]][0];
+                  const item = panels[panelId].items.find(
+                    (i) => i.name === itemName
+                  );
+                  if (!item) return;
 
-                if (item.type === "archive" || isItemPreviewable(item)) {
-                  setPreviewModal({ isVisible: true, item, isEditing: false });
+                  if (item.type === "archive" || isItemPreviewable(item)) {
+                    setPreviewModal({
+                      isVisible: true,
+                      item,
+                      isEditing: false,
+                    });
+                  }
                 }
-              }
-            }}
-            onOpen={handleContextOpen}
-            onOpenWith={handleContextOpenWith}
-            onView={handleViewItem}
-            onEdit={handleEdit}
-            onCopyToOtherPanel={() => {
-              const sourcePanelId = panelId;
-              const destPanelId = sourcePanelId === "left" ? "right" : "left";
-              const sourcePath = panels[sourcePanelId].path;
-              const destinationPath = panels[destPanelId].path;
-              const items = filter[sourcePanelId].pattern
-                ? filteredItems[sourcePanelId]
-                : panels[sourcePanelId].items;
-              const sources = items
-                .filter((item) => selections[sourcePanelId].has(item.name))
-                .map((item) => buildFullPath(sourcePath, item.name));
-              performCopy(sources, destinationPath);
-            }}
-            onMoveToOtherPanel={() => {
-              const sourcePanelId = panelId;
-              const destPanelId = sourcePanelId === "left" ? "right" : "left";
-              const sourcePath = panels[sourcePanelId].path;
-              const destinationPath = panels[destPanelId].path;
-              const items = filter[sourcePanelId].pattern
-                ? filteredItems[sourcePanelId]
-                : panels[sourcePanelId].items;
-              const sources = items
-                .filter((item) => selections[sourcePanelId].has(item.name))
-                .map((item) => buildFullPath(sourcePath, item.name));
-              performCopy(sources, destinationPath, true);
-            }}
-            onCopyTo={() => handleCopyTo(panelId)}
-            onMoveTo={() => handleMoveTo(panelId)}
-            onCopyToClipboard={handleCopyToClipboard}
-            onCutToClipboard={handleCutToClipboard}
-            onPasteFromClipboard={handlePasteFromClipboard}
-            onDuplicate={handleDuplicate}
-            onRename={() => {
-              if (selections[panelId].size === 1) {
-                const name = [...selections[panelId]][0];
-                if (name !== "..") {
-                  handleStartRename(panelId, name);
+              }}
+              onOpen={handleContextOpen}
+              onOpenWith={handleContextOpenWith}
+              onView={handleViewItem}
+              onEdit={handleEdit}
+              onCopyToOtherPanel={() => {
+                const sourcePanelId = panelId;
+                const destPanelId = sourcePanelId === "left" ? "right" : "left";
+                const sourcePath = panels[sourcePanelId].path;
+                const destinationPath = panels[destPanelId].path;
+                const items = filter[sourcePanelId].pattern
+                  ? filteredItems[sourcePanelId]
+                  : panels[sourcePanelId].items;
+                const sources = items
+                  .filter((item) => selections[sourcePanelId].has(item.name))
+                  .map((item) => buildFullPath(sourcePath, item.name));
+                performCopy(sources, destinationPath);
+              }}
+              onMoveToOtherPanel={() => {
+                const sourcePanelId = panelId;
+                const destPanelId = sourcePanelId === "left" ? "right" : "left";
+                const sourcePath = panels[sourcePanelId].path;
+                const destinationPath = panels[destPanelId].path;
+                const items = filter[sourcePanelId].pattern
+                  ? filteredItems[sourcePanelId]
+                  : panels[sourcePanelId].items;
+                const sources = items
+                  .filter((item) => selections[sourcePanelId].has(item.name))
+                  .map((item) => buildFullPath(sourcePath, item.name));
+                performCopy(sources, destinationPath, true);
+              }}
+              onCopyTo={() => handleCopyTo(panelId)}
+              onMoveTo={() => handleMoveTo(panelId)}
+              onCopyToClipboard={handleCopyToClipboard}
+              onCutToClipboard={handleCutToClipboard}
+              onPasteFromClipboard={handlePasteFromClipboard}
+              onDuplicate={handleDuplicate}
+              onRename={() => {
+                if (selections[panelId].size === 1) {
+                  const name = [...selections[panelId]][0];
+                  if (name !== "..") {
+                    handleStartRename(panelId, name);
+                  }
                 }
-              }
-            }}
-            onDelete={() => {
-              const items = filter[panelId].pattern
-                ? filteredItems[panelId]
-                : panels[panelId].items;
-              const itemsToDelete = items.filter((item) =>
-                selections[panelId].has(item.name)
-              );
-              handleDeleteItem(itemsToDelete);
-            }}
-            onSetOtherPanelPath={() => handleSetOtherPanelPath()}
-            onCalculateSize={() => {
-              const itemsToConsider = filter[panelId].pattern
-                ? filteredItems[panelId]
-                : panels[panelId].items;
-              const foldersToCalc = itemsToConsider.filter(
-                (i) => i.type === "folder" && selections[panelId].has(i.name)
-              );
-              if (foldersToCalc.length > 0) {
-                calculateSizeForMultipleFolders(foldersToCalc, panelId);
-              }
-            }}
-            onCompressInActivePanel={handleCompressInActivePanel}
-            onCompressToOtherPanel={handleCompressToOtherPanel}
-            onDecompressInActivePanel={handleDecompressInActivePanel}
-            onDecompressToOtherPanel={handleDecompressToOtherPanel}
-            onTestArchive={handleTestArchive}
-            appState={appState}
-            onChooseFolder={openFolderBrowserForPanel}
-            sortConfig={sortConfig[panelId]}
-            onSort={handleSort}
-            clipboard={clipboard}
-          />
-        ))}
+              }}
+              onDelete={() => {
+                const items = filter[panelId].pattern
+                  ? filteredItems[panelId]
+                  : panels[panelId].items;
+                const itemsToDelete = items.filter((item) =>
+                  selections[panelId].has(item.name)
+                );
+                handleDeleteItem(itemsToDelete);
+              }}
+              onSetOtherPanelPath={() => handleSetOtherPanelPath()}
+              onCalculateSize={() => {
+                const itemsToConsider = filter[panelId].pattern
+                  ? filteredItems[panelId]
+                  : panels[panelId].items;
+                const foldersToCalc = itemsToConsider.filter(
+                  (i) => i.type === "folder" && selections[panelId].has(i.name)
+                );
+                if (foldersToCalc.length > 0) {
+                  calculateSizeForMultipleFolders(foldersToCalc, panelId);
+                }
+              }}
+              onCompressInActivePanel={handleCompressInActivePanel}
+              onCompressToOtherPanel={handleCompressToOtherPanel}
+              onDecompressInActivePanel={handleDecompressInActivePanel}
+              onDecompressToOtherPanel={handleDecompressToOtherPanel}
+              onTestArchive={handleTestArchive}
+              appState={appState}
+              onChooseFolder={openFolderBrowserForPanel}
+              sortConfig={sortConfig[panelId]}
+              onSort={handleSort}
+              clipboard={clipboard}
+            />
+          );
+        })}
       </main>
       <ActionBar buttons={actionBarButtons} />
     </div>

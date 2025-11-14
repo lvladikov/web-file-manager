@@ -72,7 +72,7 @@ const CompressionProgressModal = ({
             {currentFileTotalSize > 0 && (
               <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
                 <p className="text-sm">Current File Progress:</p>
-                <span title={currentFile}>
+                <span>
                   <TruncatedText
                     text={currentFile || "Scanning..."}
                     className="font-mono text-gray-300 mb-2"

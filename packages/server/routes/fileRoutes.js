@@ -302,6 +302,153 @@ export default function createFileRoutes(
     }
   });
 
+  router.post("/search", async (req, res) => {
+    const { basePath, query, options = {} } = req.body || {};
+    if (!basePath || !query) {
+      return res
+        .status(400)
+        .json({ message: "Base path and query are required." });
+    }
+
+    const resolvedBasePath = path.resolve(basePath);
+    if (matchZipPath(resolvedBasePath)) {
+      return res
+        .status(400)
+        .json({ message: "Search inside archives is not supported." });
+    }
+
+    let stats;
+    try {
+      stats = await fse.stat(resolvedBasePath);
+      if (!stats.isDirectory()) {
+        return res
+          .status(400)
+          .json({ message: "Base path must be a directory." });
+      }
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        return res
+          .status(404)
+          .json({ message: `Path does not exist: ${resolvedBasePath}` });
+      }
+      console.error("Error inspecting base path for search:", error);
+      return res.status(500).json({ message: "Error preparing search." });
+    }
+
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      return res.status(400).json({ message: "Search query cannot be empty." });
+    }
+
+    const includeHidden = !!options.includeHidden;
+    const includeSubfolders =
+      options.includeSubfolders === undefined
+        ? true
+        : !!options.includeSubfolders;
+    const useRegex = !!options.useRegex;
+    const caseSensitive = !!options.caseSensitive;
+
+    const escapeSegment = (segment) =>
+      segment.replace(/[-[\]{}()+?.\\^$|]/g, "\\$&");
+
+    const buildPattern = (value) =>
+      value.split("*").map(escapeSegment).join(".*");
+
+    let matcher;
+    try {
+      const flags = caseSensitive ? "" : "i";
+      matcher = useRegex
+        ? new RegExp(trimmedQuery, flags)
+        : new RegExp(buildPattern(trimmedQuery), flags);
+    } catch (error) {
+      return res.status(400).json({ message: "Invalid regular expression." });
+    }
+
+    const visitedDirs = new Set();
+    const groups = new Map();
+
+    const addMatch = (folderPath, entry) => {
+      const normalizedFolder = path.resolve(folderPath);
+      if (!groups.has(normalizedFolder)) {
+        groups.set(normalizedFolder, []);
+      }
+      groups.get(normalizedFolder).push(entry);
+    };
+
+    const traverseDirectory = async (directory) => {
+      let realDir;
+      try {
+        realDir = await fse.realpath(directory);
+      } catch (error) {
+        return;
+      }
+      if (visitedDirs.has(realDir)) return;
+      visitedDirs.add(realDir);
+
+      let entries;
+      try {
+        entries = await fse.readdir(directory, { withFileTypes: true });
+      } catch (error) {
+        console.error(
+          `Failed to read directory during search: ${directory}`,
+          error.message
+        );
+        return;
+      }
+
+      for (const entry of entries) {
+        if (entry.name === "." || entry.name === "..") continue;
+        const entryPath = path.join(directory, entry.name);
+        let entryStats;
+        try {
+          entryStats = await fse.stat(entryPath);
+        } catch (error) {
+          continue;
+        }
+
+        const isHidden = entry.name.startsWith(".");
+        if (!includeHidden && isHidden) continue;
+
+        const entryType = entryStats.isDirectory()
+          ? "folder"
+          : getFileType(entry.name, false);
+
+        if (matcher.test(entry.name)) {
+          addMatch(directory, {
+            name: entry.name,
+            type: entryType,
+            size: entryStats.isFile() ? entryStats.size : null,
+            modified: entryStats.mtime.toISOString(),
+            fullPath: entryPath,
+          });
+        }
+
+        if (includeSubfolders && entryStats.isDirectory()) {
+          await traverseDirectory(entryPath);
+        }
+      }
+    };
+
+    try {
+      await traverseDirectory(resolvedBasePath);
+    } catch (error) {
+      console.error("Error during search traversal:", error);
+      return res.status(500).json({ message: "Error executing search." });
+    }
+
+    const sortedGroups = Array.from(groups.entries())
+      .map(([folder, items]) => ({
+        folder,
+        items: items.sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.folder.localeCompare(b.folder));
+
+    res.json({
+      basePath: resolvedBasePath,
+      groups: sortedGroups,
+    });
+  });
+
   // Endpoint to open a file
 
   router.post("/open-file", async (req, res) => {

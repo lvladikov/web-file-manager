@@ -27,6 +27,8 @@ export default function useKeyboardShortcuts(props) {
         sizeCalcModal,
         helpModal,
         setHelpModal,
+        searchModal,
+        setSearchModal,
         error,
         setError,
         activePanel,
@@ -240,6 +242,15 @@ export default function useKeyboardShortcuts(props) {
         return;
       }
 
+      if (searchModal.isVisible) {
+        e.stopPropagation();
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setSearchModal((prev) => ({ ...prev, isVisible: false }));
+        }
+        return;
+      }
+
       if (filterPanelId) {
         const filterInput = document.getElementById("filter-input");
         if (e.key === "." && document.activeElement !== filterInput) {
@@ -316,6 +327,10 @@ export default function useKeyboardShortcuts(props) {
               isVisible: false,
               targetPanelId: null,
               initialPath: "",
+              context: null,
+              title: "",
+              overlayClassName: "",
+              modalClassName: "",
             });
           if (appBrowserModal.isVisible)
             setAppBrowserModal((s) => ({ ...s, isVisible: false }));
@@ -382,6 +397,17 @@ export default function useKeyboardShortcuts(props) {
       if (e.key === ".") {
         e.preventDefault();
         latestProps.current.handleStartFilter();
+        return;
+      }
+      if (isModKey(e) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        const targetPanelId = activePanel;
+        const targetPath = panels[targetPanelId]?.path || "";
+        setSearchModal({
+          isVisible: true,
+          panelId: targetPanelId,
+          basePath: targetPath,
+        });
         return;
       }
       if (e.key === "Tab") {

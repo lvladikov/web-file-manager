@@ -76,6 +76,7 @@ const FilePanel = React.forwardRef(
       copyRelativePaths,
       onRefreshPanel,
       onRefreshBothPanels,
+      onRefreshOtherPanel,
       onSelectAll,
       onUnselectAll,
       onInvertSelection,
@@ -85,6 +86,8 @@ const FilePanel = React.forwardRef(
       onSwapPanels,
       onTerminal,
       onTerminalOtherPanel,
+      onSearchActivePanel,
+      onSearchOtherPanel,
       onPreview,
       onOpen,
       onOpenWith,
@@ -593,6 +596,7 @@ const FilePanel = React.forwardRef(
           panelId={panelId}
           onRefreshPanel={() => onRefreshPanel(panelId)}
           onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
+          onRefreshOtherPanel={onRefreshOtherPanel}
           onSelectAll={() => onSelectAll(panelId)}
           onUnselectAll={() => onUnselectAll(panelId)}
           onInvertSelection={() => onInvertSelection(panelId)}
@@ -604,6 +608,8 @@ const FilePanel = React.forwardRef(
           onTerminalOtherPanel={onTerminalOtherPanel}
           onPasteFromClipboard={onPasteFromClipboard}
           clipboard={clipboard}
+          onSearchActivePanel={() => onSearchActivePanel?.(panelId)}
+          onSearchOtherPanel={() => onSearchOtherPanel?.(panelId)}
         >
           <div
             ref={scrollContainerRef}
@@ -681,8 +687,11 @@ const FilePanel = React.forwardRef(
                   onQuickSelect={() => onQuickSelect(panelId)}
                   onQuickUnselect={() => onQuickUnselect(panelId)}
                   onQuickFilter={() => onQuickFilter(panelId)}
+                  onSearchActivePanel={() => onSearchActivePanel?.(panelId)}
+                  onSearchOtherPanel={() => onSearchOtherPanel?.(panelId)}
                   onRefreshPanel={() => onRefreshPanel(panelId)}
                   onRefreshBothPanels={() => onRefreshBothPanels(panelId)}
+                  onRefreshOtherPanel={onRefreshOtherPanel}
                   onSwapPanels={() => onSwapPanels(panelId)}
                   onTerminal={onTerminal}
                   onTerminalOtherPanel={onTerminalOtherPanel}

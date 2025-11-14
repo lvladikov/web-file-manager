@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
 
-const TruncatedText = ({ text, className, onClick }) => {
+const TruncatedText = ({ text, className, onClick, title }) => {
   const [displayedText, setDisplayedText] = useState(text);
   const containerRef = useRef(null);
   const textRef = useRef(null);
@@ -63,6 +63,7 @@ const TruncatedText = ({ text, className, onClick }) => {
       <span
         className={`${className || ""} block whitespace-nowrap overflow-hidden`}
         onClick={onClick}
+        title={title || text}
       >
         {displayedText}
       </span>

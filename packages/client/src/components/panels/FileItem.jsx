@@ -42,14 +42,16 @@ const FileItem = ({
   onTerminalOtherPanel,
   onRefreshPanel,
   onRefreshBothPanels,
+  onRefreshOtherPanel,
   onSelectAll,
   onUnselectAll,
   onInvertSelection,
   onQuickSelect,
   onQuickUnselect,
   onQuickFilter,
+  onSearchActivePanel,
+  onSearchOtherPanel,
   onActivatePanel,
-  appState,
   boundaryRef,
   allItems,
   selectedItems,
@@ -123,9 +125,7 @@ const FileItem = ({
           : item.type === "parent"
           ? "Go up one folder"
           : `${item.name}${
-              item.type !== "folder"
-                ? " | Double-click to open"
-                : ""
+              item.type !== "folder" ? " | Double-click to open" : ""
             }`
       }
     >
@@ -204,13 +204,15 @@ const FileItem = ({
       onTerminalOtherPanel={onTerminalOtherPanel}
       onRefreshPanel={onRefreshPanel}
       onRefreshBothPanels={onRefreshBothPanels}
+      onRefreshOtherPanel={onRefreshOtherPanel}
       onSelectAll={onSelectAll}
       onUnselectAll={onUnselectAll}
       onInvertSelection={onInvertSelection}
       onQuickSelect={onQuickSelect}
       onQuickUnselect={onQuickUnselect}
       onQuickFilter={onQuickFilter}
-      appState={appState}
+      onSearchActivePanel={onSearchActivePanel}
+      onSearchOtherPanel={onSearchOtherPanel}
       boundaryRef={boundaryRef}
       isRenaming={isRenaming}
       onRenameCancel={onRenameCancel}

@@ -13,6 +13,7 @@ const EmptyAreaContextMenu = ({
   onNewFile,
   onRefreshPanel,
   onRefreshBothPanels,
+  onRefreshOtherPanel,
   onSelectAll,
   onUnselectAll,
   onInvertSelection,
@@ -27,6 +28,8 @@ const EmptyAreaContextMenu = ({
   boundaryRef,
   children,
   panelId,
+  onSearchActivePanel,
+  onSearchOtherPanel,
 }) => {
   return (
     <ContextMenu.Root>
@@ -150,37 +153,79 @@ const EmptyAreaContextMenu = ({
               </ContextMenu.Sub>
 
               <div className={separatorClassName}></div>
-              <ContextMenu.Item
-                onSelect={onRefreshPanel}
-                className={itemClassName}
-              >
-                Refresh active panel
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onRefreshBothPanels}
-                className={itemClassName}
-              >
-                Refresh both panels
-              </ContextMenu.Item>
-              <div className={separatorClassName}></div>
-              <ContextMenu.Item onSelect={onTerminal} className={itemClassName}>
-                <span>Terminal in active panel</span>
-                <span className="text-gray-400">F9</span>
-              </ContextMenu.Item>
-              <ContextMenu.Item
-                onSelect={onTerminalOtherPanel}
-                className={itemClassName}
-              >
-                <span>Terminal in other panel</span>
-              </ContextMenu.Item>
-              <ContextMenu.Separator className={separatorClassName} />
-              <ContextMenu.Item
-                onSelect={onSwapPanels}
-                className={itemClassName}
-              >
-                <span>Swap panels</span>
-                <span className="text-gray-400">{metaKey}+U</span>
-              </ContextMenu.Item>
+              <ContextMenu.Sub>
+                <ContextMenu.SubTrigger className={submenuTriggerClassName}>
+                  <span>Additional Commands</span>
+                  <span className="text-gray-400">&gt;</span>
+                </ContextMenu.SubTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.SubContent
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
+                    sideOffset={2}
+                    alignOffset={-5}
+                  >
+                    <ContextMenu.Item
+                      onSelect={() => onSearchActivePanel?.()}
+                      className={itemClassName}
+                    >
+                      <span>Search in active panel</span>
+                      <span className="text-gray-400">{metaKey}+F</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={() => onSearchOtherPanel?.()}
+                      className={itemClassName}
+                    >
+                      <span>Search in other panel</span>
+                    </ContextMenu.Item>
+
+                    <div className={separatorClassName}></div>
+                    <ContextMenu.Item
+                      onSelect={onTerminal}
+                      className={itemClassName}
+                    >
+                      <span>Terminal in active panel</span>
+                      <span className="text-gray-400">F9</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onTerminalOtherPanel}
+                      className={itemClassName}
+                    >
+                      <span>Terminal in other panel</span>
+                    </ContextMenu.Item>
+
+                    <div className={separatorClassName}></div>
+
+                    <ContextMenu.Item
+                      onSelect={onRefreshPanel}
+                      className={itemClassName}
+                    >
+                      Refresh active panel
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onRefreshOtherPanel}
+                      className={itemClassName}
+                    >
+                      Refresh other panel
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onRefreshBothPanels}
+                      className={itemClassName}
+                    >
+                      Refresh both panels
+                    </ContextMenu.Item>
+
+                    <div className={separatorClassName}></div>
+
+                    <ContextMenu.Item
+                      onSelect={onSwapPanels}
+                      className={itemClassName}
+                    >
+                      <span>Swap panels</span>
+                      <span className="text-gray-400">{metaKey}+U</span>
+                    </ContextMenu.Item>
+                  </ContextMenu.SubContent>
+                </ContextMenu.Portal>
+              </ContextMenu.Sub>
             </ScrollArea.Viewport>
             <ScrollArea.Scrollbar
               className="flex select-none touch-none p-0.5 bg-gray-800 transition-colors duration-[160ms] ease-out hover:bg-gray-900 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:h-2.5"
