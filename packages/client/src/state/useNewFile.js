@@ -71,32 +71,41 @@ export default function useNewFile({
       const zipPathMatch = matchZipPath(newFilePath);
       let jobId = null;
 
+      let zipFilePath, filePathInZip;
       if (zipPathMatch) {
-        const zipFilePath = zipPathMatch[1];
-        const filePathInZip = zipPathMatch[2].startsWith("/")
+        zipFilePath = zipPathMatch[1];
+        filePathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
-
-        startZipUpdate({
-          zipFilePath,
-          filePathInZip,
-          originalZipSize: 0, // Value will be updated by WebSocket
-          itemType: "file",
-        });
       }
 
       const response = await createNewFile(newFilePath);
       jobId = response.jobId;
 
-      if (zipPathMatch) {
-        connectZipUpdateWebSocket(jobId, "create-file-in-zip");
+      if (zipPathMatch && response && response.jobId) {
+        // Start the modal now that server accepted the job
+        startZipUpdate({
+          jobId: response.jobId,
+          zipFilePath,
+          filePathInZip,
+          originalZipSize: 0,
+          itemType: "file",
+          title: "Creating file in zip...",
+        });
+        connectZipUpdateWebSocket(jobId, "create-file-in-zip", async () => {
+          handleCancelNewFile();
+          await handleNavigate(panelId, panel.path, "");
+          setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
+          setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
+          setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
+        });
+      } else {
+        handleCancelNewFile(); // Reset state before navigation
+        await handleNavigate(panelId, panel.path, "");
+        setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
+        setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
+        setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
       }
-
-      handleCancelNewFile(); // Reset state before navigation
-      await handleNavigate(panelId, panel.path, "");
-      setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
-      setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
-      setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
     } catch (err) {
       setError(err.message);
       handleCancelNewFile();

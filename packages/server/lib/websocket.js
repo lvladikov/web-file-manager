@@ -120,6 +120,8 @@ export function initializeWebSocketServer(
           if (data.type === "overwrite_response") {
             if (data.decision === "cancel") {
               if (jobType === "copy" || jobType === "duplicate") {
+                // Ensure the decision is set so awaiting prompts read it as a cancel.
+                if (job) job.overwriteDecision = "cancel";
                 performCopyCancellation(job);
               } else if (jobType === "decompress") {
                 job.status = "cancelled";
@@ -148,7 +150,11 @@ export function initializeWebSocketServer(
                 // terminal UI (the shell may not echo when not attached to
                 // a real TTY).
                 try {
-                  if (term.isPty === false && job.ws && job.ws.readyState === 1) {
+                  if (
+                    term.isPty === false &&
+                    job.ws &&
+                    job.ws.readyState === 1
+                  ) {
                     // send raw data so the renderer's onmessage will treat
                     // it as terminal output and render it
                     job.ws.send(data.data);
@@ -236,7 +242,7 @@ export function initializeWebSocketServer(
                 }
               }, 250); // Send updates every 250ms
 
-              // Await the completion promise set up in fileRoutes.js
+              // Await the completion promise set up by the corresponding route handler (e.g., zipRoutes)
               if (job.completionPromise) {
                 job.controller.signal.addEventListener("abort", () => {
                   console.log(
@@ -330,6 +336,8 @@ export function initializeWebSocketServer(
                   const basePath = path.dirname(sourcePath);
 
                   if (stats.isDirectory()) {
+                    const relativePath = path.relative(basePath, sourcePath);
+                    emptyDirsToAdd.push(relativePath + "/");
                     const { files, dirs } = await getAllFilesAndDirsRecursive(
                       sourcePath,
                       basePath
@@ -417,6 +425,12 @@ export function initializeWebSocketServer(
                 if (result && result.status === "skipped_all") {
                   job.status = "completed"; // Mark job as completed even if skipped
                   if (ws.readyState === 1) {
+                    ws.send(
+                      JSON.stringify({
+                        type: "complete",
+                        status: "skipped_all",
+                      })
+                    );
                     ws.close(1000, "Job Completed - Skipped All");
                   }
                   return; // Exit early from this async IIFE
@@ -460,26 +474,131 @@ export function initializeWebSocketServer(
                 const zipFilePath = zipSourceMatch[1];
                 job.zipFilePath = zipFilePath;
 
-                let zipfile = await yauzl.open(zipFilePath);
-
+                // Determine which zip file actually contains the requested source entries.
+                // If the source is inside a nested zip, extract the nested zips to temp files and operate on the innermost zip.
                 const filenamesToExtract = new Set();
                 let totalUncompressedSize = 0;
+                const tempDirs = [];
 
-                for await (const entry of zipfile) {
-                  for (const source of sources) {
-                    const inZipPath = matchZipPath(source)[2].substring(1);
-                    if (
-                      entry.filename === inZipPath ||
-                      entry.filename.startsWith(inZipPath + "/")
-                    ) {
-                      if (!filenamesToExtract.has(entry.filename)) {
-                        filenamesToExtract.add(entry.filename);
-                        totalUncompressedSize += entry.uncompressedSize;
+                for (const source of sources) {
+                  const sourceMatch = matchZipPath(source);
+                  if (!sourceMatch) continue;
+                  const pathInZip = sourceMatch[2].startsWith("/")
+                    ? sourceMatch[2].substring(1)
+                    : sourceMatch[2];
+
+                  // If this source references nested zips (e.g. outer.zip/inner.zip/...)
+                  if (pathInZip.toLowerCase().includes(".zip/")) {
+                    // Walk nested zip chain and extract to temp files until we reach the innermost zip
+                    let currentZipPath = zipFilePath;
+                    let remainingPath = pathInZip;
+                    while (true) {
+                      const zipEndIndex = remainingPath
+                        .toLowerCase()
+                        .indexOf(".zip/");
+                      if (zipEndIndex === -1) break;
+                      const nestedZipPathInParent = remainingPath.substring(
+                        0,
+                        zipEndIndex + 4
+                      );
+                      remainingPath = remainingPath.substring(zipEndIndex + 5);
+
+                      const tempDir = fse.mkdtempSync(
+                        path.join(os.tmpdir(), "nested-zip-")
+                      );
+                      tempDirs.push(tempDir);
+                      const tmpInnerZipPath = path.join(
+                        tempDir,
+                        path.basename(nestedZipPathInParent)
+                      );
+
+                      const parentZip = await yauzl.open(currentZipPath);
+                      let entryFound = null;
+                      for await (const entry of parentZip) {
+                        if (entry.filename === nestedZipPathInParent) {
+                          entryFound = entry;
+                          break;
+                        }
+                      }
+                      if (!entryFound) {
+                        await parentZip.close();
+                        throw new Error(
+                          `Nested zip not found: ${nestedZipPathInParent}`
+                        );
+                      }
+                      const readStream = await parentZip.openReadStream(
+                        entryFound
+                      );
+                      const writeStream =
+                        fse.createWriteStream(tmpInnerZipPath);
+                      await new Promise((resolve, reject) => {
+                        readStream.pipe(writeStream);
+                        readStream.on("end", resolve);
+                        readStream.on("error", reject);
+                        writeStream.on("error", reject);
+                      });
+                      await parentZip.close();
+                      currentZipPath = tmpInnerZipPath;
+                    }
+
+                    // currentZipPath now points to the innermost zip, remainingPath points to path inside it
+                    // Record the inner zip as job.zipFilePath for extractFilesFromZip to open it
+                    job.zipFilePath = currentZipPath;
+                    // Set original zip size for progress context
+                    job.originalZipSize = (await fse.pathExists(currentZipPath))
+                      ? (await fse.stat(currentZipPath)).size
+                      : 0;
+                    const innerZip = await yauzl.open(currentZipPath);
+                    try {
+                      job.zipfile = innerZip; // ensure the job knows the ZIP instance it's extracting from
+                      for await (const entry of innerZip) {
+                        if (
+                          entry.filename === remainingPath ||
+                          entry.filename.startsWith(remainingPath + "/")
+                        ) {
+                          if (!filenamesToExtract.has(entry.filename)) {
+                            filenamesToExtract.add(entry.filename);
+                            totalUncompressedSize += entry.uncompressedSize;
+                          }
+                        }
+                      }
+                    } finally {
+                      // Close the innerZip if it was opened. Also clear job.zipfile if it refers to an inner temp.
+                      try {
+                        await innerZip.close();
+                      } catch (closeErr) {
+                        console.warn(
+                          `[zip-extract] Failed to close innerZip: ${closeErr.message}`
+                        );
+                      }
+                      if (job && job.zipfile === innerZip) delete job.zipfile;
+                    }
+                  } else {
+                    // Non-nested path, operate on top-level zip
+                    const topZip = await yauzl.open(zipFilePath);
+                    try {
+                      for await (const entry of topZip) {
+                        if (
+                          entry.filename === pathInZip ||
+                          entry.filename.startsWith(pathInZip + "/")
+                        ) {
+                          if (!filenamesToExtract.has(entry.filename)) {
+                            filenamesToExtract.add(entry.filename);
+                            totalUncompressedSize += entry.uncompressedSize;
+                          }
+                        }
+                      }
+                    } finally {
+                      try {
+                        await topZip.close();
+                      } catch (e) {
+                        console.warn(
+                          `[zip-extract] Failed to close top-level zip: ${e.message}`
+                        );
                       }
                     }
                   }
                 }
-                await zipfile.close();
 
                 job.filenamesToExtract = Array.from(filenamesToExtract);
                 job.total = totalUncompressedSize;
@@ -520,6 +639,16 @@ export function initializeWebSocketServer(
                   }
                 }, 250);
 
+                // If extraction targets were identified from nested inner zip(s), we should set job.zipfile accordingly
+                // Set job.zipfile only if it's not already set by other logic and there is a single source nested zip path
+                if (
+                  !job.zipfile &&
+                  job.filenamesToExtract &&
+                  job.filenamesToExtract.length > 0
+                ) {
+                  // Try to detect if we extracted an inner temp zip earlier
+                  // If we created tempDirs for nested extraction in this scope, we can't access them here; so job.zipfile must be set by nested code before calling extract
+                }
                 await extractFilesFromZip(job);
 
                 job.status = "completed";
@@ -540,6 +669,28 @@ export function initializeWebSocketServer(
               } finally {
                 clearInterval(progressInterval);
                 if (job.zipfile) await job.zipfile.close();
+                // Clean up any nested tmpDirs created during nested extraction
+                try {
+                  if (
+                    typeof tempDirs !== "undefined" &&
+                    Array.isArray(tempDirs) &&
+                    tempDirs.length > 0
+                  ) {
+                    for (const td of tempDirs) {
+                      try {
+                        await fse.remove(td);
+                      } catch (e) {
+                        console.warn(
+                          `[zip-extract] Failed to remove temp dir ${td}: ${e.message}`
+                        );
+                      }
+                    }
+                  }
+                } catch (cleanupErr) {
+                  console.warn(
+                    `[zip-extract] Error during temp dirs cleanup: ${cleanupErr.message}`
+                  );
+                }
                 setTimeout(() => activeCopyJobs.delete(jobId), 5000);
               }
             })();
@@ -620,7 +771,7 @@ export function initializeWebSocketServer(
                     }
                   }, 250); // Send updates frequently
 
-                  // Await the completion promise set up in fileRoutes.js
+                  // Await the completion promise set up by the corresponding route handler (e.g., copy/duplicate/zip route)
                   if (job.completionPromise) {
                     job.controller.signal.addEventListener("abort", () => {
                       if (job.rejectCompletion) {
@@ -850,18 +1001,33 @@ export function initializeWebSocketServer(
               job.archive.pipe(job.output);
 
               const allFiles = [];
+              const allDirs = new Set(); // Use a Set to avoid duplicate directory entries
+
               for (const source of job.sources) {
                 const stats = await fse.stat(source);
+                const relativePath = path
+                  .relative(job.sourceDirectory, source)
+                  .replace(/\\/g, "/");
                 if (stats.isDirectory()) {
-                  const files = await getAllFiles(source, job.sourceDirectory);
-                  allFiles.push(...files);
+                  allDirs.add(relativePath + "/"); // Add the directory itself
+                  const { files, dirs } = await getAllFilesAndDirsRecursive(
+                    source,
+                    job.sourceDirectory
+                  );
+                  files.forEach((f) => allFiles.push(f));
+                  dirs.forEach((d) => allDirs.add(d));
                 } else {
                   allFiles.push({
                     fullPath: source,
-                    relativePath: path.relative(job.sourceDirectory, source),
+                    relativePath: relativePath,
                     stats: stats,
                   });
                 }
+              }
+
+              // Add directories to the archive
+              for (const dir of allDirs) {
+                job.archive.append(null, { name: dir });
               }
 
               for (const file of allFiles) {

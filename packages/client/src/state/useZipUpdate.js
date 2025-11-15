@@ -120,7 +120,7 @@ export default function useZipUpdate() {
   );
 
   const connectZipUpdateWebSocket = useCallback(
-    (jobId, jobType) => {
+    (jobId, jobType, onComplete = null) => {
       if (!jobId || !jobType) {
         console.error(
           "connectZipUpdateWebSocket called without jobId or jobType"
@@ -212,6 +212,16 @@ export default function useZipUpdate() {
                   updatedState.originalZipSize = data.originalZipSize;
                 break;
               case "complete":
+                if (onComplete) {
+                  try {
+                    onComplete();
+                  } catch (err) {
+                    console.error(
+                      "connectZipUpdateWebSocket onComplete error:",
+                      err
+                    );
+                  }
+                }
                 ws.close(1000, "Job Completed");
                 updatedState.isVisible = false;
                 break;

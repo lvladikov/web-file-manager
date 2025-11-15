@@ -56,33 +56,46 @@ export default function useNewFolder({
       const zipPathMatch = matchZipPath(newFolderPath);
       let jobId = null;
 
+      let zipFilePath, filePathInZip;
       if (zipPathMatch) {
-        const zipFilePath = zipPathMatch[1];
-        const filePathInZip = zipPathMatch[2].startsWith("/")
+        zipFilePath = zipPathMatch[1];
+        filePathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
-
-        startZipUpdate({
-          zipFilePath,
-          filePathInZip,
-          originalZipSize: 0, // Value will be updated by WebSocket
-          itemType: "folder",
-        });
       }
 
       const response = await createNewFolder(newFolderPath);
       jobId = response.jobId; // Get the jobId from the server response
 
-      if (zipPathMatch) {
-        // Now that we have the jobId, connect the WebSocket
-        connectZipUpdateWebSocket(jobId, "create-folder-in-zip");
+      if (zipPathMatch && response && response.jobId) {
+        // Start the modal now that server accepted the job
+        startZipUpdate({
+          jobId: response.jobId,
+          zipFilePath,
+          filePathInZip,
+          originalZipSize: 0,
+          itemType: "folder",
+          title: "Creating folder in zip...",
+        });
+        // Now that we have the jobId, connect the WebSocket and only navigate after completion
+        connectZipUpdateWebSocket(
+          response.jobId,
+          "create-folder-in-zip",
+          async () => {
+            handleCancelNewFolder(); // Reset state after navigation so the create modal stays visible until done
+            await handleNavigate(panelId, panel.path, "");
+            setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
+            setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
+            setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
+          }
+        );
+      } else {
+        handleCancelNewFolder(); // Reset state before navigation
+        await handleNavigate(panelId, panel.path, "");
+        setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
+        setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
+        setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
       }
-
-      handleCancelNewFolder(); // Reset state before navigation
-      await handleNavigate(panelId, panel.path, "");
-      setFocusedItem((prev) => ({ ...prev, [panelId]: value }));
-      setSelectionAnchor((prev) => ({ ...prev, [panelId]: value }));
-      setSelections((prev) => ({ ...prev, [panelId]: new Set([value]) }));
     } catch (err) {
       setError(err.message);
       handleCancelNewFolder();

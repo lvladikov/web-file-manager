@@ -64,7 +64,10 @@ const OverwriteConfirmModal = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+      style={{ zIndex: 99999 }}
+    >
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl border border-yellow-500">
         <div className="flex items-center mb-4">
           <ShieldAlert className="w-8 h-8 text-yellow-400 mr-3" />

@@ -56,6 +56,17 @@ export default function appState() {
     item: { name: null, type: "file" },
     jobType: null,
   });
+
+  // Ensure we hide the zip update modal if the overwrite prompt is shown
+  useEffect(() => {
+    if (overwritePrompt && overwritePrompt.isVisible) {
+      try {
+        zipUpdate.hideZipUpdate();
+      } catch (err) {
+        // ignore if zipUpdate not yet defined or other glitch
+      }
+    }
+  }, [overwritePrompt]);
   const [sortConfig, setSortConfig] = useState({
     left: { key: "name", direction: "asc" },
     right: { key: "name", direction: "asc" },
@@ -68,6 +79,7 @@ export default function appState() {
   const wsRef = useRef(null);
   const panelRefs = { left: useRef(null), right: useRef(null) };
   const pathsToWatch = useRef(new Set());
+  const pendingOverwriteActionRef = useRef(null);
 
   const handleCloseFilter = (panelId) => {
     setFilterPanelId(null);
@@ -309,6 +321,8 @@ export default function appState() {
     startZipUpdate: zipUpdate.startZipUpdate,
     hideZipUpdate: zipUpdate.hideZipUpdate,
     connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
+    setOverwritePrompt,
+    setPendingOverwriteAction,
   });
   const newFolder = useNewFolder({
     renamingItem: rename.renamingItem,
@@ -865,7 +879,23 @@ export default function appState() {
     ]
   );
 
+  function setPendingOverwriteAction(action) {
+    pendingOverwriteActionRef.current = action;
+  }
+
   const handleOverwriteDecision = (decision) => {
+    // If there's a pending action (e.g. rename), call it instead of sending WS message.
+    if (pendingOverwriteActionRef.current) {
+      try {
+        pendingOverwriteActionRef.current(decision);
+      } catch (err) {
+        console.error("Error executing pending overwrite action:", err);
+      }
+      pendingOverwriteActionRef.current = null;
+      setOverwritePrompt({ isVisible: false, item: null });
+      return;
+    }
+
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({ type: "overwrite_response", decision })

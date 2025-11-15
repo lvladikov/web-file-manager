@@ -591,7 +591,14 @@ const PreviewModal = ({
             return prev; // No change needed if jobId matches
           });
           // Connect WebSocket using the confirmed jobId
-          connectZipUpdateWebSocket(saveResponse.jobId, "update-file-in-zip");
+          connectZipUpdateWebSocket(
+            saveResponse.jobId,
+            "update-file-in-zip",
+            () => {
+              setShowSuccessMessage(true);
+              onRefreshPanel(activePanel);
+            }
+          );
 
           // Keep modal visible, WS handlers will hide it
           setShowSuccessMessage(false); // Success shown on WS complete

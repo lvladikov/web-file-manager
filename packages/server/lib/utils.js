@@ -3,6 +3,7 @@ import fse from "fs-extra";
 import path from "path";
 import crypto from "crypto";
 import { pipeline } from "stream/promises";
+import { PassThrough } from "stream";
 import * as yauzl from "yauzl-promise";
 import archiver from "archiver";
 
@@ -131,6 +132,14 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
 
     currentZipFile = await yauzl.open(currentZipPath);
 
+    // Read all entries into an array to detect exact filenames existence
+    const entriesArr = [];
+    for await (const entry of currentZipFile) {
+      entriesArr.push(entry);
+    }
+    // Create a set of entry names for quick lookup
+    const entryNames = new Set(entriesArr.map((e) => e.filename));
+
     const children = new Map();
     let normalizedDir = pathInsideZip;
     if (normalizedDir.startsWith("/"))
@@ -139,7 +148,7 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
       normalizedDir += "/";
     if (pathInsideZip === "/") normalizedDir = "";
 
-    for await (const entry of currentZipFile) {
+    for (const entry of entriesArr) {
       if (!entry.filename.startsWith(normalizedDir)) continue;
 
       const relativePath = entry.filename.substring(normalizedDir.length);
@@ -152,14 +161,26 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
           : relativePath.substring(0, firstSlashIndex);
 
       if (childName && !children.has(childName)) {
-        const isFolder = firstSlashIndex !== -1 || entry.filename.endsWith("/");
+        const fullChildEntry = normalizedDir + childName;
+        const fullChildFolderEntry = `${fullChildEntry}/`;
+        const isExactFileEntry = entryNames.has(fullChildEntry);
+        const isFolder =
+          !isExactFileEntry &&
+          (firstSlashIndex !== -1 || entry.filename.endsWith("/"));
         const fullPath =
           zipFilePath +
           "/" +
           path.posix.join(directoryPath.replace(/^\//, ""), childName);
+        // If there's an exact filename for the child and it ends with .zip, treat as archive
+        const childType =
+          !isFolder && childName.toLowerCase().endsWith(".zip")
+            ? "archive"
+            : isFolder
+            ? "folder"
+            : getFileType(childName, false);
         children.set(childName, {
           name: childName,
-          type: isFolder ? "folder" : getFileType(childName, false),
+          type: childType,
           size: isFolder ? null : entry.uncompressedSize,
           // Use ISO timestamp so clients can reliably parse across locales
           modified: entry.getLastMod().toISOString(),
@@ -238,6 +259,8 @@ const performCopyCancellation = async (job) => {
     job.status = "cancelled";
     job.controller.abort();
 
+    // Ensure any awaiting overwrite prompt is canceled and the decision is set to 'cancel'.
+    job.overwriteDecision = "cancel";
     // Unblock the overwrite prompt if it's waiting for a response.
     if (job.resolveOverwrite) {
       job.resolveOverwrite();
@@ -504,12 +527,30 @@ const copyWithProgress = async (source, destination, job) => {
 
 const getAllFiles = async (dirPath, basePath = dirPath) => {
   const entries = await fse.readdir(dirPath, { withFileTypes: true });
-  const files = await Promise.all(
+  const items = await Promise.all(
     entries.map(async (entry) => {
       const fullPath = path.join(dirPath, entry.name);
-      const relativePath = path.relative(basePath, fullPath);
+      const relativePath = path.relative(basePath, fullPath).replace(/\\/g, "/");
       if (entry.isDirectory()) {
-        return getAllFiles(fullPath, basePath);
+        const subItems = await getAllFiles(fullPath, basePath);
+        if (subItems.length === 0) {
+          // It's an empty directory
+          try {
+            const stats = await fse.stat(fullPath);
+            return [
+              {
+                fullPath,
+                relativePath: relativePath + "/",
+                stats,
+                isEmptyDir: true,
+              },
+            ];
+          } catch (e) {
+            console.error(`Could not stat ${fullPath}, skipping.`);
+            return [];
+          }
+        }
+        return subItems;
       } else {
         try {
           const stats = await fse.stat(fullPath);
@@ -521,7 +562,7 @@ const getAllFiles = async (dirPath, basePath = dirPath) => {
       }
     })
   );
-  return files.flat();
+  return items.flat();
 };
 
 const getFileContentFromZip = async (zipFilePath, filePathInZip) => {
@@ -865,6 +906,9 @@ const updateFileInZip = async (
       if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       await fse.move(tempZipPath, zipFilePath, { overwrite: true });
       console.log(
+        `[updateFileInZip] Replaced entry ${filePathInZip} in ${zipFilePath}`
+      );
+      console.log(
         `[Job ${job?.id}] Zip file updated successfully: ${zipFilePath}`
       );
     } catch (error) {
@@ -920,13 +964,64 @@ const updateFileInZip = async (
       zipFilePath,
       nestedZipPathInParent,
       modifiedZipStream,
-      null, // Not passing the full job here to avoid conflicting progress tracking for nested steps
+      job ? { id: job.id, controller: job.controller } : null, // Pass minimal job down
       signal
+    );
+    console.log(
+      `[updateFileInZip] Nested entry ${nestedZipPathInParent} updated in ${zipFilePath} via recursive update.`
     );
   } finally {
     // 4. Clean up the temporary directory.
     await fse.remove(tempDir);
   }
+};
+
+const insertFileIntoZip = async (
+  zipFilePath,
+  entryName,
+  sourceFilePath,
+  job = null
+) => {
+  const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
+  const output = fse.createWriteStream(tempZipPath);
+  const archive = archiver("zip", { zlib: { level: 9 }, forceZip64: true });
+
+  const signal = job?.controller?.signal;
+  if (job) job.tempZipPath = tempZipPath;
+
+  const archiveFinishedPromise = new Promise((resolve, reject) => {
+    output.on("close", resolve);
+    archive.on("error", reject);
+    output.on("error", reject);
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        archive.destroy();
+      });
+    }
+  });
+
+  archive.pipe(output);
+
+  // Copy original zip entries if zip exists
+  if (await fse.pathExists(zipFilePath)) {
+    const zipfile = await yauzl.open(zipFilePath);
+    try {
+      for await (const entry of zipfile) {
+        const readStream = await entry.openReadStream();
+        archive.append(readStream, { name: entry.filename });
+      }
+    } finally {
+      await zipfile.close();
+    }
+  }
+
+  // Append the new file into the archive at entryName
+  const readStreamNew = fse.createReadStream(sourceFilePath);
+  archive.append(readStreamNew, { name: entryName });
+
+  await archive.finalize();
+  await archiveFinishedPromise;
+  await fse.move(tempZipPath, zipFilePath, { overwrite: true });
 };
 
 const createFileInZip = async (zipFilePath, newFilePathInZip, job = null) => {
@@ -1113,7 +1208,7 @@ const getSummaryFromZip = async (zipFilePath, pathInZip) => {
   // To count its contents, we need to match everything that starts with `folderName/`.
   const dirPrefix = pathInZip.endsWith("/") ? pathInZip : `${pathInZip}/`;
 
-  const zipfile = await yauzl.open(zipFilePath);
+  let zipfile = await yauzl.open(zipFilePath);
   try {
     for await (const entry of zipfile) {
       // We only want to count items *inside* the folder, not the folder itself.
@@ -1166,9 +1261,153 @@ const deleteFromZip = async (zipFilePath, pathsInZip, job = null) => {
     job.currentFileBytesProcessed = 0;
   }
 
-  const zipfile = await yauzl.open(zipFilePath);
+  let zipfile = await yauzl.open(zipFilePath);
   try {
+    // --- Handle nested zip delete operations first ---
+    for (const pathToDelete of pathsToDelete.slice()) {
+      const zipEndIndex = pathToDelete.toLowerCase().indexOf(".zip/");
+      if (zipEndIndex !== -1) {
+        const nestedZipPathInParent = pathToDelete.substring(
+          0,
+          zipEndIndex + 4
+        );
+        const innerPath = pathToDelete.substring(zipEndIndex + 5);
+
+        // Does the parent zip contain an actual nested zip file entry?
+        let entryFound = null;
+        for await (const entry of zipfile) {
+          if (entry.filename === nestedZipPathInParent) {
+            entryFound = entry;
+            break;
+          }
+        }
+        // If the nested zip is a file entry, extract it and perform delete inside it
+        console.log(
+          `[deleteFromZip] Nested zip path requested: ${nestedZipPathInParent} innerPath=${innerPath} entryFound=${!!entryFound}`
+        );
+        if (entryFound) {
+          // Extract nested zip to tmp and call deleteFromZip recursively
+          const tmpDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+          const tmpInnerZipPath = path.join(
+            tmpDir,
+            path.basename(nestedZipPathInParent)
+          );
+          const readStream = await zipfile.openReadStream(entryFound);
+          const writeStream = fse.createWriteStream(tmpInnerZipPath);
+          await new Promise((resolve, reject) => {
+            readStream.pipe(writeStream);
+            readStream.on("end", resolve);
+            readStream.on("error", reject);
+            writeStream.on("error", reject);
+          });
+
+          // Recursively delete inside inner zip
+          const innerJob = job
+            ? { ...job, ws: job.ws, controller: job.controller }
+            : null;
+          if (innerJob && job) {
+            Object.defineProperty(innerJob, "overwriteDecision", {
+              get() {
+                return job.overwriteDecision;
+              },
+              set(v) {
+                job.overwriteDecision = v;
+              },
+              configurable: true,
+              enumerable: true,
+            });
+            Object.defineProperty(innerJob, "resolveOverwrite", {
+              get() {
+                return job.resolveOverwrite;
+              },
+              set(v) {
+                job.resolveOverwrite = v;
+              },
+              configurable: true,
+              enumerable: true,
+            });
+          }
+          await deleteFromZip(tmpInnerZipPath, innerPath, innerJob);
+
+          // Diagnostics: verify inner path removed from the temp inner zip
+          try {
+            const verifyZip = await yauzl.open(tmpInnerZipPath);
+            let entryStillExists = false;
+            for await (const e of verifyZip) {
+              if (
+                e.filename === innerPath ||
+                e.filename.startsWith(`${innerPath.replace(/\\\\/g, "/")}/`)
+              ) {
+                entryStillExists = true;
+                break;
+              }
+            }
+            await verifyZip.close();
+            if (entryStillExists) {
+              console.warn(
+                `[deleteFromZip] After deleting inner path, entry still exists inside inner zip: ${innerPath}`
+              );
+            } else {
+              console.log(
+                `[deleteFromZip] Verified inner path removed from tmp inner zip: ${innerPath}`
+              );
+            }
+          } catch (err) {
+            console.warn(
+              `[deleteFromZip] Diagnostics check failed reading tmp inner zip ${tmpInnerZipPath}:`,
+              err.message
+            );
+          }
+
+          // Replace inner zip in parent with updated inner zip
+          const innerZipStream = fse.createReadStream(tmpInnerZipPath);
+          // Use updateFileInZip to replace the nested zip file entry content
+          // Pass null job so we don't accidentally mutate the parent job state during the nested replace
+          try {
+            await updateFileInZip(
+              zipFilePath,
+              nestedZipPathInParent,
+              innerZipStream,
+              null,
+              job?.controller?.signal
+            );
+            console.log(
+              `[deleteFromZip] Nested zip ${nestedZipPathInParent} replaced in parent successfully.`
+            );
+          } catch (err) {
+            console.error(
+              `[deleteFromZip] Failed to replace nested zip ${nestedZipPathInParent}:`,
+              err
+            );
+            throw err;
+          }
+
+          // Cleanup tmp dir
+          try {
+            await fse.remove(tmpDir);
+          } catch (err) {
+            console.warn(
+              `[deleteFromZip] Failed to remove tmpDir: ${tmpDir}`,
+              err.message
+            );
+          }
+
+          // Remove this path from pathsToDelete so outer deletion loop does not attempt to remove entries like 'inner.zip/..'
+          const index = pathsToDelete.indexOf(pathToDelete);
+          if (index !== -1) pathsToDelete.splice(index, 1);
+        }
+        // If nested zip isn't a file entry, then we expect outer zip contains entries with prefix 'nested.zip/'; those will be handled by standard removal below
+        // Reset the zipfile iterator by closing and reopening for the next search
+        await zipfile.close();
+        zipfile = await yauzl.open(zipFilePath);
+      }
+    }
     if (signal && signal.aborted) throw new Error("Zip update cancelled.");
+    console.log(
+      `[deleteFromZip] Performing parent-level deletion in ${zipFilePath}. Remaining paths: ${pathsToDelete.join(
+        ","
+      )}`
+    );
     for await (const entry of zipfile) {
       if (signal && signal.aborted) throw new Error("Zip update cancelled.");
       const shouldDelete = pathsToDelete.some((pathToDelete) => {
@@ -1185,6 +1424,8 @@ const deleteFromZip = async (zipFilePath, pathsInZip, job = null) => {
       if (!shouldDelete) {
         const stream = await entry.openReadStream();
         archive.append(stream, { name: entry.filename });
+      } else {
+        console.log(`[deleteFromZip] Excluding entry ${entry.filename}`);
       }
     }
     if (signal && signal.aborted) throw new Error("Zip update cancelled.");
@@ -1207,6 +1448,44 @@ const renameInZip = async (
   newPathInZip,
   job = null
 ) => {
+  const zipEndIndexOld = oldPathInZip.toLowerCase().lastIndexOf(".zip/");
+  const zipEndIndexNew = newPathInZip.toLowerCase().lastIndexOf(".zip/");
+  // If the path refers to a nested zip entry, recurse into the inner zip.
+  if (zipEndIndexOld !== -1 && zipEndIndexOld === zipEndIndexNew) {
+    // Both old and new are inside the same nested zip; extract and operate inside it.
+    const nestedZipPathInParent = oldPathInZip.substring(0, zipEndIndexOld + 4);
+    const remainingOldPath = oldPathInZip.substring(zipEndIndexOld + 5);
+    const remainingNewPath = newPathInZip.substring(zipEndIndexNew + 5);
+
+    const { tempNestedZipPath, tempDir } = await extractNestedZipToTemp(
+      zipFilePath,
+      nestedZipPathInParent
+    );
+
+    try {
+      // Perform rename inside the extracted nested zip
+      await renameInZip(
+        tempNestedZipPath,
+        remainingOldPath,
+        remainingNewPath,
+        job
+      );
+
+      // Now stream the updated nested zip back into the parent zip by replacing the nested zip entry
+      const modifiedZipStream = fse.createReadStream(tempNestedZipPath);
+      await updateFileInZip(
+        zipFilePath,
+        nestedZipPathInParent,
+        modifiedZipStream,
+        null,
+        job?.controller?.signal
+      );
+      return; // Done
+    } finally {
+      await fse.remove(tempDir).catch(() => {});
+    }
+  }
+
   const signal = job?.controller?.signal;
   const tempZipPath = zipFilePath + ".tmp." + crypto.randomUUID();
   if (job) job.tempZipPath = tempZipPath;
@@ -1234,7 +1513,7 @@ const renameInZip = async (
     job.currentFile = newPathInZip;
     job.currentFileTotalSize = 0;
     job.currentFileBytesProcessed = 0;
-    // job.originalZipSize already set in fileRoutes.js
+    // job.originalZipSize should already be set by the route handler (zip or other update endpoint)
   }
 
   const zipfile = await yauzl.open(zipFilePath);
@@ -1243,25 +1522,67 @@ const renameInZip = async (
   const oldPathAsFolderPrefix = `${oldPathInZip}/`;
   const newPathAsFolderPrefix = `${newPathInZip}/`;
 
+  // Collect all entries first to avoid issues with the async iterator
+  const entries = [];
+  for await (const entry of zipfile) {
+    entries.push(entry);
+  }
+
   try {
     if (signal && signal.aborted) throw new Error("Zip update cancelled.");
-    for await (const entry of zipfile) {
+    for (const entry of entries) {
       if (signal && signal.aborted) throw new Error("Zip update cancelled.");
+
+      const isBeingRenamed =
+        entry.filename === oldPathInZip ||
+        entry.filename.startsWith(oldPathAsFolderPrefix);
       let entryNameToWrite = entry.filename;
 
-      if (entry.filename.startsWith(oldPathAsFolderPrefix)) {
-        // This is a folder rename, affecting all contents
-        entryNameToWrite = entry.filename.replace(
-          oldPathAsFolderPrefix,
+      if (isBeingRenamed) {
+        if (entry.filename.startsWith(oldPathAsFolderPrefix)) {
+          // This is a folder rename, affecting all contents
+          entryNameToWrite = entry.filename.replace(
+            oldPathAsFolderPrefix,
+            newPathAsFolderPrefix
+          );
+        } else {
+          // This is a file rename
+          entryNameToWrite = newPathInZip;
+        }
+      } else {
+        // This entry is not being renamed. Check if it conflicts with the new path.
+        const isFileConflict = entry.filename === newPathInZip;
+        const isFolderConflict = entry.filename.startsWith(
           newPathAsFolderPrefix
         );
-      } else if (entry.filename === oldPathInZip) {
-        // This is a file rename
-        entryNameToWrite = newPathInZip;
+
+        if (isFileConflict || isFolderConflict) {
+          if (job && job.overwriteDecision === "overwrite") {
+            console.log(
+              `[renameInZip] Overwrite enabled: skipping existing target entry ${entry.filename}`
+            );
+            continue; // Skip this entry, it's being overwritten.
+          } else {
+            // If overwrite is not enabled, it's a conflict.
+            throw new Error("Rename conflict: destination already exists.");
+          }
+        }
       }
 
-      const stream = await entry.openReadStream();
-      archive.append(stream, { name: entryNameToWrite });
+      const readStream = await entry.openReadStream();
+      const pass = new PassThrough();
+      // Pipe the zip entry through a PassThrough into archiver so we can
+      // await the read completion and avoid closing the zip while reading.
+      readStream.pipe(pass);
+      archive.append(pass, { name: entryNameToWrite });
+      // Ensure the entry's read stream is fully consumed before continuing,
+      // so that yauzl's internal FileReader readCount reaches zero and
+      // closing the zipfile later won't throw "Cannot close while reading in progress".
+      await new Promise((resolve, reject) => {
+        readStream.on("end", resolve);
+        readStream.on("close", resolve);
+        readStream.on("error", reject);
+      });
     }
 
     if (signal && signal.aborted) throw new Error("Zip update cancelled.");
@@ -1280,6 +1601,179 @@ const renameInZip = async (
 
 const addFilesToZip = async (zipFilePath, pathInZip, job) => {
   const { signal } = job.controller;
+  // Normalize pathInZip
+  pathInZip = (pathInZip || "").replace(/\\\\/g, "/");
+  // Handle nested zip scenarios: if pathInZip contains another zip (e.g. inner.zip/some/path),
+  // extract the inner zip, modify it recursively, then replace it back into the parent zip.
+  const nestedIndex = pathInZip.toLowerCase().indexOf(".zip/");
+  if (nestedIndex !== -1) {
+    const nestedZipPathInParent = pathInZip.substring(0, nestedIndex + 4); // e.g. inner.zip
+    const innerPath = pathInZip.substring(nestedIndex + 5); // remaining path inside inner zip
+
+    // Extract the nested zip to a temporary file
+    const tmpDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+    const tmpInnerZipPath = path.join(
+      tmpDir,
+      path.basename(nestedZipPathInParent)
+    );
+
+    const parentZip = await yauzl.open(zipFilePath);
+    let entryFound = null;
+    for await (const entry of parentZip) {
+      if (entry.filename === nestedZipPathInParent) {
+        entryFound = entry;
+        break;
+      }
+    }
+
+    if (!entryFound) {
+      // Nested zip does not exist; we should create it with the new files and insert it into the parent.
+      await parentZip.close();
+
+      // Create an initially empty inner zip file at tmpInnerZipPath by calling addFilesToZip with no 'original' zip present
+      const innerJob = {
+        ...job,
+        ws: job.ws,
+        controller: job.controller,
+        zipFilePath: tmpInnerZipPath,
+        originalZipSize: 0,
+        total: 0,
+        processedBytes: 0,
+        currentFile: "",
+        currentFileTotalSize: 0,
+        currentFileBytesProcessed: 0,
+        tempZipPath: null,
+      };
+      // Keep overwriteDecision and resolveOverwrite in sync with outer job
+      Object.defineProperty(innerJob, "overwriteDecision", {
+        get() {
+          return job.overwriteDecision;
+        },
+        set(v) {
+          job.overwriteDecision = v;
+        },
+        configurable: true,
+        enumerable: true,
+      });
+      Object.defineProperty(innerJob, "resolveOverwrite", {
+        get() {
+          return job.resolveOverwrite;
+        },
+        set(v) {
+          job.resolveOverwrite = v;
+        },
+        configurable: true,
+        enumerable: true,
+      });
+      // Build files to process for the inner zip based on outer job's filesToProcess
+      innerJob.filesToProcess = job.filesToProcess || [];
+      innerJob.emptyDirsToAdd = job.emptyDirsToAdd || [];
+
+      await addFilesToZip(tmpInnerZipPath, innerPath, innerJob);
+
+      // Insert the newly created inner zip into the parent zip
+      await insertFileIntoZip(
+        zipFilePath,
+        nestedZipPathInParent,
+        tmpInnerZipPath,
+        job
+      );
+
+      try {
+        await fse.remove(tmpDir);
+      } catch (err) {
+        console.warn(
+          `[addFilesToZip] Failed to remove tmpDir ${tmpDir}:`,
+          err.message
+        );
+      }
+      return; // Completed insertion for missing inner zip
+    }
+
+    // Otherwise, the nested zip exists - extract it to a temp file and continue
+    const readStream = await parentZip.openReadStream(entryFound);
+    const writeStream = fse.createWriteStream(tmpInnerZipPath);
+    await new Promise((resolve, reject) => {
+      readStream.pipe(writeStream);
+      readStream.on("end", resolve);
+      readStream.on("error", reject);
+      writeStream.on("error", reject);
+    });
+    await parentZip.close();
+
+    // Recursively add files into the extracted inner zip using a cloned job to avoid mutating outer job state
+    const innerZipStat = (await fse.pathExists(tmpInnerZipPath))
+      ? (await fse.stat(tmpInnerZipPath)).size
+      : 0;
+    const innerJob = {
+      ...job,
+      ws: job.ws,
+      controller: job.controller,
+      zipFilePath: tmpInnerZipPath,
+      originalZipSize: innerZipStat,
+      total: innerZipStat,
+      processedBytes: 0,
+      currentFile: "",
+      currentFileTotalSize: 0,
+      currentFileBytesProcessed: 0,
+      tempZipPath: null,
+    };
+    // Keep overwriteDecision and resolveOverwrite in sync with outer job
+    Object.defineProperty(innerJob, "overwriteDecision", {
+      get() {
+        return job.overwriteDecision;
+      },
+      set(v) {
+        job.overwriteDecision = v;
+      },
+      configurable: true,
+      enumerable: true,
+    });
+    Object.defineProperty(innerJob, "resolveOverwrite", {
+      get() {
+        return job.resolveOverwrite;
+      },
+      set(v) {
+        job.resolveOverwrite = v;
+      },
+      configurable: true,
+      enumerable: true,
+    });
+    await addFilesToZip(tmpInnerZipPath, innerPath, innerJob);
+
+    // Once inner zip is updated, replace it inside the parent zip
+    // Use updateFileInZip to replace the nested entry with modified inner zip
+    const innerZipReadStream = fse.createReadStream(tmpInnerZipPath);
+    try {
+      await updateFileInZip(
+        zipFilePath,
+        nestedZipPathInParent,
+        innerZipReadStream,
+        { id: job.id, controller: job.controller },
+        job?.controller?.signal
+      );
+      console.log(`
+        [addFilesToZip] Nested inner zip ${nestedZipPathInParent} replaced in parent successfully.
+      `);
+    } catch (err) {
+      console.error(
+        `[addFilesToZip] Failed to replace nested zip entry ${nestedZipPathInParent} in parent zip:`,
+        err
+      );
+      throw err;
+    }
+
+    // Clean up tmp dir
+    try {
+      await fse.remove(tmpDir);
+    } catch (err) {
+      console.warn(
+        `[addFilesToZip] Failed to remove tmpDir ${tmpDir}:`,
+        err.message
+      );
+    }
+    return; // Completed the nested update path
+  }
   let zipfile = null; // Will hold the yauzl instance for the original zip
   const finalEntries = new Map(); // Map<entryName, { type: 'original' | 'new', data: EntryObject | FileInfo }>
   const originalZipEntries = [];
@@ -1448,11 +1942,6 @@ const addFilesToZip = async (zipFilePath, pathInZip, job) => {
 
     if (!actualModificationOccurred) {
       // No actual modification to the archive's content, so no rebuild needed.
-      if (job.ws && job.ws.readyState === 1) {
-        job.ws.send(
-          JSON.stringify({ type: "complete", status: "skipped_all" })
-        );
-      }
       return { status: "skipped_all" }; // Exit early
     }
 
@@ -1632,8 +2121,61 @@ const extractFilesFromZip = async (job) => {
 
   const filenamesToExtractSet = new Set(job.filenamesToExtract || []);
 
+  // Build nested entries map: outerZipEntry -> set of inner paths to extract
+  const nestedMap = new Map();
+  for (const f of filenamesToExtractSet) {
+    const zi = f.toLowerCase().indexOf(".zip/");
+    if (zi !== -1) {
+      const parent = f.substring(0, zi + 4); // e.g. inner.zip
+      const inner = f.substring(zi + 5);
+      if (!nestedMap.has(parent)) nestedMap.set(parent, new Set());
+      nestedMap.get(parent).add(inner);
+    }
+  }
+
   for await (const entry of zipfile) {
     if (signal.aborted) throw new Error("Zip extract cancelled.");
+
+    // If the entry is a nested zip that we need to extract from
+    if (nestedMap.has(entry.filename)) {
+      if (signal.aborted) throw new Error("Zip extract cancelled.");
+      const tmpDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+      const tmpInnerZipPath = path.join(tmpDir, path.basename(entry.filename));
+      const rs = await entry.openReadStream();
+      const ws = fse.createWriteStream(tmpInnerZipPath);
+      await new Promise((resolve, reject) => {
+        rs.pipe(ws);
+        rs.on("end", resolve);
+        rs.on("error", reject);
+        ws.on("error", reject);
+      });
+
+      // Prepare inner job to extract the requested inner paths
+      const innerJob = {
+        controller: job.controller,
+        ws: job.ws,
+        zipFilePath: tmpInnerZipPath,
+        filenamesToExtract: Array.from(nestedMap.get(entry.filename)),
+        destination: job.destination,
+        preserveBasePath: job.preserveBasePath,
+        copied: job.copied,
+      };
+      try {
+        await extractFilesFromZip(innerJob);
+        // propagate 'copied' bytes
+        job.copied = innerJob.copied;
+      } finally {
+        try {
+          await fse.remove(tmpDir);
+        } catch (err) {
+          console.warn(
+            `[extractFilesFromZip] Failed to remove tmp dir ${tmpDir}:`,
+            err.message
+          );
+        }
+      }
+      continue;
+    }
 
     if (!filenamesToExtractSet.has(entry.filename)) {
       continue;
@@ -1744,7 +2286,7 @@ const getAllFilesAndDirsRecursive = async (dirPath, basePath = dirPath) => {
 
   for (const entry of entries) {
     const fullPath = path.join(dirPath, entry.name);
-    const relativePath = path.relative(basePath, fullPath);
+    const relativePath = path.relative(basePath, fullPath).replace(/\\/g, "/");
 
     if (entry.isDirectory()) {
       allDirs.push(relativePath + "/");
@@ -1893,6 +2435,7 @@ export {
   getAllFiles,
   findCoverInZip,
   matchZipPath,
+  extractNestedZipToTemp,
   updateFileInZip,
   createFileInZip,
   createFolderInZip,

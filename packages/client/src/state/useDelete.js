@@ -87,23 +87,27 @@ export default function useDelete({
 
     const pathsToDelete = deleteTargets.map((item) => item.fullPath);
     const zipPathMatch = matchZipPath(pathsToDelete[0]);
+    const isInnerZipPath =
+      !!zipPathMatch && zipPathMatch[2] && zipPathMatch[2] !== "/";
 
     try {
-      if (zipPathMatch) {
+      const response = await deleteItem(pathsToDelete);
+
+      if (isInnerZipPath && response && response.jobId) {
         const zipFilePath = zipPathMatch[1];
         startZipUpdate({
-          title: "Deleting items from zip...",
+          jobId: response.jobId,
           zipFilePath,
           operationDescription: `Deleting ${deleteTargets.length} item${
             deleteTargets.length > 1 ? "s" : ""
           }...`,
+          title: "Deleting items from zip...",
         });
-      }
-
-      const response = await deleteItem(pathsToDelete);
-
-      if (zipPathMatch) {
-        connectZipUpdateWebSocket(response.jobId, "delete-in-zip");
+        connectZipUpdateWebSocket(response.jobId, "delete-in-zip", async () => {
+          const otherPanelId = activePanel === "left" ? "right" : "left";
+          await handleNavigate(activePanel, panels[activePanel].path, "");
+          await handleNavigate(otherPanelId, panels[otherPanelId].path, "");
+        });
       } else {
         // For non-zip operations, refresh panels immediately
         const otherPanelId = activePanel === "left" ? "right" : "left";
@@ -112,7 +116,7 @@ export default function useDelete({
       }
     } catch (err) {
       setError(`Delete failed: ${err.message}`);
-      if (zipPathMatch) {
+      if (isInnerZipPath) {
         hideZipUpdate();
       }
     } finally {

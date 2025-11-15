@@ -136,10 +136,11 @@ const parseTrackInfo = (filename = "") => {
   return { artist: null, title: cleanedName.trim() };
 };
 
-const renameItem = async (oldPath, newName) => {
+const renameItem = async (oldPath, newName, options = {}) => {
+  const { overwrite = false } = options;
   const response = await post(
     "/api/rename",
-    { oldPath, newName },
+    { oldPath, newName, overwrite },
     "Failed to rename item."
   );
   return response.json();
@@ -241,7 +242,7 @@ const saveAutoLoadLyrics = async (autoLoadLyrics) => {
 
 const compressFiles = async (sources, destination, sourceDirectory) => {
   const response = await post(
-    "/api/compress",
+    "/api/zip/compress",
     { sources, destination, sourceDirectory },
     "Failed to compress items."
   );
@@ -250,7 +251,7 @@ const compressFiles = async (sources, destination, sourceDirectory) => {
 
 const decompressFiles = async (source, destination, itemsToExtract = null) => {
   const response = await post(
-    "/api/decompress",
+    "/api/zip/decompress",
     { source, destination, itemsToExtract },
     "Failed to decompress archive."
   );
@@ -259,7 +260,7 @@ const decompressFiles = async (source, destination, itemsToExtract = null) => {
 
 const cancelDecompress = async (jobId) => {
   const response = await post(
-    "/api/decompress/cancel",
+    "/api/zip/decompress/cancel",
     { jobId },
     "Failed to cancel decompression."
   );
@@ -268,7 +269,7 @@ const cancelDecompress = async (jobId) => {
 
 const testArchive = async (source) => {
   const response = await post(
-    "/api/archive-test",
+    "/api/zip/archive-test",
     { source },
     "Failed to test archive."
   );
@@ -277,7 +278,7 @@ const testArchive = async (source) => {
 
 const cancelArchiveTest = async (jobId) => {
   const response = await post(
-    "/api/archive-test/cancel",
+    "/api/zip/archive-test/cancel",
     { jobId },
     "Failed to cancel archive test."
   );
