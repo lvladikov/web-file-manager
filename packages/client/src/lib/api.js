@@ -20,6 +20,37 @@ const post = async (
   return response;
 };
 
+const exitApp = async () => {
+  try {
+    const response = await fetch("/api/exit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!response.ok) {
+      console.error("[exitApp] Failed to exit application:", response.status);
+      return { success: false, error: `Server returned ${response.status}` };
+    }
+
+    const result = await response.json();
+
+    // Close the window after successful exit
+    setTimeout(() => {
+      try {
+        if (typeof window !== "undefined" && window.close) {
+          window.close();
+        }
+      } catch (e) {
+        console.log("[exitApp] Window close not allowed or failed");
+      }
+    }, 100);
+
+    return { success: true, cancelledJobs: result.cancelledJobs };
+  } catch (error) {
+    console.error("[exitApp] Error calling exit endpoint:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 const createNewFile = async (newFilePath) => {
   const response = await post(
     "/api/new-file",
@@ -401,4 +432,5 @@ export {
   cancelDuplicate,
   fetchFileInfo,
   cancelZipOperation,
+  exitApp,
 };

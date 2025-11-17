@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { XCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { XCircle } from "lucide-react";
 
 const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
-  const [pattern, setPattern] = useState('');
+  const [pattern, setPattern] = useState("");
   const [useRegex, setUseRegex] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [resetSelection, setResetSelection] = useState(true);
 
   useEffect(() => {
     if (isVisible) {
-      setPattern('');
+      setPattern("");
       setUseRegex(false);
       setCaseSensitive(false);
       setResetSelection(true);
@@ -23,9 +23,9 @@ const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
     onClose();
   };
 
-  const title = mode === 'select' ? 'Quick Select' : 'Quick Unselect';
-  const confirmText = mode === 'select' ? 'Select' : 'Unselect';
-  const addOrRemoveText = mode === 'select' ? 'add to' : 'remove from';
+  const title = mode === "select" ? "Quick Select" : "Quick Unselect";
+  const confirmText = mode === "select" ? "Select" : "Unselect";
+  const addOrRemoveText = mode === "select" ? "add to" : "remove from";
 
   return (
     <div
@@ -48,7 +48,10 @@ const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
         </header>
         <main className="p-6 space-y-4">
           <div>
-            <label htmlFor="pattern-input" className="block mb-2 text-sm font-medium text-gray-300">
+            <label
+              htmlFor="pattern-input"
+              className="block mb-2 text-sm font-medium text-gray-300"
+            >
               Filename Pattern
             </label>
             <input
@@ -57,10 +60,11 @@ const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
               value={pattern}
               onChange={(e) => setPattern(e.target.value)}
               className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2.5"
-              placeholder="e.g., *.jpg or /\.png$/i"
+              placeholder="e.g., *.jpg, /\.png$/i, _FILES_ONLY_, _FOLDERS_ONLY_"
+              title="Use wildcards (*.jpg), regex, or special keywords: _FILES_ONLY_, _FOLDERS_ONLY_, _ZIP_FILES_ONLY_"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   e.preventDefault();
                   e.stopPropagation();
                   handleConfirm();
@@ -70,16 +74,19 @@ const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
           </div>
           <div className="space-y-2 pt-2">
             <div className="flex items-center">
-                <input
-                    id="reset-selection"
-                    type="checkbox"
-                    checked={resetSelection}
-                    onChange={(e) => setResetSelection(e.target.checked)}
-                    className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded focus:ring-sky-500"
-                />
-                <label htmlFor="reset-selection" className="ml-2 text-sm font-medium text-gray-300">
-                    Reset current selection
-                </label>
+              <input
+                id="reset-selection"
+                type="checkbox"
+                checked={resetSelection}
+                onChange={(e) => setResetSelection(e.target.checked)}
+                className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded focus:ring-sky-500"
+              />
+              <label
+                htmlFor="reset-selection"
+                className="ml-2 text-sm font-medium text-gray-300"
+              >
+                Reset current selection
+              </label>
             </div>
             <div className="flex items-center">
               <input
@@ -89,7 +96,10 @@ const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
                 onChange={(e) => setUseRegex(e.target.checked)}
                 className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded focus:ring-sky-500"
               />
-              <label htmlFor="use-regex" className="ml-2 text-sm font-medium text-gray-300">
+              <label
+                htmlFor="use-regex"
+                className="ml-2 text-sm font-medium text-gray-300"
+              >
                 Use Regular Expressions
               </label>
             </div>
@@ -101,16 +111,58 @@ const QuickSelectModal = ({ isVisible, mode, onClose, onConfirm }) => {
                 onChange={(e) => setCaseSensitive(e.target.checked)}
                 className="w-4 h-4 text-sky-600 bg-gray-700 border-gray-600 rounded focus:ring-sky-500"
               />
-              <label htmlFor="case-sensitive" className="ml-2 text-sm font-medium text-gray-300">
+              <label
+                htmlFor="case-sensitive"
+                className="ml-2 text-sm font-medium text-gray-300"
+              >
                 Case Sensitive
               </label>
             </div>
           </div>
           <div className="bg-gray-900 border border-gray-700 rounded-md p-3 mt-4 text-sm text-gray-300 space-y-2">
-            <p>The pattern is matched against folder names, filenames, and extensions. Use * as a wildcard (e.g., *.jpg).</p>
-            <p><span className="font-semibold text-sky-300">Reset current selection:</span> If checked, any existing selection will be cleared before the new selection is applied, otherwise it will {addOrRemoveText} the current selection.</p>
-            <p><span className="font-semibold text-sky-300">Use Regular Expressions:</span> If checked, the pattern will be treated as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">JavaScript regular expression</a>.</p>
-            <p><span className="font-semibold text-sky-300">Case Sensitive:</span> If checked, the pattern matching will be case-sensitive.</p>
+            <p>
+              The pattern is matched against folder names, filenames, and
+              extensions. Use * as a wildcard (e.g., *.jpg).
+            </p>
+            <p>
+              <span className="font-semibold text-sky-300">
+                Special keywords:
+              </span>{" "}
+              Use <code className="bg-gray-800 px-1 rounded">_FILES_ONLY_</code>
+              , <code className="bg-gray-800 px-1 rounded">_FOLDERS_ONLY_</code>
+              , or{" "}
+              <code className="bg-gray-800 px-1 rounded">_ZIP_FILES_ONLY_</code>{" "}
+              to filter by type.
+            </p>
+            <p>
+              <span className="font-semibold text-sky-300">
+                Reset current selection:
+              </span>{" "}
+              If checked, any existing selection will be cleared before the new
+              selection is applied, otherwise it will {addOrRemoveText} the
+              current selection.
+            </p>
+            <p>
+              <span className="font-semibold text-sky-300">
+                Use Regular Expressions:
+              </span>{" "}
+              If checked, the pattern will be treated as a{" "}
+              <a
+                href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:underline"
+              >
+                JavaScript regular expression
+              </a>
+              .
+            </p>
+            <p>
+              <span className="font-semibold text-sky-300">
+                Case Sensitive:
+              </span>{" "}
+              If checked, the pattern matching will be case-sensitive.
+            </p>
           </div>
         </main>
         <footer className="flex justify-end items-center p-4 border-t border-gray-600 space-x-4">

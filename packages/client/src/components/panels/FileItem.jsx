@@ -49,6 +49,16 @@ const FileItem = ({
   onQuickSelect,
   onQuickUnselect,
   onQuickFilter,
+  onSelectFiles,
+  onSelectFolders,
+  onSelectZipFiles,
+  onUnselectFiles,
+  onUnselectFolders,
+  onUnselectZipFiles,
+  onQuickFilterFiles,
+  onQuickFilterFolders,
+  onQuickFilterZipFiles,
+  onResetQuickFilter,
   onSearchActivePanel,
   onSearchOtherPanel,
   onActivatePanel,
@@ -211,6 +221,16 @@ const FileItem = ({
       onQuickSelect={onQuickSelect}
       onQuickUnselect={onQuickUnselect}
       onQuickFilter={onQuickFilter}
+      onSelectFiles={onSelectFiles}
+      onSelectFolders={onSelectFolders}
+      onSelectZipFiles={onSelectZipFiles}
+      onUnselectFiles={onUnselectFiles}
+      onUnselectFolders={onUnselectFolders}
+      onUnselectZipFiles={onUnselectZipFiles}
+      onQuickFilterFiles={onQuickFilterFiles}
+      onQuickFilterFolders={onQuickFilterFolders}
+      onQuickFilterZipFiles={onQuickFilterZipFiles}
+      onResetQuickFilter={onResetQuickFilter}
       onSearchActivePanel={onSearchActivePanel}
       onSearchOtherPanel={onSearchOtherPanel}
       boundaryRef={boundaryRef}

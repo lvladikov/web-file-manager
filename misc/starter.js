@@ -17,8 +17,35 @@ function printOptions(options) {
 
 function runShellCommand(cmd, opts = {}) {
   console.log(`\nRunning: ${cmd}`);
+
+  // Use the user's default shell (fall back to /bin/sh) so that the
+  // environment and PATH configured in their shell rc files are used when
+  // running commands from the starter helper. `shell: true` defaults to
+  // /bin/sh which can differ from the interactive shell (zsh) and cause
+  // differences when commands depend on user-configured PATH or tools.
+  const userShell = process.env.SHELL || "/bin/sh";
+
   try {
-    const r = spawnSync(cmd, { stdio: "inherit", shell: true, ...opts });
+    if (process.env.STARTER_DEBUG) {
+      console.log("[starter:debug] shell:", userShell);
+      console.log("[starter:debug] PATH:", process.env.PATH);
+      // Capture a few useful diagnostics about the environment we're about to run in
+      try {
+        spawnSync(
+          `${userShell} -lc 'node -v && npm -v && which npm && which hdiutil && hdiutil --version'`,
+          { stdio: "inherit", shell: true, ...opts }
+        );
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    // Instead of running the command through /bin/sh we invoke the user's
+    // shell as a login interactive shell to make sure env/profile files are
+    // processed and any PATH modifications (e.g. Homebrew, nvm) are present.
+    // We escape single quotes to be safe when embedding the command.
+    const safeCmd = String(cmd).replace(/'/g, "'\\''");
+    const wrapped = `${userShell} -lc '${safeCmd}'`;
+    const r = spawnSync(wrapped, { stdio: "inherit", shell: true, ...opts });
     if (r.error) console.error("[starter] Error:", r.error.message);
     return r.status || 0;
   } catch (e) {
@@ -106,7 +133,13 @@ if (require.main === module) {
     "This helper can launch common project tasks from the repo root."
   );
 
-  if (!isTTY()) {
+  // Respect an override typed to the script to automatically select an
+  // option (useful for testing). Example: STARTER_AUTO_SELECT=3 node ./misc/starter.js
+  const autoSelect = process.env.STARTER_AUTO_SELECT
+    ? Number(process.env.STARTER_AUTO_SELECT)
+    : null;
+
+  if (!isTTY() && !autoSelect) {
     console.log(
       "\nNot running in an interactive terminal. Available next steps:"
     );
@@ -121,6 +154,32 @@ if (require.main === module) {
     "\nSelect an option number and press Enter (or press Enter to exit): "
   );
   process.stdin.setEncoding("utf8");
+  if (autoSelect) {
+    const n = autoSelect;
+    if (n === options.length + 1) {
+      console.log("Exit selected.");
+      process.exit(0);
+    }
+    const idx = n - 1;
+    if (idx < 0 || idx >= options.length) {
+      console.log("Selection out of range; exiting.");
+      process.exit(1);
+    }
+    const sel = options[idx];
+    console.log(`Auto-selection: ${sel.label}`);
+    const exitCode = runShellCommand(sel.cmd, {
+      cwd: path.join(__dirname, ".."),
+    });
+
+    // Exit code 99 means intentional shutdown via FM.exit()
+    if (exitCode === 99) {
+      console.log("[starter] Received shutdown signal, exiting cleanly");
+      process.exit(0);
+    }
+
+    process.exit(exitCode);
+  }
+
   process.stdin.once("data", (d) => {
     const raw = String(d || "").trim();
     if (!raw) {
@@ -145,7 +204,16 @@ if (require.main === module) {
     console.log(`Selected: ${sel.label}`);
 
     // Run command from repo root
-    runShellCommand(sel.cmd, { cwd: path.join(__dirname, "..") });
-    process.exit(0);
+    const exitCode = runShellCommand(sel.cmd, {
+      cwd: path.join(__dirname, ".."),
+    });
+
+    // Exit code 99 means intentional shutdown via FM.exit()
+    if (exitCode === 99) {
+      console.log("[starter] Received shutdown signal, exiting cleanly");
+      process.exit(0);
+    }
+
+    process.exit(exitCode);
   });
 }

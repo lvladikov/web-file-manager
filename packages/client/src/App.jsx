@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 import appState from "./state";
 
@@ -123,12 +123,25 @@ export default function App() {
     handleStartQuickSelect,
     handleStartQuickUnselect,
     handleQuickSelectConfirm,
+    handleQuickSelect,
+    handleQuickUnselect,
+    handleSelectFiles,
+    handleSelectFolders,
+    handleSelectZipFiles,
+    handleUnselectFiles,
+    handleUnselectFolders,
+    handleUnselectZipFiles,
     filter,
+    setFilter,
     isFiltering,
     filterPanelId,
     handleStartFilter,
     handleCloseFilter,
     handleFilterChange,
+    handleQuickFilterFiles,
+    handleQuickFilterFolders,
+    handleQuickFilterZipFiles,
+    handleResetQuickFilter,
     filteredItems,
     handleViewItem,
     handleCopyToClipboard,
@@ -171,6 +184,76 @@ export default function App() {
     handleTerminalOtherPanel,
   } = appState();
   const mainRef = useRef(null);
+
+  // Expose app state to window for FM console methods
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__APP_STATE__ = {
+        activePanel,
+        panels,
+        selections,
+        setActivePanel,
+        setSelections,
+        handleSwapPanels,
+        handleNavigate,
+        handleRefreshPanel,
+        handleRefreshAllPanels,
+        setError,
+        setFilter,
+        handleSelectAll,
+        handleUnselectAll,
+        handleInvertSelection,
+        handleQuickSelect,
+        handleQuickUnselect,
+        handleSelectFiles,
+        handleSelectFolders,
+        handleSelectZipFiles,
+        handleUnselectFiles,
+        handleUnselectFolders,
+        handleUnselectZipFiles,
+        handleStartFilter,
+        handleFilterChange,
+        handleQuickFilterFiles,
+        handleQuickFilterFolders,
+        handleQuickFilterZipFiles,
+        handleResetQuickFilter,
+      };
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        delete window.__APP_STATE__;
+      }
+    };
+  }, [
+    activePanel,
+    panels,
+    selections,
+    setActivePanel,
+    setSelections,
+    handleSwapPanels,
+    handleNavigate,
+    handleRefreshPanel,
+    handleRefreshAllPanels,
+    setError,
+    setFilter,
+    handleSelectAll,
+    handleUnselectAll,
+    handleInvertSelection,
+    handleQuickSelect,
+    handleQuickUnselect,
+    handleSelectFiles,
+    handleSelectFolders,
+    handleSelectZipFiles,
+    handleUnselectFiles,
+    handleUnselectFolders,
+    handleUnselectZipFiles,
+    handleStartFilter,
+    handleFilterChange,
+    handleQuickFilterFiles,
+    handleQuickFilterFolders,
+    handleQuickFilterZipFiles,
+    handleResetQuickFilter,
+  ]);
 
   const showPreviewModalOverlay =
     zipUpdateProgressModal &&
@@ -348,6 +431,16 @@ export default function App() {
           onQuickSelect={handleStartQuickSelect}
           onQuickUnselect={handleStartQuickUnselect}
           onQuickFilter={handleMenuQuickFilter}
+          onSelectFiles={() => handleSelectFiles(activePanel)}
+          onSelectFolders={() => handleSelectFolders(activePanel)}
+          onSelectZipFiles={() => handleSelectZipFiles(activePanel)}
+          onUnselectFiles={() => handleUnselectFiles(activePanel)}
+          onUnselectFolders={() => handleUnselectFolders(activePanel)}
+          onUnselectZipFiles={() => handleUnselectZipFiles(activePanel)}
+          onQuickFilterFiles={() => handleQuickFilterFiles(activePanel)}
+          onQuickFilterFolders={() => handleQuickFilterFolders(activePanel)}
+          onQuickFilterZipFiles={() => handleQuickFilterZipFiles(activePanel)}
+          onResetQuickFilter={() => handleResetQuickFilter(activePanel)}
           onCompressInActivePanel={handleCompressInActivePanel}
           onCompressToOtherPanel={handleCompressToOtherPanel}
           onDecompressInActivePanel={handleDecompressInActivePanel}
@@ -689,6 +782,16 @@ export default function App() {
               onQuickSelect={() => handleStartQuickSelect(panelId)}
               onQuickUnselect={() => handleStartQuickUnselect(panelId)}
               onQuickFilter={() => handleStartFilter(panelId)}
+              onSelectFiles={() => handleSelectFiles(panelId)}
+              onSelectFolders={() => handleSelectFolders(panelId)}
+              onSelectZipFiles={() => handleSelectZipFiles(panelId)}
+              onUnselectFiles={() => handleUnselectFiles(panelId)}
+              onUnselectFolders={() => handleUnselectFolders(panelId)}
+              onUnselectZipFiles={() => handleUnselectZipFiles(panelId)}
+              onQuickFilterFiles={() => handleQuickFilterFiles(panelId)}
+              onQuickFilterFolders={() => handleQuickFilterFolders(panelId)}
+              onQuickFilterZipFiles={() => handleQuickFilterZipFiles(panelId)}
+              onResetQuickFilter={() => handleResetQuickFilter(panelId)}
               onSwapPanels={handleSwapPanels}
               onTerminal={handleTerminal}
               onTerminalOtherPanel={handleTerminalOtherPanel}

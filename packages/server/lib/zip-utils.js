@@ -113,6 +113,19 @@ const getFilesInZip = async (zipFilePath, directoryPath) => {
       normalizedDir += "/";
     if (pathInsideZip === "/") normalizedDir = "";
 
+    // Validate that the directory path exists in the zip
+    if (normalizedDir.length > 0) {
+      const dirExistsAsEntry =
+        entryNames.has(normalizedDir) ||
+        entryNames.has(normalizedDir.slice(0, -1));
+      const hasChildrenInDir = entriesArr.some((e) =>
+        e.filename.startsWith(normalizedDir)
+      );
+      if (!dirExistsAsEntry && !hasChildrenInDir) {
+        throw new Error(`Path does not exist: ${pathInsideZip}`);
+      }
+    }
+
     for (const entry of entriesArr) {
       if (!entry.filename.startsWith(normalizedDir)) continue;
 

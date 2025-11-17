@@ -83,6 +83,16 @@ const FilePanel = React.forwardRef(
       onQuickSelect,
       onQuickUnselect,
       onQuickFilter,
+      onSelectFiles,
+      onSelectFolders,
+      onSelectZipFiles,
+      onUnselectFiles,
+      onUnselectFolders,
+      onUnselectZipFiles,
+      onQuickFilterFiles,
+      onQuickFilterFolders,
+      onQuickFilterZipFiles,
+      onResetQuickFilter,
       onSwapPanels,
       onTerminal,
       onTerminalOtherPanel,
@@ -603,6 +613,16 @@ const FilePanel = React.forwardRef(
           onQuickSelect={() => onQuickSelect(panelId)}
           onQuickUnselect={() => onQuickUnselect(panelId)}
           onQuickFilter={() => onQuickFilter(panelId)}
+          onSelectFiles={onSelectFiles}
+          onSelectFolders={onSelectFolders}
+          onSelectZipFiles={onSelectZipFiles}
+          onUnselectFiles={onUnselectFiles}
+          onUnselectFolders={onUnselectFolders}
+          onUnselectZipFiles={onUnselectZipFiles}
+          onQuickFilterFiles={onQuickFilterFiles}
+          onQuickFilterFolders={onQuickFilterFolders}
+          onQuickFilterZipFiles={onQuickFilterZipFiles}
+          onResetQuickFilter={onResetQuickFilter}
           onSwapPanels={() => onSwapPanels(panelId)}
           onTerminal={onTerminal}
           onTerminalOtherPanel={onTerminalOtherPanel}
@@ -687,6 +707,16 @@ const FilePanel = React.forwardRef(
                   onQuickSelect={() => onQuickSelect(panelId)}
                   onQuickUnselect={() => onQuickUnselect(panelId)}
                   onQuickFilter={() => onQuickFilter(panelId)}
+                  onSelectFiles={() => onSelectFiles(panelId)}
+                  onSelectFolders={() => onSelectFolders(panelId)}
+                  onSelectZipFiles={() => onSelectZipFiles(panelId)}
+                  onUnselectFiles={() => onUnselectFiles(panelId)}
+                  onUnselectFolders={() => onUnselectFolders(panelId)}
+                  onUnselectZipFiles={() => onUnselectZipFiles(panelId)}
+                  onQuickFilterFiles={() => onQuickFilterFiles(panelId)}
+                  onQuickFilterFolders={() => onQuickFilterFolders(panelId)}
+                  onQuickFilterZipFiles={() => onQuickFilterZipFiles(panelId)}
+                  onResetQuickFilter={() => onResetQuickFilter(panelId)}
                   onSearchActivePanel={() => onSearchActivePanel?.(panelId)}
                   onSearchOtherPanel={() => onSearchOtherPanel?.(panelId)}
                   onRefreshPanel={() => onRefreshPanel(panelId)}
@@ -709,12 +739,14 @@ const FilePanel = React.forwardRef(
               ))}
           </div>
         </EmptyAreaContextMenu>
-        {filterPanelId === panelId && (
+        {(filterPanelId === panelId || (filter && filter.pattern)) && (
           <FilterInput
+            panelId={panelId}
             filter={filter}
             onFilterChange={(newFilter) => onFilterChange(panelId, newFilter)}
             onClose={() => onCloseFilter(panelId)}
             isFiltering={isFiltering}
+            isActiveFilter={filterPanelId === panelId}
           />
         )}
         <div className="text-sm pt-2 border-t border-gray-600 mt-1 flex justify-between items-center">

@@ -43,12 +43,20 @@ This project is inspired by applications like Midnight Commander and Double Comm
 │       │   └── preload.js           # Security preload script
 │       ├── build.js                 # Build assembly script
 │       └── package.json             # Electron and electron-builder config
-├── misc/                            # Miscellaneous scripts and tools (packaging & native helpers)
+├── misc/                            # Miscellaneous scripts and tools
 │   ├── create-corrupt-zip.js        # Utility for creating corrupt archives for testing
-│   ├── prebuild-node-pty.js         # Helper to prepare the optional native node-pty addon (build/venv helpers)
-│   ├── prepare-node-pty.js          # Runtime prepare helper (copies/rebuilds cached node-pty for server/electron)
-│   ├── patch-node-pty-helperpath.js # Idempotent patcher to fix node-pty helper paths in vendor copies (use --prepack / --fix-replace-patterns)
-│   ├── instrument-node-pty.js       # On-demand instrumentation for native posix_spawn/pty diagnostics (gate via NODE_PTY_INSTRUMENT)
+│   ├── fm.js                        # Developer console helpers (entry point for FM dev console helpers)
+│   ├── fm/                          # Modular FM developer console helpers
+│   │   ├── attach.js                # Attaches the FM object to global/window (interactive console usage)
+│   │   ├── help.js                  # Generates and displays FM.help() documentation (uses metadata)
+│   │   ├── methods.js               # Implementation of FM.* helper methods (navigation, selection, etc.)
+│   │   ├── properties.js            # Read-only FM properties and metadata attachment
+│   │   ├── utils.js                 # Internal helpers used by FM (detectBuildType, getAppState, etc.)
+│   │   └── meta.json                # Metadata for FM methods and properties (used by help.js and properties.js)
+│   │── prebuild-node-pty.js         # Helper to prepare the optional native node-pty addon (build/venv helpers)
+│   │── prepare-node-pty.js          # Runtime prepare helper (copies/rebuilds cached node-pty for server/electron)
+│   │── patch-node-pty-helperpath.js # Idempotent patcher to fix node-pty helper paths in vendor copies
+│   │── instrument-node-pty.js       # On-demand instrumentation for native posix_spawn/pty diagnostics
 │   ├── starter.js                   # Interactive starter menu (used by postinstall and start scripts)
 │   └── README.md                    # Documentation for miscellaneous scripts (see misc/README.md)
 ├── start.sh                         # Start script for macOS and Linux
@@ -73,32 +81,38 @@ This project is inspired by applications like Midnight Commander and Double Comm
 
 1. Install dependencies
 
-Run this from the repository root:
+    Run this from the repository root:
 
-```bash
-npm install
-```
+    ```bash
+    npm install
+    ```
 
 2. About the optional native addon (node-pty)
 
-The server package optionally uses `node-pty` for an improved in-app terminal. If a matching native binary isn't available, the server falls back to a pipe-based terminal that still works but may lack some features.
+    The server package optionally uses `node-pty` for an improved in-app terminal. If a matching native binary isn't available, the server falls back to a pipe-based terminal that still works but may lack some features.
 
-There are included helpers (`misc/prebuild-node-pty.js`) and (`misc/patch-node-pty-helperpath.js`) that assist on fresh clones:
-
-- The `postinstall` runs during `npm install` and will try to prepare `node-pty` locally when needed. It is conservative and never fails `npm install`.
-
-## Developer notes
-
-There are several helpers related to `node-pty` in this repository:
-
-- `misc/prebuild-node-pty.js` — an install-time, interactive/heavy helper that attempts to configure a build environment (creates a repo-local venv, adds a distutils shim if needed, and performs package installs)
-- `misc/prepare-node-pty.js` — a lightweight runtime helper used by the server (and the Electron build flow). It prefers cached ABI-matching binaries under `.node-pty-cache` and only falls back to rebuilding (using `npm rebuild` or `electron-rebuild`) when necessary.
-- `misc/patch-node-pty-helperpath.js` — idempotent repo patcher that scans vendor copies of `node-pty` (source and compiled copies in `packages/server/node_modules`, `packages/electron/dist`, and packaged `app.asar.unpacked`) and hardens the helper path resolution. Use `--prepack` during packaging and `--fix-replace-patterns` to apply conservative repairs for naive string-replace patterns that can introduce duplicate `.unpacked` segments.
-- `misc/instrument-node-pty.js` — on-demand instrumentation utility that enables extra native-level logging for `node-pty` (captures posix_spawn argv, errno, and helper path resolution). Only enable this when debugging native spawn failures; gate it with `NODE_PTY_INSTRUMENT=1` to avoid noisy output.
+    There are included helpers (`misc/prebuild-node-pty.js`) and (`misc/patch-node-pty-helperpath.js`) that assist on fresh clones and the `postinstall` runs during `npm install` and will try to prepare `node-pty` locally when needed. It is conservative and never fails `npm install`.
 
 3. Starter & startup
 
-An interactive starter (`misc/starter.js`) provides a short menu for common developer tasks (start Node app, run Electron dev, build dists).
+   An interactive starter (`misc/starter.js`) provides a short menu for common developer tasks (start Node app, run Electron dev, build dists). If needed, for testing and debugging, one can use special environment variables -
+
+   - `STARTER_AUTO_SELECT` — When set to a non-empty number, `starter` auto-selects that menu option and runs it. This is useful for automated runs (e.g. `STARTER_AUTO_SELECT=3 ./start.sh` will auto-select the "Build Electron (macOS)" option). 
+
+      Example:
+
+      ```bash
+      # Auto-run option 3 (Build Electron (macOS)) and pick the same shell environment as your interactive shell
+      STARTER_AUTO_SELECT=3 STARTER_DEBUG=1 ./start.sh
+      ```
+
+    - `STARTER_DEBUG` — Enables extra diagnostics printed by the starter about the shell environment it will use to run commands. This prints the effective `SHELL`, `PATH` and runs a few basic checks (`node -v`, `npm -v`, `which npm`, `which hdiutil`). Use it to debug environment or PATH issues when packaging or building via the starter. 
+    
+      Example:
+
+        ```bash
+        STARTER_DEBUG=1 ./start.sh
+        ```
 
 4. Run the application
 
@@ -106,8 +120,8 @@ An interactive starter (`misc/starter.js`) provides a short menu for common deve
 - Electron (development): `npm run electron:dev` — builds the client and launches Electron with the bundled server.
 - Start scripts: `./start.sh`, `start.bat`, or `start.ps1` perform basic environment checks and then run the starter menu.
 
-These helpers are conservative and opt-out-friendly — they aim to make fresh-clone setup faster while avoiding risky global changes.
-You may need to change the execution policy to run the script.
+  These helpers are conservative and opt-out-friendly — they aim to make fresh-clone setup faster while avoiding risky global changes.
+  You may need to change the execution policy to run the script.
 
 ## How It Works
 
@@ -179,6 +193,21 @@ When running the Electron app, both client and server and the node binaries and 
   The modal searches by name (wildcards/regex supported) through subfolders and can include hidden items when requested. Enabling **content search** lets you search inside files with options for match case, regex patterns, whole-word matches, ignoring non-text files, and stopping at the first matching file for faster results.
 
   ![Search Modal Screenshot](packages/client/screenshots/search.png)
+
+- **Run and Automate operations via console**: This project exposes a small, developer-friendly global named `FM` in the page context (via `window.FM`) to make debugging and interactive exploration easier when running in dev or Electron contexts. Once the app is loaded, open your browser's developer console and run `FM.help()` to see a complete list of all available methods with their descriptions.
+
+  The `FM` global provides convenient methods for programmatically navigating panels, inspecting application state, triggering operations, and automating tasks during development.
+
+  **Examples:**
+  - `FM.getActivePanel()` — get active panel's side, path, and selection
+  - `await FM.setActivePanelPath('/path/to/folder')` — navigate active panel to a specific directory
+  - `FM.setActivePanelSelection(['file1.txt', 'Documents', '/absolute/path/file2.txt'], true, false)` — select files, folders, and absolute paths with case-insensitive matching, adding to current selection
+  - `FM.setActivePanelQuickSelect('*.jpg', false, false, true)` — select all JPG files in active panel using wildcard pattern
+  - `FM.setOtherPanelQuickSelect('^[A-Z].*\\.txt$', true, false, true)` — select all TXT files starting with uppercase letter in other panel using regex
+  - `FM.setActivePanelQuickFilterFiles()` — filter the active panel to show only files
+  - `FM.toggleActivePanelSide()` — toggle between left and right panels
+  - `FM.refreshBothPanels()` — reload directory contents for both panels
+  - `FM.swapPanels()` — swap the directory paths of left and right panels
 
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions.
 
@@ -267,6 +296,8 @@ When running the Electron app, both client and server and the node binaries and 
   - <kbd>F8</kbd>: Delete the selected items.
 
   - <kbd>F9</kbd>: Open a terminal in the current panel's path.
+
+  - <kbd>F10</kbd>:  Exit the application cleanly (closes all running jobs and terminates the app).
 
     ![Action Bar Screenshot](packages/client/screenshots/action-bar.png)
 

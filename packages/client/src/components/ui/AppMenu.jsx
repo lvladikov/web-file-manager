@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import * as NavigationMenu from "@radix-ui/react-navigation-menu";
 import { metaKey, isEditable, submenuTriggerClassName } from "../../lib/utils";
+import { exitApp } from "../../lib/api";
 
 const itemClassName =
   "px-4 py-2 flex justify-between hover:bg-sky-600 cursor-pointer";
@@ -331,6 +332,18 @@ const FileMenu = ({ ...props }) => {
             />
           </>
         )}
+        <div className={separatorClassName} />
+        <MenuItem
+          label="Exit"
+          shortcut="F10"
+          onClick={async () => {
+            try {
+              await exitApp();
+            } catch (e) {
+              console.error("[Menu] Failed to exit:", e);
+            }
+          }}
+        />
       </NavigationMenu.Content>
     </NavigationMenu.Item>
   );
@@ -344,6 +357,16 @@ const SelectMenu = ({ ...props }) => {
     onQuickSelect,
     onQuickUnselect,
     onQuickFilter,
+    onSelectFiles,
+    onSelectFolders,
+    onSelectZipFiles,
+    onUnselectFiles,
+    onUnselectFolders,
+    onUnselectZipFiles,
+    onQuickFilterFiles,
+    onQuickFilterFolders,
+    onQuickFilterZipFiles,
+    onResetQuickFilter,
     handleItemClick,
   } = props;
 
@@ -352,7 +375,7 @@ const SelectMenu = ({ ...props }) => {
       <NavigationMenu.Trigger className="px-3 py-1 rounded hover:bg-gray-700">
         Select & Filter
       </NavigationMenu.Trigger>
-      <NavigationMenu.Content className="absolute top-full left-0 mt-1 w-60 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-white font-mono text-sm">
+      <NavigationMenu.Content className="absolute top-full left-0 mt-1 w-72 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 text-white font-mono text-sm">
         <MenuItem
           label="Select All"
           shortcut={`${metaKey}+A`}
@@ -370,6 +393,32 @@ const SelectMenu = ({ ...props }) => {
         />
         <div className={separatorClassName} />
         <MenuItem
+          label="Select Files only"
+          onClick={() => handleItemClick(onSelectFiles)}
+        />
+        <MenuItem
+          label="Select Folders only"
+          onClick={() => handleItemClick(onSelectFolders)}
+        />
+        <MenuItem
+          label="Select Zip Files only"
+          onClick={() => handleItemClick(onSelectZipFiles)}
+        />
+        <div className={separatorClassName} />
+        <MenuItem
+          label="Unselect Files only"
+          onClick={() => handleItemClick(onUnselectFiles)}
+        />
+        <MenuItem
+          label="Unselect Folders only"
+          onClick={() => handleItemClick(onUnselectFolders)}
+        />
+        <MenuItem
+          label="Unselect Zip Files only"
+          onClick={() => handleItemClick(onUnselectZipFiles)}
+        />
+        <div className={separatorClassName} />
+        <MenuItem
           label="Quick Select"
           shortcut="+"
           onClick={() => handleItemClick(onQuickSelect)}
@@ -384,6 +433,22 @@ const SelectMenu = ({ ...props }) => {
           label="Quick Filter"
           shortcut="."
           onClick={() => handleItemClick(onQuickFilter)}
+        />
+        <MenuItem
+          label="Quick Filter Files only"
+          onClick={() => handleItemClick(onQuickFilterFiles)}
+        />
+        <MenuItem
+          label="Quick Filter Folders only"
+          onClick={() => handleItemClick(onQuickFilterFolders)}
+        />
+        <MenuItem
+          label="Quick Filter Zip Files only"
+          onClick={() => handleItemClick(onQuickFilterZipFiles)}
+        />
+        <MenuItem
+          label="Reset Quick Filter"
+          onClick={() => handleItemClick(onResetQuickFilter)}
         />
       </NavigationMenu.Content>
     </NavigationMenu.Item>

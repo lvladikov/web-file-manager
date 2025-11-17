@@ -20,6 +20,16 @@ const EmptyAreaContextMenu = ({
   onQuickSelect,
   onQuickUnselect,
   onQuickFilter,
+  onSelectFiles,
+  onSelectFolders,
+  onSelectZipFiles,
+  onUnselectFiles,
+  onUnselectFolders,
+  onUnselectZipFiles,
+  onQuickFilterFiles,
+  onQuickFilterFolders,
+  onQuickFilterZipFiles,
+  onResetQuickFilter,
   onSwapPanels,
   onTerminal,
   onTerminalOtherPanel,
@@ -96,7 +106,7 @@ const EmptyAreaContextMenu = ({
                 </ContextMenu.SubTrigger>
                 <ContextMenu.Portal>
                   <ContextMenu.SubContent
-                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-60"
+                    className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
                     sideOffset={2}
                     alignOffset={-5}
                   >
@@ -125,6 +135,48 @@ const EmptyAreaContextMenu = ({
                     <div className={separatorClassName}></div>
 
                     <ContextMenu.Item
+                      onSelect={onSelectFiles}
+                      className={itemClassName}
+                    >
+                      <span>Select Files only</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onSelectFolders}
+                      className={itemClassName}
+                    >
+                      <span>Select Folders only</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onSelectZipFiles}
+                      className={itemClassName}
+                    >
+                      <span>Select Zip Files only</span>
+                    </ContextMenu.Item>
+
+                    <div className={separatorClassName}></div>
+
+                    <ContextMenu.Item
+                      onSelect={onUnselectFiles}
+                      className={itemClassName}
+                    >
+                      <span>Unselect Files only</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onUnselectFolders}
+                      className={itemClassName}
+                    >
+                      <span>Unselect Folders only</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onUnselectZipFiles}
+                      className={itemClassName}
+                    >
+                      <span>Unselect Zip Files only</span>
+                    </ContextMenu.Item>
+
+                    <div className={separatorClassName}></div>
+
+                    <ContextMenu.Item
                       onSelect={onQuickSelect}
                       className={itemClassName}
                     >
@@ -147,6 +199,30 @@ const EmptyAreaContextMenu = ({
                     >
                       <span>Quick Filter</span>
                       <span className="text-gray-400">.</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onQuickFilterFiles}
+                      className={itemClassName}
+                    >
+                      <span>Quick Filter Files only</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onQuickFilterFolders}
+                      className={itemClassName}
+                    >
+                      <span>Quick Filter Folders only</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onQuickFilterZipFiles}
+                      className={itemClassName}
+                    >
+                      <span>Quick Filter Zip Files only</span>
+                    </ContextMenu.Item>
+                    <ContextMenu.Item
+                      onSelect={onResetQuickFilter}
+                      className={itemClassName}
+                    >
+                      <span>Reset Quick Filter</span>
                     </ContextMenu.Item>
                   </ContextMenu.SubContent>
                 </ContextMenu.Portal>

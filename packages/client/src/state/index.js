@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { savePaths, fetchDirectory, post } from "../lib/api";
+import { savePaths, fetchDirectory, post, exitApp } from "../lib/api";
 import {
   isMac,
   isPreviewableText,
@@ -130,6 +130,26 @@ export default function appState() {
       if (!currentFilter.pattern) {
         return items;
       }
+
+      // Handle special filter keywords
+      if (currentFilter.pattern === "_FILES_ONLY_") {
+        return items.filter(
+          (item) =>
+            item.name === ".." ||
+            (item.type !== "folder" && item.type !== "parent")
+        );
+      }
+      if (currentFilter.pattern === "_FOLDERS_ONLY_") {
+        return items.filter(
+          (item) => item.name === ".." || item.type === "folder"
+        );
+      }
+      if (currentFilter.pattern === "_ZIP_FILES_ONLY_") {
+        return items.filter(
+          (item) => item.name === ".." || item.type === "archive"
+        );
+      }
+
       const flags = currentFilter.caseSensitive ? "" : "i";
       const regex = currentFilter.useRegex
         ? new RegExp(currentFilter.pattern, flags)
@@ -584,21 +604,62 @@ export default function appState() {
       const currentSelection = resetSelection
         ? new Set()
         : new Set(selections[activePanel]);
-      const flags = caseSensitive ? "" : "i";
-      const regex = useRegex
-        ? new RegExp(pattern, flags)
-        : new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"), flags);
 
-      items.forEach((item) => {
-        if (item.name === "..") return;
-        if (regex.test(item.name)) {
-          if (modals.quickSelectModal.mode === "select") {
-            currentSelection.add(item.name);
-          } else {
-            currentSelection.delete(item.name);
+      // Handle special keywords for type-based selection
+      if (pattern === "_FILES_ONLY_") {
+        items.forEach((item) => {
+          if (item.name === "..") return;
+          if (item.type !== "folder" && item.type !== "parent") {
+            if (modals.quickSelectModal.mode === "select") {
+              currentSelection.add(item.name);
+            } else {
+              currentSelection.delete(item.name);
+            }
           }
-        }
-      });
+        });
+      } else if (pattern === "_FOLDERS_ONLY_") {
+        items.forEach((item) => {
+          if (item.name === "..") return;
+          if (item.type === "folder") {
+            if (modals.quickSelectModal.mode === "select") {
+              currentSelection.add(item.name);
+            } else {
+              currentSelection.delete(item.name);
+            }
+          }
+        });
+      } else if (pattern === "_ZIP_FILES_ONLY_") {
+        items.forEach((item) => {
+          if (item.name === "..") return;
+          if (item.type === "archive") {
+            if (modals.quickSelectModal.mode === "select") {
+              currentSelection.add(item.name);
+            } else {
+              currentSelection.delete(item.name);
+            }
+          }
+        });
+      } else {
+        // Regular pattern matching
+        const flags = caseSensitive ? "" : "i";
+        const regex = useRegex
+          ? new RegExp(pattern, flags)
+          : new RegExp(
+              pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"),
+              flags
+            );
+
+        items.forEach((item) => {
+          if (item.name === "..") return;
+          if (regex.test(item.name)) {
+            if (modals.quickSelectModal.mode === "select") {
+              currentSelection.add(item.name);
+            } else {
+              currentSelection.delete(item.name);
+            }
+          }
+        });
+      }
 
       setSelections((prev) => ({ ...prev, [activePanel]: currentSelection }));
     },
@@ -616,6 +677,283 @@ export default function appState() {
   const handleStartFilter = (panelId) => {
     setFilterPanelId(panelId);
   };
+
+  // Type-based selection handlers
+  const handleSelectFiles = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
+      const fileItems = items
+        .filter(
+          (item) =>
+            item.name !== ".." &&
+            item.type !== "folder" &&
+            item.type !== "parent"
+        )
+        .map((item) => item.name);
+      setSelections((prev) => ({
+        ...prev,
+        [panelId]: new Set(fileItems),
+      }));
+    },
+    [panels, filter, sortedAndFilteredItems, setSelections]
+  );
+
+  const handleSelectFolders = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
+      const folderItems = items
+        .filter((item) => item.name !== ".." && item.type === "folder")
+        .map((item) => item.name);
+      setSelections((prev) => ({
+        ...prev,
+        [panelId]: new Set(folderItems),
+      }));
+    },
+    [panels, filter, sortedAndFilteredItems, setSelections]
+  );
+
+  const handleSelectZipFiles = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
+      const zipItems = items
+        .filter((item) => item.name !== ".." && item.type === "archive")
+        .map((item) => item.name);
+      setSelections((prev) => ({
+        ...prev,
+        [panelId]: new Set(zipItems),
+      }));
+    },
+    [panels, filter, sortedAndFilteredItems, setSelections]
+  );
+
+  const handleUnselectFiles = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
+      const currentSelection = selections[panelId] || new Set();
+      const fileNames = items
+        .filter((item) => item.type !== "folder" && item.type !== "parent")
+        .map((item) => item.name);
+      const newSelection = new Set(
+        [...currentSelection].filter((name) => !fileNames.includes(name))
+      );
+      setSelections((prev) => ({
+        ...prev,
+        [panelId]: newSelection,
+      }));
+    },
+    [panels, filter, sortedAndFilteredItems, selections, setSelections]
+  );
+
+  const handleUnselectFolders = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
+      const currentSelection = selections[panelId] || new Set();
+      const folderNames = items
+        .filter((item) => item.type === "folder")
+        .map((item) => item.name);
+      const newSelection = new Set(
+        [...currentSelection].filter((name) => !folderNames.includes(name))
+      );
+      setSelections((prev) => ({
+        ...prev,
+        [panelId]: newSelection,
+      }));
+    },
+    [panels, filter, sortedAndFilteredItems, selections, setSelections]
+  );
+
+  const handleUnselectZipFiles = useCallback(
+    (panelId) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return;
+      const currentSelection = selections[panelId] || new Set();
+      const zipNames = items
+        .filter((item) => item.type === "archive")
+        .map((item) => item.name);
+      const newSelection = new Set(
+        [...currentSelection].filter((name) => !zipNames.includes(name))
+      );
+      setSelections((prev) => ({
+        ...prev,
+        [panelId]: newSelection,
+      }));
+    },
+    [panels, filter, sortedAndFilteredItems, selections, setSelections]
+  );
+
+  // Type-based filter handlers
+  const handleQuickFilterFiles = (panelId) => {
+    setFilterPanelId(panelId);
+    setFilter((prev) => ({
+      ...prev,
+      [panelId]: {
+        pattern: "_FILES_ONLY_",
+        useRegex: false,
+        caseSensitive: false,
+      },
+    }));
+  };
+
+  const handleQuickFilterFolders = (panelId) => {
+    setFilterPanelId(panelId);
+    setFilter((prev) => ({
+      ...prev,
+      [panelId]: {
+        pattern: "_FOLDERS_ONLY_",
+        useRegex: false,
+        caseSensitive: false,
+      },
+    }));
+  };
+
+  const handleQuickFilterZipFiles = (panelId) => {
+    setFilterPanelId(panelId);
+    setFilter((prev) => ({
+      ...prev,
+      [panelId]: {
+        pattern: "_ZIP_FILES_ONLY_",
+        useRegex: false,
+        caseSensitive: false,
+      },
+    }));
+  };
+
+  const handleResetQuickFilter = (panelId) => {
+    if (filterPanelId === panelId) {
+      setFilterPanelId(null);
+    }
+    setFilter((prev) => ({
+      ...prev,
+      [panelId]: { pattern: "", useRegex: false, caseSensitive: false },
+    }));
+  };
+
+  // Wrapper for quick select that works independently of modal state
+  const handleQuickSelect = useCallback(
+    (panelId, pattern, useRegex, caseSensitive, resetSelection) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return 0;
+
+      const currentSelection = resetSelection
+        ? new Set()
+        : new Set(selections[panelId]);
+
+      // Handle special keywords
+      if (pattern === "_FILES_ONLY_") {
+        items.forEach((item) => {
+          if (
+            item.name === ".." ||
+            item.type === "folder" ||
+            item.type === "parent"
+          )
+            return;
+          currentSelection.add(item.name);
+        });
+      } else if (pattern === "_FOLDERS_ONLY_") {
+        items.forEach((item) => {
+          if (item.name === ".." || item.type !== "folder") return;
+          currentSelection.add(item.name);
+        });
+      } else if (pattern === "_ZIP_FILES_ONLY_") {
+        items.forEach((item) => {
+          if (item.name === ".." || item.type !== "archive") return;
+          currentSelection.add(item.name);
+        });
+      } else {
+        const flags = caseSensitive ? "" : "i";
+        const regex = useRegex
+          ? new RegExp(pattern, flags)
+          : new RegExp(
+              pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"),
+              flags
+            );
+        items.forEach((item) => {
+          if (item.name === "..") return;
+          if (regex.test(item.name)) {
+            currentSelection.add(item.name);
+          }
+        });
+      }
+
+      setSelections((prev) => ({ ...prev, [panelId]: currentSelection }));
+      return currentSelection.size;
+    },
+    [panels, filter, sortedAndFilteredItems, selections, setSelections]
+  );
+
+  // Wrapper for quick unselect that works independently of modal state
+  const handleQuickUnselect = useCallback(
+    (panelId, pattern, useRegex, caseSensitive, resetSelection) => {
+      const items = filter[panelId].pattern
+        ? sortedAndFilteredItems[panelId]
+        : panels[panelId]?.items;
+      if (!items) return 0;
+
+      const currentSelection = resetSelection
+        ? new Set()
+        : new Set(selections[panelId]);
+
+      // Handle special keywords
+      if (pattern === "_FILES_ONLY_") {
+        items.forEach((item) => {
+          if (
+            item.name === ".." ||
+            item.type === "folder" ||
+            item.type === "parent"
+          )
+            return;
+          currentSelection.delete(item.name);
+        });
+      } else if (pattern === "_FOLDERS_ONLY_") {
+        items.forEach((item) => {
+          if (item.name === ".." || item.type !== "folder") return;
+          currentSelection.delete(item.name);
+        });
+      } else if (pattern === "_ZIP_FILES_ONLY_") {
+        items.forEach((item) => {
+          if (item.name === ".." || item.type !== "archive") return;
+          currentSelection.delete(item.name);
+        });
+      } else {
+        const flags = caseSensitive ? "" : "i";
+        const regex = useRegex
+          ? new RegExp(pattern, flags)
+          : new RegExp(
+              pattern.replace(/\./g, "\\.").replace(/\*/g, ".*"),
+              flags
+            );
+        items.forEach((item) => {
+          if (item.name === "..") return;
+          if (regex.test(item.name)) {
+            currentSelection.delete(item.name);
+          }
+        });
+      }
+
+      setSelections((prev) => ({ ...prev, [panelId]: currentSelection }));
+      return currentSelection.size;
+    },
+    [panels, filter, sortedAndFilteredItems, selections, setSelections]
+  );
 
   useEffect(() => {
     if (settings.settingsLoading) return;
@@ -890,6 +1228,17 @@ export default function appState() {
         f_key: "F9",
         action: handleTerminal,
       },
+      {
+        label: "Exit",
+        f_key: "F10",
+        action: async () => {
+          try {
+            await exitApp();
+          } catch (e) {
+            console.error("[F10] Failed to exit:", e);
+          }
+        },
+      },
     ],
     [
       focusedItem,
@@ -1006,6 +1355,18 @@ export default function appState() {
     handlePasteFromClipboard,
     sortedAndFilteredItems,
     handleTerminal,
+    handleSelectFiles,
+    handleSelectFolders,
+    handleSelectZipFiles,
+    handleUnselectFiles,
+    handleUnselectFolders,
+    handleUnselectZipFiles,
+    handleQuickSelect,
+    handleQuickUnselect,
+    handleQuickFilterFiles,
+    handleQuickFilterFolders,
+    handleQuickFilterZipFiles,
+    handleResetQuickFilter,
   });
 
   const panelsRef = useRef(panels);
@@ -1131,12 +1492,25 @@ export default function appState() {
     handleStartQuickSelect,
     handleStartQuickUnselect,
     handleQuickSelectConfirm,
+    handleSelectFiles,
+    handleSelectFolders,
+    handleSelectZipFiles,
+    handleUnselectFiles,
+    handleUnselectFolders,
+    handleUnselectZipFiles,
     filter,
+    setFilter,
     isFiltering,
     filterPanelId,
     handleStartFilter,
     handleCloseFilter,
     handleFilterChange,
+    handleQuickSelect,
+    handleQuickUnselect,
+    handleQuickFilterFiles,
+    handleQuickFilterFolders,
+    handleQuickFilterZipFiles,
+    handleResetQuickFilter,
     filteredItems: sortedAndFilteredItems,
     handleSwapPanels,
     handleContextOpen,

@@ -1,12 +1,12 @@
 {
   "name": "web-file-manager",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "dev": "concurrently --kill-others \"npm:dev:server\" \"npm:dev:client\"",
     "dev:client": "npm run dev --workspace=@web-file-manager/client",
     "dev:server": "npm run dev --workspace=@web-file-manager/server",
     "electron:dev": "npm run build --workspace=@web-file-manager/client && npm run dev --workspace=@web-file-manager/electron",

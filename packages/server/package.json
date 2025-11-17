@@ -1,6 +1,6 @@
 {
   "name": "@web-file-manager/server",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Node.js backend for the React file manager",
   "main": "server.js",
   "type": "module",

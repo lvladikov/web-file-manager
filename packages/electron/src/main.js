@@ -178,6 +178,42 @@ async function initializeServer() {
 
   console.log(`[electron] using client dist at: ${clientDistPath}`);
 
+  // Add a Content Security Policy header to protect the renderer.
+  // Use a relaxed policy in development (to allow HMR / eval during dev),
+  // and a strict policy in production that disallows unsafe-eval/inline.
+  const isDev = process.env.NODE_ENV !== "production";
+  expressApp.use((req, res, next) => {
+    const devPolicy = [
+      "default-src 'self'",
+      // Avoid 'unsafe-eval' even in development to prevent Electron's security warning.
+      // HMR and Vite's dev server typically work with native ESM and websockets;
+      // if any dev-time code needs `new Function` / eval, we'll handle it more
+      // specifically (e.g., allow only for specific origins). For now keep dev
+      // policy stricter but allow inline scripts for convenience.
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      // allow the electron local server and websocket connect in dev
+      "connect-src 'self' http://localhost:3001 ws://localhost:3001",
+      "img-src 'self' data:",
+      "font-src 'self' data:",
+      "object-src 'none'",
+    ].join("; ");
+
+    const prodPolicy = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self'",
+      "connect-src 'self'",
+      "img-src 'self' data:",
+      "font-src 'self' data:",
+      "object-src 'none'",
+    ].join("; ");
+
+    const policy = isDev ? devPolicy : prodPolicy;
+    res.setHeader("Content-Security-Policy", policy);
+    next();
+  });
+
   expressApp.use(express.static(clientDistPath));
 
   // Dynamically resolve and import the server routes module from the workspace

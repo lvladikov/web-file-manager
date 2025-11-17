@@ -6,6 +6,7 @@ import createCopyRoutes from "./copyRoutes.js";
 import createSearchRoutes from "./searchRoutes.js";
 import createSizeRoutes from "./sizeRoutes.js";
 import terminalRoutes from "./terminalRoutes.js";
+import createAppRoutes from "./appRoutes.js";
 
 export default function initializeRoutes(
   app,
@@ -41,6 +42,18 @@ export default function initializeRoutes(
 
   const terminalRouter = terminalRoutes(activeTerminalJobs);
 
+  const appRouter = createAppRoutes(
+    activeCopyJobs,
+    activeSizeJobs,
+    activeCompressJobs,
+    activeDecompressJobs,
+    activeArchiveTestJobs,
+    activeDuplicateJobs,
+    activeCopyPathsJobs,
+    activeZipOperations,
+    activeTerminalJobs
+  );
+
   app.use("/api", mediaRoutes);
   app.use("/api", configRoutes);
   app.use("/api", zipRouter);
@@ -49,4 +62,5 @@ export default function initializeRoutes(
   app.use("/api", searchRouter);
   app.use("/api", sizeRouter);
   app.use("/api", terminalRouter);
+  app.use("/api", appRouter);
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { isModKey, isPreviewableText } from "../lib/utils";
+import { exitApp } from "../lib/api";
 
 export default function useKeyboardShortcuts(props) {
   const latestProps = useRef(props);
@@ -252,7 +253,26 @@ export default function useKeyboardShortcuts(props) {
       }
 
       if (filterPanelId) {
-        const filterInput = document.getElementById("filter-input");
+        // If user pressed '.' and there's an open quick filter on another panel,
+        // make '.' focus the active panel's filter instead of focusing the other panel's filter.
+        if (e.key === ".") {
+          const activePanel = latestProps.current.activePanel;
+          if (filterPanelId !== activePanel) {
+            e.preventDefault();
+            // Start filter on the active panel (sets filterPanelId to activePanel)
+            latestProps.current.handleStartFilter();
+            // Attempt to focus after re-render — try once next tick as a fallback
+            setTimeout(() => {
+              const el = document.getElementById(`filter-input-${activePanel}`);
+              if (el) el.focus();
+            }, 0);
+            return;
+          }
+        }
+
+        const filterInput = document.getElementById(
+          `filter-input-${filterPanelId}`
+        );
         if (e.key === "." && document.activeElement !== filterInput) {
           e.preventDefault();
           filterInput.focus();
@@ -277,9 +297,15 @@ export default function useKeyboardShortcuts(props) {
           // Allow event to propagate for these specific shortcuts
         } else {
           e.stopPropagation();
-          const regexButton = document.getElementById("filter-regex-button");
-          const caseButton = document.getElementById("filter-case-button");
-          const closeButton = document.getElementById("filter-close-button");
+          const regexButton = document.getElementById(
+            `filter-regex-button-${filterPanelId}`
+          );
+          const caseButton = document.getElementById(
+            `filter-case-button-${filterPanelId}`
+          );
+          const closeButton = document.getElementById(
+            `filter-close-button-${filterPanelId}`
+          );
 
           const focusableElements = [
             filterInput,
@@ -565,6 +591,17 @@ export default function useKeyboardShortcuts(props) {
       if (e.key === "F9") {
         e.preventDefault();
         handleTerminal();
+        return;
+      }
+      if (e.key === "F10") {
+        e.preventDefault();
+        (async () => {
+          try {
+            await exitApp();
+          } catch (e) {
+            console.error("[F10] Failed to exit:", e);
+          }
+        })();
         return;
       }
 

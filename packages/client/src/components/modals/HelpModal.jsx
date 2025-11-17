@@ -51,6 +51,7 @@ const HelpModal = ({ isVisible, onClose }) => {
     "Favourites",
     "Top Menus",
     "Search",
+    "Operations via Console",
     "Function Key Actions",
     "Copy/Move Operation & Conflict Modes",
     "Terminal",
@@ -761,6 +762,94 @@ const HelpModal = ({ isVisible, onClose }) => {
             />
           </HelpSection>
 
+          <HelpSection
+            id="operations-via-console"
+            title="Operations via Console"
+          >
+            <p>
+              This project exposes a small, developer-friendly global named{" "}
+              <code className="bg-gray-900 px-2 py-1 rounded">FM</code> in the
+              page context (via{" "}
+              <code className="bg-gray-900 px-2 py-1 rounded">window.FM</code>)
+              to make debugging and interactive exploration easier when running
+              in dev or Electron contexts.
+            </p>
+            <p>
+              Once the app is loaded, open your browser's developer console and
+              run{" "}
+              <code className="bg-gray-900 px-2 py-1 rounded">FM.help()</code>{" "}
+              to see a complete list of all available methods with their
+              descriptions.
+            </p>
+            <p>
+              The <code className="bg-gray-900 px-2 py-1 rounded">FM</code>{" "}
+              global provides convenient methods for programmatically navigating
+              panels, inspecting application state, triggering operations, and
+              automating tasks during development.
+            </p>
+            <p className="font-semibold text-sky-300">Examples:</p>
+            <ul className="list-disc list-inside space-y-2 pl-4 font-mono text-sm">
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.getActivePanel()
+                </code>{" "}
+                — get active panel's side, path, and selection
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  await FM.setActivePanelPath('/path/to/folder')
+                </code>{" "}
+                — navigate active panel to a specific directory
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.setActivePanelSelection(['file1.txt', 'Documents',
+                  '/absolute/path/file2.txt'], true, false)
+                </code>{" "}
+                — select files, folders, and absolute paths with
+                case-insensitive matching, adding to current selection
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.setActivePanelQuickSelect('*.jpg', false, false, true)
+                </code>{" "}
+                — select all JPG files in active panel using wildcard pattern
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.setOtherPanelQuickSelect('^[A-Z].*\\.txt$', true, false,
+                  true)
+                </code>{" "}
+                — select all TXT files starting with uppercase letter in other
+                panel using regex
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.setActivePanelQuickFilterFiles()
+                </code>{" "}
+                — filter the active panel to show only files
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.toggleActivePanelSide()
+                </code>{" "}
+                — toggle between left and right panels
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.refreshBothPanels()
+                </code>{" "}
+                — reload directory contents for both panels
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  FM.swapPanels()
+                </code>{" "}
+                — swap the directory paths of left and right panels
+              </li>
+            </ul>
+          </HelpSection>
+
           <HelpSection id="function-key-actions" title="Function Key Actions">
             <p>
               The bar at the bottom of the screen shows the primary actions
@@ -807,6 +896,10 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <kbd>F9</kbd>: Open app's built-in terminal in the current
                 panel's path.
+              </li>
+              <li>
+                <kbd>F10</kbd>: Exit the application cleanly (closes all running
+                jobs and terminates the app).
               </li>
             </ul>
             <img

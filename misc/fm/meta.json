@@ -1,0 +1,387 @@
+{
+  "methods": {
+    "FM": {
+      "desc": "callable helper - returns \"<package-name> - version <version>\"",
+      "params": [],
+      "examples": ["FM()"]
+    },
+    "getInfo": {
+      "desc": "returns info string",
+      "params": [],
+      "examples": ["FM.getInfo()"]
+    },
+    "getName": {
+      "desc": "returns package name",
+      "params": [],
+      "examples": ["FM.getName()"]
+    },
+    "getVersion": {
+      "desc": "returns package version",
+      "params": [],
+      "examples": ["FM.getVersion()"]
+    },
+    "getBuildType": {
+      "desc": "returns build type (Node:Dev | Electron:Dev | Electron:Dist)",
+      "params": [],
+      "examples": ["FM.getBuildType()"]
+    },
+    "exit": {
+      "desc": "exits/quits the application cleanly (works for both Node dev and Electron builds)",
+      "params": [],
+      "examples": ["FM.exit()"]
+    },
+    "getPanels": {
+      "desc": "returns object with active and other panels { active: {...}, other: {...} } each containing side, path, and selection (selection relative by default, absolute if param is false)",
+      "params": ["relativeSelection=true"],
+      "examples": ["FM.getPanels()", "FM.getPanels(false)"]
+    },
+    "getActivePanel": {
+      "desc": "returns object with side, path, and selection for the active panel (selection relative by default, absolute if param is false)",
+      "params": ["relativeSelection=true"],
+      "examples": ["FM.getActivePanel()", "FM.getActivePanel(false)"]
+    },
+    "getOtherPanel": {
+      "desc": "returns object with side, path, and selection for the other panel (selection relative by default, absolute if param is false)",
+      "params": ["relativeSelection=true"],
+      "examples": ["FM.getOtherPanel()", "FM.getOtherPanel(false)"]
+    },
+    "getActivePanelSide": {
+      "desc": "returns 'left' or 'right' indicating which panel is currently active",
+      "params": [],
+      "examples": ["FM.getActivePanelSide()"]
+    },
+    "getOtherPanelSide": {
+      "desc": "returns 'left' or 'right' indicating which panel is currently other/inactive",
+      "params": [],
+      "examples": ["FM.getOtherPanelSide()"]
+    },
+    "setActivePanelSide": {
+      "desc": "sets which panel should be active ('left' or 'right', defaults to 'left')",
+      "params": ["side='left'"],
+      "examples": [
+        "FM.setActivePanelSide('left')",
+        "FM.setActivePanelSide('right')"
+      ]
+    },
+    "toggleActivePanelSide": {
+      "desc": "toggles the active panel between left and right",
+      "params": [],
+      "examples": ["FM.toggleActivePanelSide()"]
+    },
+    "swapPanels": {
+      "desc": "swaps the paths of the left and right panels",
+      "params": [],
+      "examples": ["FM.swapPanels()"]
+    },
+    "refreshActivePanel": {
+      "desc": "refreshes the file list of the active panel",
+      "params": [],
+      "examples": ["FM.refreshActivePanel()"]
+    },
+    "refreshOtherPanel": {
+      "desc": "refreshes the file list of the other panel",
+      "params": [],
+      "examples": ["FM.refreshOtherPanel()"]
+    },
+    "refreshBothPanels": {
+      "desc": "refreshes the file list of both panels",
+      "params": [],
+      "examples": ["FM.refreshBothPanels()"]
+    },
+    "setActivePanelPath": {
+      "desc": "sets the path of the active panel (async, returns {success, error?})",
+      "params": ["path"],
+      "examples": ["await FM.setActivePanelPath('/Users/name/Documents')"]
+    },
+    "setOtherPanelPath": {
+      "desc": "sets the path of the other panel (async, returns {success, error?})",
+      "params": ["path"],
+      "examples": ["await FM.setOtherPanelPath('/tmp')"]
+    },
+    "setActivePanelSelection": {
+      "desc": "sets the selection for the active panel (returns {selected, notFound})",
+      "params": ["items[]", "ignoreCase=false", "reset=true"],
+      "examples": [
+        "FM.setActivePanelSelection(['file.txt', 'image.png'])",
+        "FM.setActivePanelSelection(['FILE.TXT'], true)",
+        "FM.setActivePanelSelection(['new.pdf'], false, false)"
+      ]
+    },
+    "setOtherPanelSelection": {
+      "desc": "sets the selection for the other panel (returns {selected, notFound})",
+      "params": ["items[]", "ignoreCase=false", "reset=true"],
+      "examples": [
+        "FM.setOtherPanelSelection(['doc.pdf'])",
+        "FM.setOtherPanelSelection(['README.MD'], true)",
+        "FM.setOtherPanelSelection(['data.json'], false, false)"
+      ]
+    },
+    "resetActivePanelSelection": {
+      "desc": "clears the selection for the active panel (unselects all items)",
+      "params": [],
+      "examples": ["FM.resetActivePanelSelection()"]
+    },
+    "resetOtherPanelSelection": {
+      "desc": "clears the selection for the other panel (unselects all items)",
+      "params": [],
+      "examples": ["FM.resetOtherPanelSelection()"]
+    },
+    "resetBothPanelsSelections": {
+      "desc": "clears the selection for both panels (unselects all items in both panels)",
+      "params": [],
+      "examples": ["FM.resetBothPanelsSelections()"]
+    },
+    "invertActivePanelSelection": {
+      "desc": "inverts the selection for the active panel (selects unselected, unselects selected)",
+      "params": [],
+      "examples": ["FM.invertActivePanelSelection()"]
+    },
+    "invertOtherPanelSelection": {
+      "desc": "inverts the selection for the other panel (selects unselected, unselects selected)",
+      "params": [],
+      "examples": ["FM.invertOtherPanelSelection()"]
+    },
+    "setActivePanelQuickSelect": {
+      "desc": "performs quick select on active panel using a pattern (returns count of items selected)",
+      "params": [
+        "pattern",
+        "useRegex=false",
+        "caseSensitive=false",
+        "resetSelection=true"
+      ],
+      "examples": [
+        "FM.setActivePanelQuickSelect(\"*.txt\")",
+        "FM.setActivePanelQuickSelect(\"^test\", true)",
+        "FM.setActivePanelQuickSelect(\"File\", false, true)",
+        "FM.setActivePanelQuickSelect(\"*.js\", false, false, false)",
+        "FM.setActivePanelQuickSelect(\"_FILES_ONLY_\")",
+        "FM.setActivePanelQuickSelect(\"_FOLDERS_ONLY_\")",
+        "FM.setActivePanelQuickSelect(\"_ZIP_FILES_ONLY_\")"
+      ]
+    },
+    "setOtherPanelQuickSelect": {
+      "desc": "performs quick select on other panel using a pattern (returns count of items selected)",
+      "params": [
+        "pattern",
+        "useRegex=false",
+        "caseSensitive=false",
+        "resetSelection=true"
+      ],
+      "examples": [
+        "FM.setOtherPanelQuickSelect(\"*.jpg\")",
+        "FM.setOtherPanelQuickSelect(\"\\\\.(png|gif)$\", true)",
+        "FM.setOtherPanelQuickSelect(\"IMG\", false, true)",
+        "FM.setOtherPanelQuickSelect(\"doc*\", false, false, false)",
+        "FM.setOtherPanelQuickSelect(\"_FILES_ONLY_\")",
+        "FM.setOtherPanelQuickSelect(\"_FOLDERS_ONLY_\")",
+        "FM.setOtherPanelQuickSelect(\"_ZIP_FILES_ONLY_\")"
+      ]
+    },
+    "setActivePanelQuickUnselect": {
+      "desc": "performs quick unselect on active panel using a pattern (returns count of items unselected)",
+      "params": [
+        "pattern",
+        "useRegex=false",
+        "caseSensitive=false",
+        "resetSelection=true"
+      ],
+      "examples": [
+        "FM.setActivePanelQuickUnselect(\"*.tmp\")",
+        "FM.setActivePanelQuickUnselect(\"\\\\.(log|bak)$\", true)",
+        "FM.setActivePanelQuickUnselect(\"Test\", false, true)",
+        "FM.setActivePanelQuickUnselect(\"temp*\", false, false, false)",
+        "FM.setActivePanelQuickUnselect(\"_FILES_ONLY_\")",
+        "FM.setActivePanelQuickUnselect(\"_FOLDERS_ONLY_\")",
+        "FM.setActivePanelQuickUnselect(\"_ZIP_FILES_ONLY_\")"
+      ]
+    },
+    "setOtherPanelQuickUnselect": {
+      "desc": "performs quick unselect on other panel using a pattern (returns count of items unselected)",
+      "params": [
+        "pattern",
+        "useRegex=false",
+        "caseSensitive=false",
+        "resetSelection=true"
+      ],
+      "examples": [
+        "FM.setOtherPanelQuickUnselect(\"test*\")",
+        "FM.setOtherPanelQuickUnselect(\"^old\", true)",
+        "FM.setOtherPanelQuickUnselect(\"Backup\", false, true)",
+        "FM.setOtherPanelQuickUnselect(\"*cache*\", false, false, false)",
+        "FM.setOtherPanelQuickUnselect(\"_FILES_ONLY_\")",
+        "FM.setOtherPanelQuickUnselect(\"_FOLDERS_ONLY_\")",
+        "FM.setOtherPanelQuickUnselect(\"_ZIP_FILES_ONLY_\")"
+      ]
+    },
+    "setActivePanelQuickFilter": {
+      "desc": "sets a filter pattern for the active panel to show only matching items (returns count of matching items)",
+      "params": ["pattern", "useRegex=false", "caseSensitive=false"],
+      "examples": [
+        "FM.setActivePanelQuickFilter(\"*.js\")",
+        "FM.setActivePanelQuickFilter(\"\\.(ts|tsx)$\", true)",
+        "FM.setActivePanelQuickFilter(\"Component\", false, true)",
+        "FM.setActivePanelQuickFilter(\"_FILES_ONLY_\")",
+        "FM.setActivePanelQuickFilter(\"_FOLDERS_ONLY_\")",
+        "FM.setActivePanelQuickFilter(\"_ZIP_FILES_ONLY_\")"
+      ]
+    },
+    "setOtherPanelQuickFilter": {
+      "desc": "sets a filter pattern for the other panel to show only matching items (returns count of matching items)",
+      "params": ["pattern", "useRegex=false", "caseSensitive=false"],
+      "examples": [
+        "FM.setOtherPanelQuickFilter(\"doc\")",
+        "FM.setOtherPanelQuickFilter(\"^[A-Z]\", true)",
+        "FM.setOtherPanelQuickFilter(\"README\", false, true)",
+        "FM.setOtherPanelQuickFilter(\"_FILES_ONLY_\")",
+        "FM.setOtherPanelQuickFilter(\"_FOLDERS_ONLY_\")",
+        "FM.setOtherPanelQuickFilter(\"_ZIP_FILES_ONLY_\")"
+      ]
+    },
+    "setActivePanelQuickFilterFiles": {
+      "desc": "filters the active panel to show only files (returns count of files)",
+      "params": [],
+      "examples": ["FM.setActivePanelQuickFilterFiles()"]
+    },
+    "setOtherPanelQuickFilterFiles": {
+      "desc": "filters the other panel to show only files (returns count of files)",
+      "params": [],
+      "examples": ["FM.setOtherPanelQuickFilterFiles()"]
+    },
+    "setActivePanelQuickFilterFolders": {
+      "desc": "filters the active panel to show only folders (returns count of folders)",
+      "params": [],
+      "examples": ["FM.setActivePanelQuickFilterFolders()"]
+    },
+    "setOtherPanelQuickFilterFolders": {
+      "desc": "filters the other panel to show only folders (returns count of folders)",
+      "params": [],
+      "examples": ["FM.setOtherPanelQuickFilterFolders()"]
+    },
+    "setActivePanelQuickFilterZipFiles": {
+      "desc": "filters the active panel to show only zip/archive files (returns count of zip files)",
+      "params": [],
+      "examples": ["FM.setActivePanelQuickFilterZipFiles()"]
+    },
+    "setOtherPanelQuickFilterZipFiles": {
+      "desc": "filters the other panel to show only zip/archive files (returns count of zip files)",
+      "params": [],
+      "examples": ["FM.setOtherPanelQuickFilterZipFiles()"]
+    },
+    "resetActivePanelQuickFilter": {
+      "desc": "clears the filter for the active panel (shows all items, returns count of items)",
+      "params": [],
+      "examples": ["FM.resetActivePanelQuickFilter()"]
+    },
+    "resetOtherPanelQuickFilter": {
+      "desc": "clears the filter for the other panel (shows all items, returns count of items)",
+      "params": [],
+      "examples": ["FM.resetOtherPanelQuickFilter()"]
+    },
+    "resetBothPanelQuickFilter": {
+      "desc": "clears the filter for both panels (shows all items, returns combined count of items)",
+      "params": [],
+      "examples": ["FM.resetBothPanelQuickFilter()"]
+    },
+    "selectActivePanelFiles": {
+      "desc": "selects only files (non-folder, non-parent items) in the active panel (returns count of files selected)",
+      "params": [],
+      "examples": ["FM.selectActivePanelFiles()"]
+    },
+    "selectOtherPanelFiles": {
+      "desc": "selects only files (non-folder, non-parent items) in the other panel (returns count of files selected)",
+      "params": [],
+      "examples": ["FM.selectOtherPanelFiles()"]
+    },
+    "selectActivePanelFolders": {
+      "desc": "selects only folders in the active panel (returns count of folders selected)",
+      "params": [],
+      "examples": ["FM.selectActivePanelFolders()"]
+    },
+    "selectOtherPanelFolders": {
+      "desc": "selects only folders in the other panel (returns count of folders selected)",
+      "params": [],
+      "examples": ["FM.selectOtherPanelFolders()"]
+    },
+    "selectActivePanelZipFiles": {
+      "desc": "selects only zip/archive files in the active panel (returns count of zip files selected)",
+      "params": [],
+      "examples": ["FM.selectActivePanelZipFiles()"]
+    },
+    "selectOtherPanelZipFiles": {
+      "desc": "selects only zip/archive files in the other panel (returns count of zip files selected)",
+      "params": [],
+      "examples": ["FM.selectOtherPanelZipFiles()"]
+    },
+    "unselectActivePanelFiles": {
+      "desc": "unselects only files in the active panel (returns count of items remaining in selection)",
+      "params": [],
+      "examples": ["FM.unselectActivePanelFiles()"]
+    },
+    "unselectOtherPanelFiles": {
+      "desc": "unselects only files in the other panel (returns count of items remaining in selection)",
+      "params": [],
+      "examples": ["FM.unselectOtherPanelFiles()"]
+    },
+    "unselectActivePanelFolders": {
+      "desc": "unselects only folders in the active panel (returns count of items remaining in selection)",
+      "params": [],
+      "examples": ["FM.unselectActivePanelFolders()"]
+    },
+    "unselectOtherPanelFolders": {
+      "desc": "unselects only folders in the other panel (returns count of items remaining in selection)",
+      "params": [],
+      "examples": ["FM.unselectOtherPanelFolders()"]
+    },
+    "unselectActivePanelZipFiles": {
+      "desc": "unselects only zip/archive files in the active panel (returns count of items remaining in selection)",
+      "params": [],
+      "examples": ["FM.unselectActivePanelZipFiles()"]
+    },
+    "unselectOtherPanelZipFiles": {
+      "desc": "unselects only zip/archive files in the other panel (returns count of items remaining in selection)",
+      "params": [],
+      "examples": ["FM.unselectOtherPanelZipFiles()"]
+    },
+    "getActivePanelPath": {
+      "desc": "returns the absolute path of the currently active panel",
+      "params": [],
+      "examples": ["FM.getActivePanelPath()"]
+    },
+    "getOtherPanelPath": {
+      "desc": "returns the absolute path of the currently other panel",
+      "params": [],
+      "examples": ["FM.getOtherPanelPath()"]
+    },
+    "getActivePanelSelection": {
+      "desc": "returns array of paths for selected items in the active panel (relative by default, absolute if param is false)",
+      "params": ["relative=true"],
+      "examples": ["FM.getActivePanelSelection()"]
+    },
+    "getOtherPanelSelection": {
+      "desc": "returns array of paths for selected items in the other panel (relative by default, absolute if param is false)",
+      "params": ["relative=true"],
+      "examples": ["FM.getOtherPanelSelection()"]
+    },
+    "toString": {
+      "desc": "returns info string (same as FM())",
+      "params": [],
+      "examples": ["FM.toString()"]
+    },
+    "help": {
+      "desc": "prints this help",
+      "params": [],
+      "examples": ["FM.help()"]
+    }
+  },
+  "properties": {
+    "name": {
+      "desc": "package name (e.g. web-file-manager)"
+    },
+    "version": {
+      "desc": "package version (e.g. 1.1.7)"
+    },
+    "buildType": {
+      "desc": "current build mode (Node:Dev | Electron:Dev | Electron:Dist)"
+    }
+  }
+}
