@@ -22,6 +22,7 @@ import overwriteModalScreenshot from "../../../screenshots/overwrite-modal.png";
 import builtInTerminalScreenshot from "../../../screenshots/built-in-terminal.png";
 import electronScreenshot from "../../../screenshots/electron.png";
 import searchScreenshot from "../../../screenshots/search.png";
+import fmScreenshot from "../../../screenshots/fm.png";
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -483,25 +484,62 @@ const HelpModal = ({ isVisible, onClose }) => {
                         Clears the current selection.
                       </li>
                       <li>
-                        <kbd>Invert Selection</kbd> | <kbd>*</kbd>: Inverts the
+                        <kbd>Invert Selection</kbd> | <kbd>*</kbd> : Inverts the
                         current selection.
                       </li>
                       <li>
-                        <kbd>Quick Select</kbd> | <kbd>+</kbd>: Opens a dialog
+                        <kbd>Select Files only</kbd> — selects files.
+                      </li>
+                      <li>
+                        <kbd>Select Folders only</kbd> — selects folders.
+                      </li>
+                      <li>
+                        <kbd>Select Zip Files only</kbd> — selects zip files.
+                      </li>
+                      <li>
+                        <kbd>Unselect Files only</kbd> — removes file items from
+                        selection.
+                      </li>
+                      <li>
+                        <kbd>Unselect Folders only</kbd> — removes folder items
+                        from selection.
+                      </li>
+                      <li>
+                        <kbd>Unselect Zip Files only</kbd> — removes zip files
+                        from selection.
+                      </li>
+                      <li>
+                        <kbd>Quick Select</kbd> | <kbd>+</kbd> : Opens a dialog
                         to select files and folders that match a specific
                         pattern (wildcards or regex).
                       </li>
                       <li>
-                        <kbd>Quick Unselect</kbd> | <kbd>-</kbd>: Opens a dialog
-                        to unselect items based on a pattern.
+                        <kbd>Quick Unselect</kbd> | <kbd>-</kbd> : Opens a
+                        dialog to unselect items based on a pattern.
                       </li>
                       <li>
-                        <kbd>Quick Filter</kbd> | <kbd>.</kbd>: Opens an input
+                        <kbd>Quick Filter</kbd> | <kbd>.</kbd> : Opens an input
                         at the bottom of the panel to filter the visible items
                         in real-time.
                       </li>
+                      <li>
+                        <kbd>Quick Filter Files only</kbd> — show only files.
+                      </li>
+                      <li>
+                        <kbd>Quick Filter Folders only</kbd> — show only
+                        folders.
+                      </li>
+                      <li>
+                        <kbd>Quick Filter Zip Files only</kbd> — show only
+                        zip/archive files.
+                      </li>
+                      <li>
+                        <kbd>Reset Quick Filter</kbd> — clear any quick filter
+                        applied.
+                      </li>
                     </ul>
                   </li>
+
                   <li>
                     <strong>Additional Commands</strong> <em>Menu:</em>
                     <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
@@ -716,7 +754,11 @@ const HelpModal = ({ isVisible, onClose }) => {
               <li>
                 <strong>Select Menu:</strong> Offers various ways to manage
                 selections, including Select All, Unselect All, Invert
-                Selection, Quick Select, Quick Unselect, and Quick Filter.
+                Selection, Quick Select, Quick Unselect, Quick Filter, and
+                several targeted commands such as Select Files only / Select
+                Folders only / Select Zip Files only, and their corresponding
+                Unselect variants. The menu also provides Quick Filter variants
+                for files/folders/zip files and a Reset Quick Filter action.
               </li>
             </ul>
             <img
@@ -848,6 +890,11 @@ const HelpModal = ({ isVisible, onClose }) => {
                 — swap the directory paths of left and right panels
               </li>
             </ul>
+            <img
+              src={fmScreenshot}
+              alt="FM Modal Screenshot"
+              className="w-3/4 mx-auto rounded-lg shadow-lg"
+            />
           </HelpSection>
 
           <HelpSection id="function-key-actions" title="Function Key Actions">

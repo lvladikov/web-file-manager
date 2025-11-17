@@ -168,7 +168,21 @@ When running the Electron app, both client and server and the node binaries and 
 
   - **Quick Unselect** (<kbd>-</kbd>): Opens a dialog to unselect items based on a pattern.
 
+  - **Select/Unselect by Type**: The application supports selecting or unselecting by type from the `Select & Filter` menu or from the Additional Commands submenu in any context menu:
+    - **Select Files only** — selects only file items in the panel (menu label: `Select Files only`).
+    - **Select Folders only** — selects only folder items in the panel (menu label: `Select Folders only`).
+    - **Select Zip Files only** — selects only zip items in the panel (menu label: `Select Zip Files only`).
+    - **Unselect Files only** — unselects file items in the panel (menu label: `Unselect Files only`).
+    - **Unselect Folders only** — unselects folder items in the panel (menu label: `Unselect Folders only`).
+    - **Unselect Zip Files only** — unselects zip items in the panel (menu label: `Unselect Zip Files only`).
+
   - **Quick Filter** (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy, Copy Path, Calculate folder size, Archive operations and Delete will only apply to the filtered items.
+
+  - **Quick Filter by Type**: In addition to a general quick filter (pattern), the app provides quick filters for specific types (available from `Select & Filter` and context menus):
+    - **Quick Filter Files only** — filters the panel to show only files (menu label: `Quick Filter Files only`).
+    - **Quick Filter Folders only** — filters the panel to show only folders (menu label: `Quick Filter Folders only`).
+    - **Quick Filter Zip Files only** — filters the panel to show only zip files (menu label: `Quick Filter Zip Files only`).
+    - **Reset Quick Filter** — clears any quick filter applied to the panel (menu label: `Reset Quick Filter`).
 
     ![Quick Filter Screenshot](packages/client/screenshots/quick-filter.png)
 
@@ -208,6 +222,8 @@ When running the Electron app, both client and server and the node binaries and 
   - `FM.toggleActivePanelSide()` — toggle between left and right panels
   - `FM.refreshBothPanels()` — reload directory contents for both panels
   - `FM.swapPanels()` — swap the directory paths of left and right panels
+
+    ![FM Modal Screenshot](packages/client/screenshots/fm.png)
 
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions.
 

@@ -170,3 +170,5 @@ This project exposes a small, developer-friendly global named `FM` in the page c
 
 - `FM` is exported as a function so that calling `FM()` returns the information string while still allowing properties and helper functions to be attached to the same object (function objects in JS are valid namespaces).
 - On Electron, `FM` is injected into the page context from the preload script for visibility in DevTools. When running in packaged builds, `FM.getBuildType()` will return `Electron:Dist` (packaged apps typically load content via the `file://` protocol). The Electron `preload` script also attempts to inject and attach `FM` into the page's context so that `FM` and `FM.help()` are available in DevTools for both dev and packaged builds. If the injection is not possible (e.g., the file is bundled differently in your packaging), the client `attachFMToWindow()` call remains the fallback.
+
+![FM Modal Screenshot](../packages/client/screenshots/fm.png)
