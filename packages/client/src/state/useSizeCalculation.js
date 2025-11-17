@@ -107,7 +107,7 @@ export default function useSizeCalculation({
               const jobWs = new WebSocket(
                 `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=size`
               );
-
+              jobWs.jobId = jobId;
               wsRef.current = jobWs;
 
               jobWs.onmessage = (event) => {

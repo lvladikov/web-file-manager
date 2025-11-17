@@ -197,9 +197,11 @@ export default function useCopy({
       overwritePrompt.isVisible &&
       wsRef.current?.readyState === WebSocket.OPEN
     ) {
-      wsRef.current.send(
-        JSON.stringify({ type: "overwrite_response", decision: "cancel" })
-      );
+      const payload = { type: "overwrite_response", decision: "cancel" };
+      if (overwritePrompt.item && overwritePrompt.item.promptId) {
+        payload.promptId = overwritePrompt.item.promptId;
+      }
+      wsRef.current.send(JSON.stringify(payload));
       setOverwritePrompt({ isVisible: false, item: null });
     } else if (copyProgress.jobId) {
       try {
@@ -260,6 +262,7 @@ export default function useCopy({
         copyProgress.jobId
       }&type=${jobType}`
     );
+    ws.jobId = copyProgress.jobId;
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
@@ -303,7 +306,11 @@ export default function useCopy({
         case "overwrite_prompt":
           setOverwritePrompt({
             isVisible: true,
-            item: { name: data.file, type: data.itemType },
+            item: {
+              name: data.file,
+              type: data.itemType,
+              promptId: data.promptId,
+            },
             jobType: copyProgress.isMove ? "move" : "copy",
           });
           break;
@@ -321,7 +328,15 @@ export default function useCopy({
         // Fallthrough intended
         case "cancelled":
         case "error": {
-          ws.close();
+          if (
+            ws &&
+            !ws._closeCalled &&
+            (ws.readyState === WebSocket.OPEN ||
+              ws.readyState === WebSocket.CONNECTING)
+          ) {
+            ws._closeCalled = true;
+            ws.close(1000, "Copy complete");
+          }
           const sourcePanelId = activePanel;
           const destPanelId = sourcePanelId === "left" ? "right" : "left";
           handleNavigate(sourcePanelId, panels[sourcePanelId].path, ""); // Refresh source
@@ -363,12 +378,14 @@ export default function useCopy({
     };
 
     ws.onerror = () => {
+      console.error(`[useCopy] WebSocket error for job ${copyProgress.jobId}`);
       latestProps.current.setError("Could not connect to progress server.");
     };
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (ws && !ws._closeCalled && ws.readyState === WebSocket.OPEN) {
+        ws._closeCalled = true;
+        ws.close(1000, "Copy error / cancelled");
       }
     };
   }, [

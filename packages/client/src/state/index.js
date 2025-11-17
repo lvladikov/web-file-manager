@@ -26,6 +26,36 @@ import useSwapPanels from "./useSwapPanels";
 import useCopyPaths from "./useCopyPaths";
 import useZipUpdate from "./useZipUpdate";
 
+// Development helper: monkey-patch WebSocket.prototype.close to trace who called it and include code/reason in logs.
+// Guarded so it runs only once and only in dev contexts.
+try {
+  if (typeof WebSocket !== "undefined" && !WebSocket.prototype.__closePatched) {
+    const originalClose = WebSocket.prototype.close;
+    WebSocket.prototype.close = function patchedClose(code, reason) {
+      try {
+        const id = this && this.jobId ? this.jobId : undefined;
+        const wsUrl = this && this.url ? this.url : undefined;
+        const prefix = id
+          ? `[client] WebSocket.prototype.close called for job=${id}`
+          : `[client] WebSocket.prototype.close called`;
+        // Use console.trace for stack and include the code/reason/url
+        // Uncomment the next line to enable tracing
+        // console.trace(
+        //   `${prefix} with code=${code} reason='${reason}' url='${
+        //     wsUrl || "n/a"
+        //   }'`
+        // );
+      } catch (e) {
+        // ignore any error while tracing
+      }
+      return originalClose.apply(this, arguments);
+    };
+    WebSocket.prototype.__closePatched = true;
+  }
+} catch (e) {
+  // In case globals are not writable or in strict env, fall back silently
+}
+
 export default function appState() {
   // --- Core State ---
   const [activePanel, setActivePanel] = useState("left");
@@ -897,9 +927,19 @@ export default function appState() {
     }
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({ type: "overwrite_response", decision })
-      );
+      const payload = { type: "overwrite_response", decision };
+      // Include promptId if available in overwritePrompt state
+      if (
+        overwritePrompt &&
+        overwritePrompt.item &&
+        overwritePrompt.item.promptId
+      ) {
+        payload.promptId = overwritePrompt.item.promptId;
+      }
+      // Include jobId of the socket if it exists, so server can accurately identify job when resolving
+      if (wsRef.current && wsRef.current.jobId)
+        payload.jobId = wsRef.current.jobId;
+      wsRef.current.send(JSON.stringify(payload));
     }
     setOverwritePrompt({ isVisible: false, item: null });
   };

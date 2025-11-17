@@ -110,6 +110,7 @@ const useArchiveIntegrityTest = ({
         const ws = new WebSocket(
           `${wsProtocol}//${window.location.host}/ws?jobId=${currentJobId}&type=archive-test`
         );
+        ws.jobId = currentJobId;
 
         await new Promise((resolve) => {
           ws.onmessage = (event) => {
@@ -160,7 +161,15 @@ const useArchiveIntegrityTest = ({
                   ...prev,
                   currentFile: `Test of ${archiveItem.name} completed.`,
                 }));
-                ws.close();
+                if (
+                  ws &&
+                  !ws._closeCalled &&
+                  (ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING)
+                ) {
+                  ws._closeCalled = true;
+                  ws.close(1000, "Archive integrity test complete");
+                }
                 resolve();
                 break;
               case "failed":
@@ -173,7 +182,15 @@ const useArchiveIntegrityTest = ({
                   ...prev,
                   currentFile: `Test of ${archiveItem.name} failed.`,
                 }));
-                ws.close();
+                if (
+                  ws &&
+                  !ws._closeCalled &&
+                  (ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING)
+                ) {
+                  ws._closeCalled = true;
+                  ws.close(1000, "Archive integrity test error");
+                }
                 resolve();
                 break;
             }
@@ -205,7 +222,15 @@ const useArchiveIntegrityTest = ({
               ...prev,
               currentFile: `Test of ${archiveItem.name} failed due to WebSocket error.`,
             }));
-            ws.close();
+            if (
+              ws &&
+              !ws._closeCalled &&
+              (ws.readyState === WebSocket.OPEN ||
+                ws.readyState === WebSocket.CONNECTING)
+            ) {
+              ws._closeCalled = true;
+              ws.close(1000, "Archive integrity test closed");
+            }
             resolve();
           };
         });

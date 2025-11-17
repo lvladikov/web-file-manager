@@ -217,6 +217,7 @@ const calculateFolderSize = (folder, wsRef, setSizeCalcModal) => {
         );
 
         // Store the WebSocket instance in the ref so it can be accessed from outside (e.g., for cancellation).
+        jobWs.jobId = jobId;
         wsRef.current = jobWs;
 
         // Step 4: Define WebSocket event handlers.

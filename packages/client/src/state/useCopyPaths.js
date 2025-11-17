@@ -11,8 +11,15 @@ export default function useCopyPaths({
   filteredItems,
 }) {
   const cancelCopyPaths = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
+    if (
+      wsRef.current &&
+      wsRef.current.jobId &&
+      !wsRef.current._closeCalled &&
+      (wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING)
+    ) {
+      wsRef.current._closeCalled = true;
+      wsRef.current.close(1000, "Copy Paths modal canceled");
     }
     setCopyPathsModal({
       isVisible: false,
@@ -32,9 +39,9 @@ export default function useCopyPaths({
           ? filteredItems[activePanel]
           : panel.items;
 
-        const selectedItems = Array.from(selections[activePanel]).map((name) =>
-          itemsToConsider.find((item) => item.name === name)
-        ).filter(Boolean); // Filter out any undefined entries
+        const selectedItems = Array.from(selections[activePanel])
+          .map((name) => itemsToConsider.find((item) => item.name === name))
+          .filter(Boolean); // Filter out any undefined entries
 
         const response = await fetch("/api/get-paths", {
           method: "POST",
@@ -69,6 +76,7 @@ export default function useCopyPaths({
           `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=copy-paths`
         );
 
+        jobWs.jobId = jobId;
         wsRef.current = jobWs;
 
         jobWs.onmessage = (event) => {
@@ -134,7 +142,11 @@ export default function useCopyPaths({
           }
         };
 
-        jobWs.onerror = () => {
+        jobWs.onerror = (err) => {
+          console.error(
+            `[useCopyPaths] WebSocket error for job ${jobId}:`,
+            err
+          );
           setError("WebSocket connection error.");
           setCopyPathsModal({
             isVisible: false,
@@ -145,7 +157,10 @@ export default function useCopyPaths({
           });
         };
 
-        jobWs.onclose = () => {
+        jobWs.onclose = (event) => {
+          console.log(
+            `[useCopyPaths] WebSocket onclose for job ${jobId} code=${event.code} reason='${event.reason}' wasClean=${event.wasClean}`
+          );
           setCopyPathsModal({
             isVisible: false,
             jobId: null,
@@ -158,7 +173,16 @@ export default function useCopyPaths({
         setError(err.message);
       }
     },
-    [activePanel, panels, selections, setError, setCopyPathsModal, wsRef, filter, filteredItems]
+    [
+      activePanel,
+      panels,
+      selections,
+      setError,
+      setCopyPathsModal,
+      wsRef,
+      filter,
+      filteredItems,
+    ]
   );
 
   const copyAbsolutePaths = useCallback(

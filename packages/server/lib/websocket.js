@@ -30,6 +30,15 @@ import {
   getDirTotalSizeInZip,
   getAllFilesAndDirsRecursive,
 } from "./utils.js";
+import {
+  getAndRemovePromptResolver,
+  unregisterPromptResolver,
+  unregisterAllForJob,
+  registerPromptResolver,
+  registerPromptMeta,
+  ensureInstrumentedResolversMap,
+  countRegistry,
+} from "./prompt-registry.js";
 // Keep track of clients that are watching for file changes
 const watchingClients = new Map();
 
@@ -62,8 +71,79 @@ export function initializeWebSocketServer(
   activeTerminalJobs
 ) {
   const wss = new WebSocketServer({ server });
+  wss.on("error", (err) => {
+    console.error(`[ws] WebSocketServer error: ${err && (err.message || err)}`);
+  });
+
+  async function safeCloseJobWs(job, code = 1000, reason = "") {
+    try {
+      if (!job) return;
+      // Wait for any pending prompt resolvers to resolve before closing the WS
+      const start = Date.now();
+      const timeoutMs = 30000; // 30s max wait
+      while (
+        job.overwriteResolversMap &&
+        job.overwriteResolversMap.size > 0 &&
+        Date.now() - start < timeoutMs
+      ) {
+        console.log(
+          `[ws] safeCloseJobWs waiting for ${
+            job.overwriteResolversMap.size
+          } pending overwrite prompts for job ${job.id} trace=${
+            job._traceId ?? "n/a"
+          }`
+        );
+        // wait briefly
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      if (job.overwriteResolversMap && job.overwriteResolversMap.size > 0) {
+        console.warn(
+          `[ws] safeCloseJobWs timed out waiting for overwrite prompts to clear for job ${
+            job.id
+          } trace=${job._traceId ?? "n/a"}`
+        );
+      }
+      if (job.ws && job.ws.readyState === 1) {
+        try {
+          job.ws.close(code, reason);
+          console.log(
+            `[ws] safeCloseJobWs closed job ${job.id} with code=${code} reason='${reason}'`
+          );
+        } catch (e) {
+          console.warn(
+            `[ws] safeCloseJobWs failed to close socket for job ${job.id}: ${e.message}`
+          );
+        }
+      }
+    } catch (e) {
+      console.warn(
+        `[ws] safeCloseJobWs exception for job ${job?.id}: ${e.message}`
+      );
+    }
+  }
 
   wss.on("connection", (ws, req) => {
+    function getJobById(id) {
+      const maps = [
+        activeCopyJobs,
+        activeSizeJobs,
+        activeCompressJobs,
+        activeDecompressJobs,
+        activeArchiveTestJobs,
+        activeDuplicateJobs,
+        activeCopyPathsJobs,
+        activeZipOperations,
+        activeTerminalJobs,
+      ];
+      for (const m of maps) {
+        try {
+          if (m && typeof m.has === "function" && m.has(id)) return m.get(id);
+        } catch (e) {
+          // ignore
+        }
+      }
+      return null;
+    }
     const url = new URL(req.url, `http://${req.headers.host}`);
     const jobId = url.searchParams.get("jobId");
     const jobType = url.searchParams.get("type");
@@ -113,57 +193,391 @@ export function initializeWebSocketServer(
         if (job) {
           job.ws = ws;
         }
-        console.log(`[ws] Client connected for ${jobType} job: ${jobId}`);
+        console.log(
+          `[ws] Client connected for ${jobType} job: ${jobId} trace=${
+            job?._traceId ?? "n/a"
+          }`
+        );
+
+        ws.on("error", (err) => {
+          console.error(
+            `[ws] WebSocket error for ${jobType} job ${jobId} trace=${
+              job?._traceId ?? "n/a"
+            }:`,
+            err && (err.message || err)
+          );
+        });
 
         ws.on("message", (message) => {
-          const data = JSON.parse(message);
-          if (data.type === "overwrite_response") {
-            if (data.decision === "cancel") {
-              if (jobType === "copy" || jobType === "duplicate") {
-                // Ensure the decision is set so awaiting prompts read it as a cancel.
-                if (job) job.overwriteDecision = "cancel";
-                performCopyCancellation(job);
-              } else if (jobType === "decompress") {
-                job.status = "cancelled";
-                job.controller.abort();
-                if (job.resolveOverwrite) {
-                  job.overwriteDecision = "cancel";
-                  job.resolveOverwrite();
-                }
-              }
-            } else if (job.resolveOverwrite) {
-              job.overwriteDecision = data.decision;
-              job.resolveOverwrite();
-            }
-          } else if (jobType === "terminal") {
-            const job = activeTerminalJobs.get(jobId);
-            if (job && job.ptyProcess) {
-              const term = job.ptyProcess;
-              if (data.type === "resize") {
-                term.resize(data.cols, data.rows);
-              } else if (data.type === "data") {
-                // Write to the child process stdin
-                term.write(data.data);
-
-                // If this is the non-PTY fallback, echo typed characters
-                // back to the client so they appear immediately in the
-                // terminal UI (the shell may not echo when not attached to
-                // a real TTY).
+          try {
+            console.log(
+              `[ws] Received raw message for job ${jobId}: ${message}`
+            );
+            const data = JSON.parse(message);
+            if (data.type === "overwrite_response") {
+              console.log(
+                `[ws] overwrite_response received for job ${jobId} trace=${
+                  job?._traceId ?? "n/a"
+                }: decision=${data.decision} promptId=${
+                  data.promptId || "n/a"
+                } currentStatus=${job?.status} overwriteResolversMap.size=${
+                  job?.overwriteResolversMap
+                    ? job.overwriteResolversMap.size
+                    : 0
+                } overwriteResolvers.length=${
+                  Array.isArray(job?.overwriteResolvers)
+                    ? job.overwriteResolvers.length
+                    : 0
+                }`
+              );
+              if (job && job.overwriteResolversMap) {
                 try {
-                  if (
-                    term.isPty === false &&
-                    job.ws &&
-                    job.ws.readyState === 1
-                  ) {
-                    // send raw data so the renderer's onmessage will treat
-                    // it as terminal output and render it
-                    job.ws.send(data.data);
-                  }
+                  const keys = Array.from(job.overwriteResolversMap.keys());
+                  console.log(
+                    `[ws] overwriteResolversMap keys for job ${jobId}: ${keys.join(
+                      ", "
+                    )}`
+                  );
                 } catch (e) {
-                  // ignore send errors
+                  // ignore
+                }
+              }
+              if (data.decision === "cancel") {
+                if (jobType === "copy" || jobType === "duplicate") {
+                  // Ensure the decision is set so awaiting prompts read it as a cancel.
+                  if (job) job.overwriteDecision = "cancel";
+                  performCopyCancellation(job);
+                } else if (jobType === "decompress") {
+                  job.status = "cancelled";
+                  job.controller.abort();
+                  // Unblock any pending overwrite prompts for this job
+                  if (
+                    Array.isArray(job.overwriteResolvers) &&
+                    job.overwriteResolvers.length > 0
+                  ) {
+                    job.overwriteResolvers.forEach((r) => {
+                      try {
+                        r("cancel");
+                      } catch (e) {
+                        console.warn(
+                          `[ws] overwrite resolver threw during cancel for job ${jobId}: ${e.message}`
+                        );
+                      }
+                    });
+                    job.overwriteResolvers = [];
+                  } else if (job.resolveOverwrite) {
+                    // Back-compat
+                    job.overwriteDecision = "cancel";
+                    try {
+                      job.resolveOverwrite();
+                    } catch (e) {
+                      console.warn(
+                        `[ws] single resolveOverwrite threw during cancel for job ${jobId}: ${e.message}`
+                      );
+                    }
+                  }
+                }
+              } else if (job) {
+                // If a promptId was passed but not found in the job's local map,
+                // attempt to resolve via shared prompt registry (handles the case
+                // where job objects have been replaced and lost their map)
+                if (
+                  data.promptId &&
+                  !(
+                    job.overwriteResolversMap &&
+                    job.overwriteResolversMap.has(data.promptId)
+                  )
+                ) {
+                  let entry = getAndRemovePromptResolver(data.promptId);
+                  // If registry didn't have it, but client sent a jobId, try resolving from that job's map
+                  if (!entry && data.jobId) {
+                    try {
+                      const providedJob = getJobById(data.jobId);
+                      if (
+                        providedJob &&
+                        providedJob.overwriteResolversMap &&
+                        providedJob.overwriteResolversMap.has(data.promptId)
+                      ) {
+                        const resolver = providedJob.overwriteResolversMap.get(
+                          data.promptId
+                        );
+                        entry = { jobId: data.jobId, resolver };
+                        console.log(
+                          `[ws] Found resolver in provided job ${data.jobId} for prompt ${data.promptId}. Using it.`
+                        );
+                      }
+                    } catch (err) {
+                      console.warn(
+                        `[ws] Error checking provided job map for prompt ${data.promptId}: ${err.message}`
+                      );
+                    }
+                  }
+                  if (entry && entry.resolver) {
+                    if (entry && entry.meta) {
+                      console.log(
+                        `[ws] Resolved registry prompt ${
+                          data.promptId
+                        } meta=${JSON.stringify(entry.meta)}`
+                      );
+                      try {
+                        const meta = entry.meta || {};
+                        if (meta.isFolderPrompt && data.decision === "skip") {
+                          console.warn(
+                            `[ws] Received skip decision for folder prompt ${
+                              data.promptId
+                            }. Consider using skip_all to avoid child prompts. meta=${JSON.stringify(
+                              meta
+                            )}`
+                          );
+                        }
+                      } catch (e) {}
+                    }
+                    console.warn(
+                      `[ws] Found resolver in global registry for prompt ${data.promptId} (registered job ${entry.jobId}) (ws job ${jobId}). Invoking it.`
+                    );
+                    try {
+                      // If the registry's jobId differs from the current ws jobId, prefer
+                      // invoking the resolver that was registered for the original job so that
+                      // closure-bound values are applied correctly.
+                      const registeredJob = getJobById(entry.jobId) || null;
+                      const targetJob = registeredJob || job;
+                      // Keep a log of which job had the registered resolver vs current ws job
+                      console.log(
+                        `[ws] Invoking registry resolver for prompt ${
+                          data.promptId
+                        }: registryJob=${
+                          entry.jobId
+                        } currentWsJob=${jobId} targetJob=${
+                          registeredJob ? registeredJob.id : "none"
+                        }`
+                      );
+                      // Set the overwriteDecision on the target job (if available)
+                      if (targetJob)
+                        targetJob.overwriteDecision = data.decision;
+                      // If the prompt belonged to a folder but client sent 'skip', treat it as 'skip_all'
+                      if (
+                        entry &&
+                        entry.meta &&
+                        entry.meta.isFolderPrompt &&
+                        data.decision === "skip"
+                      ) {
+                        console.warn(
+                          `[ws] Converting decision 'skip' -> 'skip_all' for folder prompt ${data.promptId}`
+                        );
+                        data.decision = "skip_all";
+                        if (targetJob) targetJob.overwriteDecision = "skip_all";
+                      }
+                      // Invoke the resolver that was registered; it's bound to its original job's closure
+                      entry.resolver(data.decision);
+                      // Also attempt to clean up from the current job if present
+                      if (job && job.overwriteResolversMap)
+                        job.overwriteResolversMap.delete(data.promptId);
+                    } catch (err) {
+                      console.error(
+                        `[ws] Error invoking global registry resolver for prompt ${data.promptId}:`,
+                        err
+                      );
+                    }
+                    // Don't proceed with local resolving logic below since we've resolved it
+                    return;
+                  }
+                }
+                job.overwriteDecision = data.decision;
+                // If promptId is provided, consume exact resolver by id
+                if (
+                  data.promptId &&
+                  job.overwriteResolversMap &&
+                  job.overwriteResolversMap.has(data.promptId)
+                ) {
+                  try {
+                    const resolver = job.overwriteResolversMap.get(
+                      data.promptId
+                    );
+                    job.overwriteResolversMap.delete(data.promptId);
+                    try {
+                      unregisterPromptResolver(data.promptId);
+                    } catch (e) {
+                      console.warn(
+                        `[ws] Failed to unregister prompt ${data.promptId} from registry: ${e}`
+                      );
+                    }
+                    console.log(
+                      `[ws] Deleting resolver for prompt ${
+                        data.promptId
+                      } from job ${jobId} trace=${
+                        job?._traceId ?? "n/a"
+                      }. newSize=${job.overwriteResolversMap.size}`
+                    );
+                    if (typeof resolver === "function") {
+                      try {
+                        // Ensure job.overwriteDecision reflects latest decision before invoking resolver
+                        job.overwriteDecision = data.decision;
+                        resolver(data.decision);
+                        // Log job.overwriteDecision set by the resolver to help debug why 'overwrite' sometimes behaves like 'skip'
+                        console.log(
+                          `[ws] Local resolver set job.overwriteDecision for prompt ${data.promptId} job ${jobId} -> ${job?.overwriteDecision}`
+                        );
+                      } catch (err) {
+                        console.error(
+                          `[ws] Error while invoking resolver for prompt ${data.promptId} job ${jobId}:`,
+                          err
+                        );
+                      }
+                    } else {
+                      console.warn(
+                        `[ws] overwrite resolver for prompt ${data.promptId} is not a function for job ${jobId}`
+                      );
+                    }
+                  } catch (err) {
+                    console.error(
+                      `[ws] Error while resolving overwrite for prompt ${data.promptId} job ${jobId}:`,
+                      err
+                    );
+                  }
+                } else if (
+                  Array.isArray(job.overwriteResolvers) &&
+                  job.overwriteResolvers.length > 0
+                ) {
+                  try {
+                    const resolver = job.overwriteResolvers.shift();
+                    console.log(
+                      `[ws] Consuming overwrite resolver for job ${jobId}. queueRemaining=${job.overwriteResolvers.length}`
+                    );
+                    if (typeof resolver === "function") {
+                      resolver(data.decision);
+                      console.log(
+                        `[ws] Resolved overwrite for job ${jobId} with decision '${data.decision}'.`
+                      );
+                    } else {
+                      console.warn(
+                        `[ws] overwrite resolver is not a function for job ${jobId}`
+                      );
+                    }
+                  } catch (err) {
+                    console.error(
+                      `[ws] Error while resolving overwrite for job ${jobId}:`,
+                      err
+                    );
+                  }
+                } else if (job.resolveOverwrite) {
+                  // Back-compat: fall back to single resolver
+                  try {
+                    job.resolveOverwrite();
+                  } catch (err) {
+                    console.error(
+                      `[ws] Error while invoking single resolveOverwrite for job ${jobId}:`,
+                      err
+                    );
+                  }
+                } else {
+                  console.warn(
+                    `[ws] Received overwrite_response for job ${jobId} but no resolver exists`
+                  );
+                }
+                console.log(
+                  `[ws] overwrite_response processed for job ${jobId}, decision=${
+                    data.decision
+                  }, promptId=${
+                    data.promptId
+                  }, registryCount=${countRegistry()}`
+                );
+                // Fallback: if we have a promptId but not an exact match, try to consume the first available resolver in the map.
+                if (
+                  data.promptId &&
+                  job.overwriteResolversMap &&
+                  job.overwriteResolversMap.size > 0 &&
+                  !job.overwriteResolversMap.has(data.promptId)
+                ) {
+                  try {
+                    const firstKey = job.overwriteResolversMap
+                      .keys()
+                      .next().value;
+                    const resolver = job.overwriteResolversMap.get(firstKey);
+                    job.overwriteResolversMap.delete(firstKey);
+                    try {
+                      unregisterPromptResolver(firstKey);
+                    } catch (e) {}
+                    console.warn(
+                      `[ws] Received overwrite_response for prompt ${
+                        data.promptId
+                      } but no exact resolver; falling back to first resolver ${firstKey} for job ${jobId} trace=${
+                        job?._traceId ?? "n/a"
+                      }`
+                    );
+                    if (typeof resolver === "function") resolver(data.decision);
+                  } catch (err) {
+                    console.error(
+                      `[ws] Error while falling back resolving overwrite for job ${jobId}:`,
+                      err
+                    );
+                  }
+                }
+              }
+            } else if (jobType === "terminal") {
+              const job = activeTerminalJobs.get(jobId);
+              if (job && job.ptyProcess) {
+                const term = job.ptyProcess;
+                if (data.type === "resize") {
+                  term.resize(data.cols, data.rows);
+                } else if (data.type === "data") {
+                  // Write to the child process stdin
+                  term.write(data.data);
+
+                  // If this is the non-PTY fallback, echo typed characters
+                  // back to the client so they appear immediately in the
+                  // terminal UI (the shell may not echo when not attached to
+                  // a real TTY).
+                  try {
+                    if (
+                      term.isPty === false &&
+                      job.ws &&
+                      job.ws.readyState === 1
+                    ) {
+                      // send raw data so the renderer's onmessage will treat
+                      // it as terminal output and render it
+                      job.ws.send(data.data);
+                    }
+                  } catch (e) {
+                    // ignore send errors
+                  }
                 }
               }
             }
+            // Log for tracing, including central registry size
+            try {
+              console.log(
+                `[ws] After processing overwrite_response job ${jobId} trace=${
+                  job?._traceId ?? "n/a"
+                } status=${job?.status} jobMapResolverCount=${
+                  job?.overwriteResolversMap
+                    ? job.overwriteResolversMap.size
+                    : 0
+                } globalRegistryCount=${countRegistry()}`
+              );
+            } catch (e) {}
+          } catch (e) {
+            console.error(`[ws] Error handling message for job ${jobId}:`, e);
+            // don't re-throw — close the connection gracefully to avoid the abnormally closed WebSocket
+            try {
+              if (ws && ws.readyState === 1) {
+                ws.close(1000, `Server error: ${e.message}`);
+              }
+            } catch (err) {}
+          }
+        });
+
+        ws.on("close", (code, reason) => {
+          console.log(
+            `[ws] Connection closed for job ${jobId} trace=${
+              job?._traceId ?? "n/a"
+            }. code=${code}, reason=${reason} jobStatus=${
+              job?.status
+            } overwriteResolversMap.size=${
+              job?.overwriteResolversMap ? job.overwriteResolversMap.size : 0
+            } globalRegistryCount=${countRegistry()}`
+          );
+          if (job && job.ws === ws) {
+            job.ws = null; // clear attached ws reference
           }
         });
 
@@ -264,7 +678,10 @@ export function initializeWebSocketServer(
               job.status = "completed";
               if (job.ws && job.ws.readyState === 1) {
                 job.ws.send(JSON.stringify({ type: "complete" }));
-                job.ws.close(1000, "Job Completed");
+                console.log(
+                  `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                );
+                await safeCloseJobWs(job, 1000, "Job Completed");
               }
             } catch (error) {
               console.error(`[Job ${jobId}] Zip operation failed:`, error);
@@ -278,7 +695,14 @@ export function initializeWebSocketServer(
                     message: error.message || "Zip operation failed.",
                   })
                 );
-                job.ws.close(1000, `Job finished with status: ${type}`);
+                console.log(
+                  `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
+                );
+                await safeCloseJobWs(
+                  job,
+                  1000,
+                  `Job finished with status: ${type}`
+                );
               }
             } finally {
               clearInterval(progressInterval); // Ensure interval is cleared
@@ -293,6 +717,9 @@ export function initializeWebSocketServer(
                   console.log(
                     `[Job ${jobId}] Deleting job from activeZipOperations.`
                   );
+                  try {
+                    unregisterAllForJob(jobId, job);
+                  } catch (e) {}
                   activeZipOperations.delete(jobId);
                 }, 5000); // Delay deletion
               } else {
@@ -431,7 +858,14 @@ export function initializeWebSocketServer(
                         status: "skipped_all",
                       })
                     );
-                    ws.close(1000, "Job Completed - Skipped All");
+                    console.log(
+                      `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed - Skipped All'`
+                    );
+                    await safeCloseJobWs(
+                      job,
+                      1000,
+                      "Job Completed - Skipped All"
+                    );
                   }
                   return; // Exit early from this async IIFE
                 }
@@ -444,7 +878,10 @@ export function initializeWebSocketServer(
 
                 job.status = "completed";
                 ws.send(JSON.stringify({ type: "complete" }));
-                ws.close(1000, "Job Completed");
+                console.log(
+                  `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                );
+                await safeCloseJobWs(job, 1000, "Job Completed");
               } catch (error) {
                 if (job.status !== "cancelled") job.status = "failed";
                 console.error(`Zip add job ${jobId} failed:`, error.message);
@@ -452,11 +889,23 @@ export function initializeWebSocketServer(
                   const type =
                     job.status === "cancelled" ? "cancelled" : "error";
                   ws.send(JSON.stringify({ type, message: error.message }));
-                  ws.close(1000, `Job finished with status: ${type}`);
+                  console.log(
+                    `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
+                  );
+                  await safeCloseJobWs(
+                    job,
+                    1000,
+                    `Job finished with status: ${type}`
+                  );
                 }
               } finally {
                 clearInterval(progressInterval);
-                setTimeout(() => activeCopyJobs.delete(jobId), 5000);
+                setTimeout(() => {
+                  try {
+                    unregisterAllForJob(jobId, job);
+                  } catch (e) {}
+                  activeCopyJobs.delete(jobId);
+                }, 5000);
               }
             })();
           } else if (job.jobType === "zip-extract") {
@@ -653,7 +1102,10 @@ export function initializeWebSocketServer(
 
                 job.status = "completed";
                 ws.send(JSON.stringify({ type: "complete" }));
-                ws.close(1000, "Job Completed");
+                console.log(
+                  `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                );
+                await safeCloseJobWs(job, 1000, "Job Completed");
               } catch (error) {
                 if (job.status !== "cancelled") job.status = "failed";
                 console.error(
@@ -664,7 +1116,14 @@ export function initializeWebSocketServer(
                   const type =
                     job.status === "cancelled" ? "cancelled" : "error";
                   ws.send(JSON.stringify({ type, message: error.message }));
-                  ws.close(1000, `Job finished with status: ${type}`);
+                  console.log(
+                    `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
+                  );
+                  await safeCloseJobWs(
+                    job,
+                    1000,
+                    `Job finished with status: ${type}`
+                  );
                 }
               } finally {
                 clearInterval(progressInterval);
@@ -691,7 +1150,12 @@ export function initializeWebSocketServer(
                     `[zip-extract] Error during temp dirs cleanup: ${cleanupErr.message}`
                   );
                 }
-                setTimeout(() => activeCopyJobs.delete(jobId), 5000);
+                setTimeout(() => {
+                  try {
+                    unregisterAllForJob(jobId, job);
+                  } catch (e) {}
+                  activeCopyJobs.delete(jobId);
+                }, 5000);
               }
             })();
           } else {
@@ -791,7 +1255,14 @@ export function initializeWebSocketServer(
                   job.status = "completed";
                   if (ws.readyState === 1) {
                     ws.send(JSON.stringify({ type: "complete" }));
-                    ws.close(1000, "Zip Duplication Completed");
+                    console.log(
+                      `[ws] Closing ws for job ${jobId} with code=1000 reason='Zip Duplication Completed'`
+                    );
+                    await safeCloseJobWs(
+                      job,
+                      1000,
+                      "Zip Duplication Completed"
+                    );
                   }
                 } else {
                   job.status = "scanning";
@@ -842,7 +1313,13 @@ export function initializeWebSocketServer(
 
                   job.status = "completed";
                   ws.send(JSON.stringify({ type: "complete" }));
-                  ws.close(1000, "Job Completed");
+                  console.log(
+                    `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                  );
+                  console.log(
+                    `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                  );
+                  await safeCloseJobWs(job, 1000, "Job Completed");
                 }
               } catch (error) {
                 // Generic error handling for both zip and FS duplication
@@ -858,6 +1335,9 @@ export function initializeWebSocketServer(
                   const type =
                     job.status === "cancelled" ? "cancelled" : "error";
                   ws.send(JSON.stringify({ type, message: error.message }));
+                  console.log(
+                    `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
+                  );
                   ws.close(1000, `Job finished with status: ${type}`);
                 }
               } finally {
@@ -891,7 +1371,10 @@ export function initializeWebSocketServer(
                   ws.send(
                     JSON.stringify({ type: "complete", size: totalSize })
                   );
-                  ws.close(1000, "Job Completed");
+                  console.log(
+                    `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                  );
+                  await safeCloseJobWs(job, 1000, "Job Completed");
                 }
               } else {
                 const totalSize = await getDirTotalSize(
@@ -912,7 +1395,7 @@ export function initializeWebSocketServer(
                   ws.send(
                     JSON.stringify({ type: "complete", size: totalSize })
                   );
-                  ws.close(1000, "Job Completed");
+                  await safeCloseJobWs(job, 1000, "Job Completed");
                 }
               }
             } catch (error) {
@@ -921,6 +1404,9 @@ export function initializeWebSocketServer(
               if (ws.readyState === 1) {
                 const type = job.status === "cancelled" ? "cancelled" : "error";
                 ws.send(JSON.stringify({ type, message: error.message }));
+                console.log(
+                  `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
+                );
                 ws.close(1000, `Job finished with status: ${type}`);
               }
             } finally {
@@ -940,7 +1426,7 @@ export function initializeWebSocketServer(
               job.lastProcessedBytes = 0;
               job.lastUpdateTime = Date.now();
 
-              job.output.on("close", function () {
+              job.output.on("close", async function () {
                 clearInterval(progressInterval);
                 job.status = "completed";
                 if (job.ws && job.ws.readyState === 1) {
@@ -950,9 +1436,17 @@ export function initializeWebSocketServer(
                       outputPath: job.outputPath,
                     })
                   );
-                  job.ws.close(1000, "Job Completed");
+                  console.log(
+                    `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                  );
+                  await safeCloseJobWs(job, 1000, "Job Completed");
                 }
-                setTimeout(() => activeCompressJobs.delete(jobId), 5000);
+                setTimeout(() => {
+                  try {
+                    unregisterAllForJob(jobId, job);
+                  } catch (e) {}
+                  activeCompressJobs.delete(jobId);
+                }, 5000);
               });
 
               job.archive.on("warning", (err) => {
@@ -1065,11 +1559,20 @@ export function initializeWebSocketServer(
               if (job.ws && job.ws.readyState === 1) {
                 const type = job.status === "cancelled" ? "cancelled" : "error";
                 job.ws.send(JSON.stringify({ type, message: error.message }));
-                job.ws.close(1000, `Job finished with status: ${type}`);
+                await safeCloseJobWs(
+                  job,
+                  1000,
+                  `Job finished with status: ${type}`
+                );
               }
             } finally {
               if (job.status !== "completed" && job.status !== "failed") {
-                setTimeout(() => activeCompressJobs.delete(jobId), 5000);
+                setTimeout(() => {
+                  try {
+                    unregisterAllForJob(jobId, job);
+                  } catch (e) {}
+                  activeCompressJobs.delete(jobId);
+                }, 5000);
               }
             }
           })();
@@ -1088,16 +1591,121 @@ export function initializeWebSocketServer(
                 !(job.itemsToExtract && job.itemsToExtract.length > 0)
               ) {
                 if (ws.readyState === 1) {
+                  const promptId = crypto.randomUUID();
+                  if (!job.overwriteResolversMap) {
+                    ensureInstrumentedResolversMap(job);
+                  }
                   ws.send(
                     JSON.stringify({
                       type: "overwrite_prompt",
+                      promptId,
                       file: path.basename(job.destination),
                       itemType: "folder",
                     })
                   );
-                  await new Promise(
-                    (resolve) => (job.resolveOverwrite = resolve)
-                  );
+                  decision = await new Promise((resolve) => {
+                    job.overwriteResolversMap.set(promptId, (d) => {
+                      try {
+                        // Defensive check: ensure promptId is defined in closure
+                        if (typeof promptId === "undefined") {
+                          console.error(
+                            `[websocket] RESOLVER INVOKED: promptId is undefined in closure for job ${jobId}`
+                          );
+                        }
+                        console.log(
+                          `[websocket] job ${jobId} overwrite response received for prompt ${promptId}: ${d}`
+                        );
+                        job.overwriteDecision = d;
+                        job.overwriteResolversMap.delete(promptId);
+                        try {
+                          unregisterPromptResolver(promptId);
+                        } catch (e) {}
+                        clearTimeout(job._promptTimers?.get(promptId));
+                        if (job._promptTimers)
+                          job._promptTimers.delete(promptId);
+                        resolve(d);
+                      } catch (err) {
+                        console.error(
+                          `[websocket] Error in overwrite resolver for prompt ${promptId} job ${jobId}:`,
+                          err,
+                          err.stack
+                        );
+                        try {
+                          job.overwriteResolversMap.delete(promptId);
+                        } catch (e) {}
+                        try {
+                          unregisterPromptResolver(promptId);
+                        } catch (e) {}
+                        try {
+                          if (job._promptTimers)
+                            job._promptTimers.delete(promptId);
+                        } catch (e) {}
+                        if (job && job.ws && job.ws.readyState === 1) {
+                          try {
+                            job.ws.send(
+                              JSON.stringify({
+                                type: "error",
+                                message: `Internal error while resolving overwrite_prompt: ${
+                                  err.message || err
+                                }`,
+                              })
+                            );
+                          } catch (e) {}
+                        }
+                        // Resolve gracefully with skip to prevent UI getting stuck
+                        try {
+                          resolve("skip");
+                        } catch (e) {}
+                      }
+                    });
+                    try {
+                      registerPromptMeta(promptId, {
+                        entryName: entry.filename,
+                        itemType: entry.filename.endsWith("/")
+                          ? "folder"
+                          : "file",
+                        jobId,
+                      });
+                    } catch (e) {}
+                    try {
+                      registerPromptMeta(promptId, {
+                        entryName: job.destination,
+                        itemType: "folder",
+                        jobId,
+                      });
+                    } catch (e) {}
+                    if (!job._promptTimers) job._promptTimers = new Map();
+                    const t = setTimeout(() => {
+                      try {
+                        if (
+                          job.overwriteResolversMap &&
+                          job.overwriteResolversMap.has(promptId)
+                        ) {
+                          const r = job.overwriteResolversMap.get(promptId);
+                          job.overwriteDecision = "skip";
+                          try {
+                            if (typeof r === "function") r("skip");
+                          } catch (e) {
+                            console.warn(
+                              `[ws] Timer triggered resolver threw: ${e.message}`
+                            );
+                          }
+                          job.overwriteResolversMap.delete(promptId);
+                          try {
+                            unregisterPromptResolver(promptId);
+                          } catch (e) {}
+                          console.warn(
+                            `[ws] Prompt ${promptId} for job ${jobId} timed out and was auto-skipped`
+                          );
+                        }
+                      } finally {
+                        if (job._promptTimers)
+                          job._promptTimers.delete(promptId);
+                      }
+                    }, 30000);
+                    job._promptTimers.set(promptId, t);
+                    // proxy will have registered resolver on set
+                  });
                 }
 
                 if (
@@ -1108,7 +1716,10 @@ export function initializeWebSocketServer(
                     ws.send(
                       JSON.stringify({ type: "complete", status: "skipped" })
                     );
-                    ws.close();
+                    console.log(
+                      `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                    );
+                    await safeCloseJobWs(job, 1000, "Job Completed");
                   }
                   return;
                 }
@@ -1246,24 +1857,72 @@ export function initializeWebSocketServer(
 
                 if (await fse.pathExists(destPath)) {
                   let decision = job.overwriteDecision;
-                  const needsPrompt = ["prompt", "overwrite", "skip"].includes(
-                    decision
-                  );
+                  const needsPrompt = decision === "prompt";
 
                   if (needsPrompt) {
                     if (job.ws && job.ws.readyState === 1) {
+                      const promptId = crypto.randomUUID();
+                      if (!job.overwriteResolversMap) {
+                        ensureInstrumentedResolversMap(job);
+                      }
                       ws.send(
                         JSON.stringify({
                           type: "overwrite_prompt",
+                          promptId,
                           file: entry.filename,
                           itemType: entry.filename.endsWith("/")
                             ? "folder"
                             : "file",
                         })
                       );
-                      await new Promise(
-                        (resolve) => (job.resolveOverwrite = resolve)
-                      );
+                      decision = await new Promise((resolve) => {
+                        job.overwriteResolversMap.set(promptId, (d) => {
+                          try {
+                            if (typeof promptId === "undefined") {
+                              console.error(
+                                `[websocket] RESOLVER INVOKED: promptId is undefined in extract resolver closure for job ${jobId}`
+                              );
+                            }
+                            console.log(
+                              `[websocket] job ${jobId} overwrite response received for prompt ${promptId}: ${d} (extract)`
+                            );
+                            job.overwriteDecision = d;
+                            job.overwriteResolversMap.delete(promptId);
+                            try {
+                              unregisterPromptResolver(promptId);
+                            } catch (e) {}
+                            resolve(d);
+                          } catch (err) {
+                            console.error(
+                              `[websocket] Error in extract overwrite resolver for prompt ${promptId} job ${jobId}:`,
+                              err,
+                              err.stack
+                            );
+                            try {
+                              job.overwriteResolversMap.delete(promptId);
+                            } catch (e) {}
+                            try {
+                              unregisterPromptResolver(promptId);
+                            } catch (e) {}
+                            if (job && job.ws && job.ws.readyState === 1) {
+                              try {
+                                job.ws.send(
+                                  JSON.stringify({
+                                    type: "error",
+                                    message: `Internal error while resolving overwrite_prompt: ${
+                                      err.message || err
+                                    }`,
+                                  })
+                                );
+                              } catch (e) {}
+                            }
+                            try {
+                              resolve("skip");
+                            } catch (e) {}
+                          }
+                        });
+                        // proxy will have registered resolver on set
+                      });
                       decision = job.overwriteDecision;
                     }
                   }
@@ -1369,7 +2028,10 @@ export function initializeWebSocketServer(
 
               if (job.status !== "cancelled" && ws.readyState === 1) {
                 ws.send(JSON.stringify({ type: "complete" }));
-                ws.close();
+                console.log(
+                  `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                );
+                await safeCloseJobWs(job, 1000, "Job Completed");
               }
             } catch (error) {
               console.error(`[ws:${jobId}] Decompression job failed:`, error);
@@ -1396,7 +2058,10 @@ export function initializeWebSocketServer(
                     sendError
                   );
                 }
-                ws.close();
+                console.log(
+                  `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                );
+                await safeCloseJobWs(job, 1000, "Job Completed");
               }
             } finally {
               clearInterval(progressInterval);
@@ -1418,7 +2083,7 @@ export function initializeWebSocketServer(
             let currentFile = null;
             let jobComplete = false;
 
-            const sendComplete = () => {
+            const sendComplete = async () => {
               if (jobComplete || ws.readyState !== 1) return;
               jobComplete = true;
 
@@ -1440,7 +2105,10 @@ export function initializeWebSocketServer(
                   },
                 })
               );
-              ws.close();
+              console.log(
+                `[ws] Closing ws for job ${jobId} with code=1000 reason='Archive test completed'`
+              );
+              await safeCloseJobWs(job, 1000, "Archive test completed");
             };
 
             const testEntry = async (entry) => {
@@ -1639,7 +2307,7 @@ export function initializeWebSocketServer(
                 ws.send(
                   JSON.stringify({ type: "complete", paths: formattedPaths })
                 );
-                ws.close(1000, "Job Completed");
+                await safeCloseJobWs(job, 1000, "Job Completed");
               }
             } catch (error) {
               if (ws.readyState !== 1) return;
@@ -1648,7 +2316,11 @@ export function initializeWebSocketServer(
               ws.send(
                 JSON.stringify({ type: "error", message: error.message })
               );
-              ws.close(1000, `Job finished with status: error`);
+              await safeCloseJobWs(
+                job,
+                1000,
+                `Job finished with status: error`
+              );
             } finally {
               setTimeout(() => activeCopyPathsJobs.delete(jobId), 5000);
             }
@@ -1684,7 +2356,10 @@ export function initializeWebSocketServer(
             });
           } else {
             console.warn(`[ws] No terminal found for job ID: ${jobId}`);
-            ws.close();
+            console.log(
+              `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+            );
+            ws.close(1000, "Job Completed");
           }
         }
 
@@ -1756,6 +2431,9 @@ export function initializeWebSocketServer(
                 console.log(
                   `[Job ${jobId}] Deleting job due to unexpected WS close.`
                 );
+                try {
+                  unregisterAllForJob(jobId, zipJob);
+                } catch (e) {}
                 activeZipOperations.delete(jobId);
               }, 5000);
             }
@@ -1778,6 +2456,9 @@ export function initializeWebSocketServer(
               // Schedule deletion on error
               setTimeout(() => {
                 console.log(`[Job ${jobId}] Deleting job due to WS error.`);
+                try {
+                  unregisterAllForJob(jobId, zipJob);
+                } catch (e) {}
                 activeZipOperations.delete(jobId);
               }, 5000);
             }
@@ -1785,7 +2466,10 @@ export function initializeWebSocketServer(
         });
       } else {
         console.warn(`[ws] Connection rejected for invalid job ID: ${jobId}`);
-        ws.close();
+        console.log(
+          `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+        );
+        ws.close(1000, "Job Completed");
       }
     } else {
       console.log("[ws] Client connected for file watching.");

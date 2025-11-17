@@ -47,6 +47,7 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
     const ws = new WebSocket(
       `ws://${window.location.host}/ws?jobId=${jobId}&type=terminal`
     );
+    ws.jobId = jobId;
 
     setTimeout(() => {
       fitAddon.current.fit();
@@ -139,7 +140,15 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
 
     return () => {
       clearTimeout(resizeTimeout);
-      ws.close();
+      if (
+        ws &&
+        !ws._closeCalled &&
+        (ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING)
+      ) {
+        ws._closeCalled = true;
+        ws.close(1000, "Terminal modal closed");
+      }
       term.dispose();
     };
   }, [isOpen, jobId, onClose]);

@@ -3,7 +3,12 @@ import fse from "fs-extra";
 import path from "path";
 import { spawn } from "child_process";
 import { parseFile } from "music-metadata";
-import { getMimeType, getZipFileStream, matchZipPath } from "../lib/utils.js";
+import {
+  getMimeType,
+  getZipFileStream,
+  matchZipPath,
+  getFileContentFromZip,
+} from "../lib/utils.js";
 import os from "os";
 
 const router = express.Router();
@@ -15,6 +20,20 @@ router.get("/image-preview", async (req, res) => {
     return res.status(400).json({ error: "File path is required" });
   }
   try {
+    const zipPathMatch = matchZipPath(filePath);
+    if (zipPathMatch) {
+      const filePathInZip = zipPathMatch[2].startsWith("/")
+        ? zipPathMatch[2].substring(1)
+        : zipPathMatch[2];
+      const readStream = await getZipFileStream(zipPathMatch[1], filePathInZip);
+      res.setHeader(
+        "Content-Type",
+        `image/${path.extname(filePathInZip).slice(1)}`
+      );
+      readStream.pipe(res);
+      return;
+    }
+
     if (!(await fse.pathExists(filePath))) {
       return res.status(404).json({ error: "Image not found" });
     }
@@ -39,14 +58,33 @@ router.get("/media-stream", async (req, res) => {
   }
 
   try {
-    const stats = await fse.stat(filePath);
-    const fileSize = stats.size;
+    // If the file is inside a zip, stat'ing the pseudo-path will fail with ENOTDIR.
+    // Use the zip utilities to stream it instead of checking via fse.
+    const zipPathMatch = matchZipPath(filePath);
     const range = req.headers.range;
     const mimeType = getMimeType(filePath);
 
+    if (zipPathMatch) {
+      // File is inside a zip: don't call fs.stat on it. We don't support
+      // ranged requests for files inside zips (yauzl doesn't allow easy
+      // random-access streaming for compressed entries). We'll stream the
+      // full entry and return 200.
+      const filePathInZip = zipPathMatch[2].startsWith("/")
+        ? zipPathMatch[2].substring(1)
+        : zipPathMatch[2];
+
+      const readStream = await getZipFileStream(zipPathMatch[1], filePathInZip);
+      res.writeHead(200, { "Content-Type": mimeType });
+      readStream.pipe(res);
+      return;
+    }
+
+    // Not a zip path; file is on real filesystem, proceed with range handling
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
+      const stats = await fse.stat(filePath);
+      const fileSize = stats.size;
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunksize = end - start + 1;
       const file = fse.createReadStream(filePath, { start, end });
@@ -56,9 +94,20 @@ router.get("/media-stream", async (req, res) => {
         "Content-Length": chunksize,
         "Content-Type": mimeType,
       };
-      res.writeHead(206, head);
+      if (!zipPathMatch) {
+        // For real filesystem files, return 206 (partial content)
+        res.writeHead(206, head);
+      } else {
+        // For zip entries, we couldn't honor ranges reliably. Serve the
+        // full stream and return 200. Note: `head` contains Content-Length
+        // only if the zip helper provides it; otherwise transfer uses
+        // chunked encoding.
+        res.writeHead(200, { "Content-Type": mimeType });
+      }
       file.pipe(res);
     } else {
+      const stats = await fse.stat(filePath);
+      const fileSize = stats.size;
       const head = {
         "Content-Length": fileSize,
         "Content-Type": mimeType,
@@ -156,7 +205,16 @@ router.get("/text-content", async (req, res) => {
     return res.status(400).json({ error: "File path is required" });
   }
   try {
-    const content = await fse.readFile(filePath, "utf-8");
+    const zipPathMatch = matchZipPath(filePath);
+    let content;
+    if (zipPathMatch) {
+      const filePathInZip = zipPathMatch[2].startsWith("/")
+        ? zipPathMatch[2].substring(1)
+        : zipPathMatch[2];
+      content = await getFileContentFromZip(zipPathMatch[1], filePathInZip);
+    } else {
+      content = await fse.readFile(filePath, "utf-8");
+    }
     res.setHeader("Content-Type", "text/plain");
     res.send(content);
   } catch (error) {

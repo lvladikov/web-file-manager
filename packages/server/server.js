@@ -83,3 +83,11 @@ initializeRoutes(
 server.listen(port, () => {
   console.log(`[dev:server] Server listening at http://localhost:${port}`);
 });
+
+// Global process exception handlers to log unexpected errors
+process.on("uncaughtException", (err) => {
+  console.error("[server] uncaughtException:", err?.stack || err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[server] unhandledRejection:", reason);
+});

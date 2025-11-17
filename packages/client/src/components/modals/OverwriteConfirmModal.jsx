@@ -125,7 +125,7 @@ const OverwriteConfirmModal = ({
             </button>
             <button
               id="overwrite-no-button"
-              onClick={() => onDecision("skip")}
+              onClick={() => onDecision(isFolder ? "skip_all" : "skip")}
               className={`${baseButtonClasses} bg-red-600 hover:bg-red-700 text-white font-bold`}
               title={
                 isFolder

@@ -63,6 +63,7 @@ export default function createCopyRoutes(
         const jobId = crypto.randomUUID();
         const job = {
           id: jobId,
+          _traceId: crypto.randomUUID(),
           status: "pending",
           ws: null,
           controller: new AbortController(),
@@ -128,6 +129,7 @@ export default function createCopyRoutes(
 
       const job = {
         id: jobId,
+        _traceId: crypto.randomUUID(),
         status: "pending",
         ws: null,
         controller: new AbortController(),
@@ -135,7 +137,7 @@ export default function createCopyRoutes(
         sources,
         isMove: isMove || false,
         overwriteDecision: "prompt",
-        resolveOverwrite: null,
+        overwriteResolvers: [],
         jobType,
       };
 
@@ -173,6 +175,7 @@ export default function createCopyRoutes(
       const jobId = crypto.randomUUID();
       const job = {
         id: jobId,
+        _traceId: crypto.randomUUID(),
         status: "pending",
         ws: null,
         controller: new AbortController(),
@@ -181,7 +184,7 @@ export default function createCopyRoutes(
         total: 0,
         copied: 0,
         overwriteDecision: "prompt",
-        resolveOverwrite: null,
+        overwriteResolvers: [],
         isZipDuplicate: isZipDuplicate || false,
         jobType: "duplicate", // Explicitly set job type for websocket
         // Properties needed for zip operations, similar to saveFile

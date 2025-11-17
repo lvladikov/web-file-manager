@@ -130,7 +130,10 @@ export default function useZipUpdate() {
 
       // If there's an existing WebSocket for a different job, close it first.
       if (wsRef.current && jobIdRef.current && jobIdRef.current !== jobId) {
-        wsRef.current.close(1000, "Starting new job connection");
+        // Only close the ws if it belongs to a different job than the one we are starting
+        if (wsRef.current.jobId && wsRef.current.jobId !== jobIdRef.current) {
+          wsRef.current.close(1000, "Starting new job connection");
+        }
         // Setting refs to null immediately can be problematic if onclose hasn't fired
         // Let the onclose handler manage clearing the refs based on the closed jobId
       }
@@ -167,6 +170,7 @@ export default function useZipUpdate() {
       const ws = new WebSocket(
         `${wsProtocol}//${window.location.host}/ws?jobId=${jobId}&type=${jobType}`
       );
+      ws.jobId = jobId;
       wsRef.current = ws; // Store the new WebSocket instance
 
       ws.onmessage = (event) => {
@@ -192,6 +196,18 @@ export default function useZipUpdate() {
                   updatedState.total = data.totalSize;
                 if (data.originalZipSize !== undefined)
                   updatedState.originalZipSize = data.originalZipSize;
+                break;
+              case "overwrite_prompt":
+                // Show overwrite modal for zip update flows and include promptId
+                setOverwritePrompt({
+                  isVisible: true,
+                  item: {
+                    name: data.file,
+                    type: data.itemType,
+                    promptId: data.promptId,
+                  },
+                  jobType: jobType,
+                });
                 break;
               case "progress":
                 if (data.processed !== undefined)
@@ -222,7 +238,15 @@ export default function useZipUpdate() {
                     );
                   }
                 }
-                ws.close(1000, "Job Completed");
+                if (
+                  ws &&
+                  !ws._closeCalled &&
+                  (ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING)
+                ) {
+                  ws._closeCalled = true;
+                  ws.close(1000, "Job Completed");
+                }
                 updatedState.isVisible = false;
                 break;
               case "error":
@@ -230,11 +254,27 @@ export default function useZipUpdate() {
                   `[useZipUpdate] Job ${currentWsJobId} error via WebSocket:`,
                   data.message
                 );
-                ws.close(1000, "Job Error");
+                if (
+                  ws &&
+                  !ws._closeCalled &&
+                  (ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING)
+                ) {
+                  ws._closeCalled = true;
+                  ws.close(1000, "Job Error");
+                }
                 updatedState.isVisible = false;
                 break;
               case "cancelled":
-                ws.close(1000, "Job Cancelled");
+                if (
+                  ws &&
+                  !ws._closeCalled &&
+                  (ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING)
+                ) {
+                  ws._closeCalled = true;
+                  ws.close(1000, "Job Cancelled");
+                }
                 updatedState.isVisible = false;
                 break;
               default:
@@ -262,11 +302,19 @@ export default function useZipUpdate() {
         // Check if the connection belongs to the currently tracked job in the ref
         if (jobIdRef.current !== currentWsJobId) {
           // This connection is for an older job, the ref has been updated. Close it.
-          ws.close(1000, "Stale connection");
+          if (
+            ws &&
+            !ws._closeCalled &&
+            (ws.readyState === WebSocket.OPEN ||
+              ws.readyState === WebSocket.CONNECTING)
+          ) {
+            ws._closeCalled = true;
+            ws.close(1000, "Stale connection");
+          }
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         // Use the jobId captured in this specific WebSocket's closure
         const closedWsJobId = jobId;
 

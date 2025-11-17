@@ -12,6 +12,7 @@ import {
   getMimeType,
   findCoverInZip,
 } from "../lib/utils.js";
+import { unregisterAllForJob } from "../lib/prompt-registry.js";
 
 export default function createZipRoutes(
   activeZipOperations,
@@ -117,6 +118,9 @@ export default function createZipRoutes(
       console.log("[zipRoutes] Aborting job:", jobId);
       job.controller.abort();
     }
+    try {
+      unregisterAllForJob(jobId, job);
+    } catch (e) {}
     activeZipOperations.delete(jobId);
     res
       .status(200)
@@ -160,6 +164,7 @@ export default function createZipRoutes(
 
     const job = {
       id: jobId,
+      _traceId: crypto.randomUUID(),
       status: "pending",
       ws: null,
       controller: new AbortController(),
@@ -172,6 +177,7 @@ export default function createZipRoutes(
       totalBytes: totalSize,
       compressedBytes: 0,
       currentFile: "",
+      overwriteResolvers: [],
     };
     activeCompressJobs.set(jobId, job);
 
@@ -245,12 +251,14 @@ export default function createZipRoutes(
     const jobId = crypto.randomUUID();
     const job = {
       id: jobId,
+      _traceId: crypto.randomUUID(),
       status: "pending",
       source: sourcePath,
       destination,
       ws: null,
       zipfile: null,
       controller: new AbortController(),
+      overwriteResolvers: [],
       isNestedZip,
       zipFilePath,
       filePathInZip,
@@ -294,11 +302,13 @@ export default function createZipRoutes(
     const jobId = crypto.randomUUID();
     const job = {
       id: jobId,
+      _traceId: crypto.randomUUID(),
       status: "pending",
       source: sourcePath,
       ws: null,
       zipfile: null,
       controller: new AbortController(),
+      overwriteResolvers: [],
     };
     activeArchiveTestJobs.set(jobId, job);
     res.status(202).json({ jobId });

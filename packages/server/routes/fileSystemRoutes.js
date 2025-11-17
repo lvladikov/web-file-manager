@@ -21,6 +21,7 @@ import {
   renameInZip,
   updateFileInZip,
 } from "../lib/utils.js";
+import { unregisterAllForJob } from "../lib/prompt-registry.js";
 
 export default function createFileSystemRoutes(
   activeCopyJobs,
@@ -101,19 +102,17 @@ export default function createFileSystemRoutes(
         files.map(async (file) => {
           try {
             const fullFilePath = path.join(currentPath, file.name);
-            let actualFullPath = fullFilePath;
-
-            const fileStats = await fse.stat(actualFullPath);
-            const type = getFileType(file.name, fileStats.isDirectory());
+            const stats = await fse.stat(fullFilePath);
+            const type = getFileType(file.name, stats.isDirectory());
             return {
               name: file.name,
               type,
-              size: fileStats.isFile() ? fileStats.size : null,
-              // Use ISO timestamps to avoid locale-dependent string parsing on clients
-              modified: fileStats.mtime.toISOString(),
-              fullPath: actualFullPath,
+              size: stats.isDirectory() ? null : stats.size,
+              modified: stats.mtime.toISOString(),
+              fullPath: fullFilePath,
             };
-          } catch (statError) {
+          } catch (err) {
+            console.warn(`Could not stat ${fullFilePath}, skipping.`);
             return {
               name: file.name,
               type: "file",
@@ -361,6 +360,7 @@ export default function createFileSystemRoutes(
         const abortController = new AbortController();
         const job = {
           id: jobId,
+          _traceId: crypto.randomUUID(),
           status: "pending",
           ws: null,
           controller: abortController,
@@ -373,6 +373,7 @@ export default function createFileSystemRoutes(
           currentFile: "",
           currentFileTotalSize: 0,
           currentFileBytesProcessed: 0,
+          overwriteResolvers: [],
         };
         activeZipOperations.set(jobId, job);
 
@@ -424,6 +425,7 @@ export default function createFileSystemRoutes(
     const abortController = new AbortController();
     const job = {
       id: jobId,
+      _traceId: crypto.randomUUID(),
       status: "pending",
       ws: null, // WebSocket will be attached when client connects
       controller: abortController,
@@ -436,6 +438,7 @@ export default function createFileSystemRoutes(
       currentFile: "",
       currentFileTotalSize: 0,
       currentFileBytesProcessed: 0,
+      overwriteResolvers: [],
     };
     activeZipOperations.set(jobId, job);
 
@@ -454,9 +457,10 @@ export default function createFileSystemRoutes(
         job.rejectCompletion = rejectCompletion;
 
         const zipFilePath = zipPathMatch[1];
-        const filePathInZip = zipPathMatch[2].startsWith("/")
+        let filePathInZip = zipPathMatch[2].startsWith("/")
           ? zipPathMatch[2].substring(1)
           : zipPathMatch[2];
+        filePathInZip = filePathInZip.replace(/\\/g, "/").replace(/^\.\//, "");
 
         job.zipFilePath = zipFilePath;
         job.filePathInZip = filePathInZip;
@@ -492,6 +496,11 @@ export default function createFileSystemRoutes(
         .json({ message: `Failed to create folder: ${error.message}` });
     } finally {
       if (!zipPathMatch) {
+        try {
+          unregisterAllForJob(jobId, job);
+        } catch (e) {
+          /* ignore */
+        }
         activeZipOperations.delete(jobId);
       }
     }
@@ -510,6 +519,7 @@ export default function createFileSystemRoutes(
     const abortController = new AbortController();
     const job = {
       id: jobId,
+      _traceId: crypto.randomUUID(),
       status: "pending",
       ws: null,
       controller: abortController,
@@ -522,6 +532,7 @@ export default function createFileSystemRoutes(
       currentFile: "",
       currentFileTotalSize: 0,
       currentFileBytesProcessed: 0,
+      overwriteResolvers: [],
     };
     activeZipOperations.set(jobId, job);
 
@@ -540,9 +551,18 @@ export default function createFileSystemRoutes(
         job.rejectCompletion = rejectCompletion;
 
         const zipFilePath = zipPathMatch[1];
-        const filePathInZip = zipPathMatch[2].startsWith("/")
-          ? zipPathMatch[2].substring(1)
-          : zipPathMatch[2];
+        let filePathInZip = zipPathMatch[2] || "";
+        if (filePathInZip.startsWith("/"))
+          filePathInZip = filePathInZip.substring(1);
+
+        if (!(await fse.pathExists(zipFilePath))) {
+          return res.status(404).json({ message: "Zip file not found." });
+        }
+        if (!filePathInZip) {
+          return res
+            .status(400)
+            .json({ message: "Invalid path in zip for save operation." });
+        }
 
         job.zipFilePath = zipFilePath;
         job.filePathInZip = filePathInZip;
@@ -572,6 +592,11 @@ export default function createFileSystemRoutes(
         .json({ message: `Failed to create file: ${error.message}` });
     } finally {
       if (!zipPathMatch) {
+        try {
+          unregisterAllForJob(jobId, job);
+        } catch (e) {
+          /* ignore */
+        }
         activeZipOperations.delete(jobId);
       }
     }
@@ -604,6 +629,7 @@ export default function createFileSystemRoutes(
         const abortController = new AbortController();
         const job = {
           id: jobId,
+          _traceId: crypto.randomUUID(),
           status: "pending",
           ws: null,
           controller: abortController,
@@ -615,6 +641,7 @@ export default function createFileSystemRoutes(
           currentFile: "",
           currentFileTotalSize: 0,
           currentFileBytesProcessed: 0,
+          overwriteResolvers: [],
         };
         activeZipOperations.set(jobId, job);
 
@@ -763,6 +790,7 @@ export default function createFileSystemRoutes(
           currentFileTotalSize: 0,
           currentFileBytesProcessed: 0,
           tempZipPath: null,
+          overwriteResolvers: [],
           contentToSave: content,
         };
         activeZipOperations.set(jobId, job);
@@ -842,6 +870,102 @@ export default function createFileSystemRoutes(
       return res.status(400).json({ message: "File path is required." });
     }
     try {
+      console.debug(`[file-info] Request for filePath: ${filePath}`);
+      const zipMatch = matchZipPath(filePath);
+      if (zipMatch) {
+        let zipFilePath = zipMatch[1];
+        let pathInZip = zipMatch[2] || "";
+        if (pathInZip.startsWith("/")) pathInZip = pathInZip.substring(1);
+        // Normalize to POSIX separators and strip leading './' and '/' from inner path
+        pathInZip = pathInZip
+          .replace(/\\/g, "/")
+          .replace(/^\.\//, "")
+          .replace(/^\/+/, "");
+
+        // If the request was for the zip root itself (no inner path), return
+        // the file stats of the zip container instead of trying to search
+        // for an empty inner path inside the archive.
+        if (!pathInZip) {
+          if (!(await fse.pathExists(zipFilePath))) {
+            console.warn(`[file-info] Zip file not found: ${zipFilePath}`);
+            return res.status(404).json({ message: "Zip file not found." });
+          }
+          const statsZip = await fse.stat(zipFilePath);
+          res.json({
+            size: statsZip.size,
+            isFile: true,
+            isDirectory: false,
+          });
+          return;
+        }
+
+        // Handle nested zips by extracting to temp until we reach a real zip
+        const tempDirs = [];
+        try {
+          while (true) {
+            const zi = pathInZip.toLowerCase().indexOf(".zip/");
+            if (zi === -1) break;
+            const nested = pathInZip.substring(0, zi + 4);
+            pathInZip = pathInZip.substring(zi + 5);
+            const { tempNestedZipPath, tempDir } = await extractNestedZipToTemp(
+              zipFilePath,
+              nested
+            );
+            tempDirs.push(tempDir);
+            zipFilePath = tempNestedZipPath;
+          }
+
+          const zf = await yauzl.open(zipFilePath);
+          try {
+            let foundEntry = null;
+            const normalizedTarget = pathInZip
+              .replace(/\\/g, "/")
+              .replace(/^\.\//, "")
+              .replace(/^\/+/, "");
+            for await (const entry of zf) {
+              const entryName = entry.filename.replace(/^\/+|^\.\//g, "");
+              const normalizedEntry = entryName.replace(/\\/g, "/");
+              if (
+                normalizedEntry === normalizedTarget ||
+                normalizedEntry === `${normalizedTarget}/` ||
+                normalizedEntry.toLowerCase() ===
+                  normalizedTarget.toLowerCase() ||
+                normalizedEntry.toLowerCase() ===
+                  `${normalizedTarget.toLowerCase()}/`
+              ) {
+                foundEntry = entry;
+                break;
+              }
+              // Directory entries may be absent from the zip, detect via prefix
+              if (normalizedEntry.startsWith(`${normalizedTarget}/`)) {
+                foundEntry = entry;
+                break;
+              }
+            }
+            if (foundEntry) {
+              res.json({
+                size: foundEntry.uncompressedSize,
+                isFile: !foundEntry.filename.endsWith("/"),
+                isDirectory: foundEntry.filename.endsWith("/"),
+              });
+              return;
+            }
+            // If we reach here, the entry wasn't found
+            res.status(404).json({ message: "File not found in zip." });
+            return;
+          } finally {
+            await zf.close();
+          }
+        } finally {
+          for (const d of tempDirs) {
+            try {
+              await fse.remove(d);
+            } catch (err) {
+              console.warn(`Failed to remove temp dir ${d}: ${err.message}`);
+            }
+          }
+        }
+      }
       const stats = await fse.stat(filePath);
       res.json({
         size: stats.size,

@@ -84,6 +84,7 @@ const useDecompress = ({
             window.location.host
           }/ws?jobId=${jobId}&type=decompress`
         );
+        ws.jobId = jobId;
         wsRef.current = ws;
 
         await new Promise((resolve) => {
@@ -110,7 +111,11 @@ const useDecompress = ({
               case "overwrite_prompt":
                 setOverwritePrompt({
                   isVisible: true,
-                  item: { name: data.file, type: data.itemType },
+                  item: {
+                    name: data.file,
+                    type: data.itemType,
+                    promptId: data.promptId,
+                  },
                   jobType: "decompress",
                 });
                 break;
@@ -120,18 +125,39 @@ const useDecompress = ({
                 errorMessage = data.title
                   ? `${data.title} (${data.details || data.message || ""})`
                   : data.details || data.message || "Decompression failed.";
-                ws.close();
+                if (
+                  ws &&
+                  !ws._closeCalled &&
+                  (ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING)
+                ) {
+                  ws._closeCalled = true;
+                  ws.close(1000, "Decompress failed");
+                }
                 resolve();
                 break;
               case "complete":
-                ws.close();
+                if (
+                  ws &&
+                  !ws._closeCalled &&
+                  (ws.readyState === WebSocket.OPEN ||
+                    ws.readyState === WebSocket.CONNECTING)
+                ) {
+                  ws._closeCalled = true;
+                  ws.close(1000, "Decompress complete");
+                }
                 resolve();
                 break;
               default:
                 break;
             }
           };
-          ws.onclose = resolve;
+          ws.onclose = (event) => {
+            console.log(
+              `[useDecompress] WebSocket onclose for job ${jobId} code=${event.code} reason='${event.reason}' wasClean=${event.wasClean}`
+            );
+            resolve();
+          };
           ws.onerror = () => {
             hasError = true;
             errorMessage = "WebSocket connection error during decompression.";
