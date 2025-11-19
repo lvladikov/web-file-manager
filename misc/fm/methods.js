@@ -4,7 +4,14 @@
  */
 
 import pkg from "../../package.json";
-import { detectBuildType, getAppState, buildSelection } from "./utils.js";
+import {
+  detectBuildType,
+  getAppState,
+  buildSelection,
+  normalizeNameToPanel,
+  waitForZipJobCompletion,
+  matchZipPath,
+} from "./utils.js";
 
 /**
  * Creates and returns an object with all FM methods
@@ -16,6 +23,471 @@ function createFMMethods(FM) {
 
   methods.getInfo = function () {
     return FM();
+  };
+
+  // FM.createActivePanelNewFile
+  // Creates a new file in the active panel using the built-in UI handlers
+  methods.createActivePanelNewFile = async function (name, content = "") {
+    const state = getAppState();
+    if (typeof state.handleStartNewFile !== "function") {
+      const error = "handleStartNewFile not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleConfirmNewFile !== "function") {
+      const error = "handleConfirmNewFile not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      const started = state.handleStartNewFile(state.activePanel, name);
+      const startedName =
+        typeof started === "string"
+          ? started
+          : (started && started.name) || name;
+      const startedPanel =
+        typeof started === "string"
+          ? state.activePanel
+          : (started && started.panelId) || state.activePanel;
+      const result = await state.handleConfirmNewFile(
+        startedPanel,
+        startedName,
+        content
+      );
+      // Compute created path for convenience when not working with zip paths
+      const panelPath = state.panels[startedPanel].path;
+      const sep = panelPath.includes("\\") ? "\\" : "/";
+      const base = panelPath.endsWith(sep) ? panelPath : panelPath + sep;
+      // Normalize startedName to panel sep, strip leading seps
+      const sanitizedStartedName = normalizeNameToPanel(startedName, panelPath);
+      const createdPath = base + sanitizedStartedName;
+      // If confirm returned a standardized object, check for zip job and wait for completion
+      if (result && typeof result === "object" && "success" in result) {
+        if (!("createdPath" in result)) result.createdPath = createdPath;
+        // If this operation initiated a zip job, wait until it completes so FM's await is in sync
+        const jobId =
+          (result.result && result.result.jobId) || result.jobId || null;
+        const createdPathCheck = result.createdPath || createdPath;
+        const isZip = matchZipPath(createdPathCheck);
+        if (jobId && isZip) {
+          try {
+            const zipParts = matchZipPath(createdPathCheck) || [];
+            await waitForZipJobCompletion(jobId, "create-file-in-zip", {
+              onProgress: (d) => console.log("zip progress:", d),
+              showModal: true,
+              zipFilePath: zipParts[1] || createdPathCheck,
+              filePathInZip:
+                zipParts[2] && zipParts[2].startsWith("/")
+                  ? zipParts[2].substring(1)
+                  : zipParts[2],
+            });
+          } catch (e) {
+            console.error("Zip job wait finished with error", e && e.message);
+            return {
+              success: false,
+              error: (e && e.message) || "Zip job failed",
+            };
+          }
+        }
+        return result;
+      }
+      // Otherwise wrap the raw response
+      return { success: true, result, createdPath };
+    } catch (err) {
+      console.error("createActivePanelNewFile error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.createOtherPanelNewFile
+  // Creates a new file in the other (inactive) panel
+  methods.createOtherPanelNewFile = async function (name, content = "") {
+    const state = getAppState();
+    const otherPanel = methods.getOtherPanelSide();
+    if (typeof state.handleStartNewFile !== "function") {
+      const error = "handleStartNewFile not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleConfirmNewFile !== "function") {
+      const error = "handleConfirmNewFile not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      const started = state.handleStartNewFile(otherPanel, name);
+      const startedName =
+        typeof started === "string"
+          ? started
+          : (started && started.name) || name;
+      const startedPanel =
+        typeof started === "string"
+          ? otherPanel
+          : (started && started.panelId) || otherPanel;
+      const result = await state.handleConfirmNewFile(
+        startedPanel,
+        startedName,
+        content
+      );
+      const panelPath = state.panels[otherPanel].path;
+      const sep = panelPath.includes("\\") ? "\\" : "/";
+      const base = panelPath.endsWith(sep) ? panelPath : panelPath + sep;
+      const sanitizedStartedName = normalizeNameToPanel(startedName, panelPath);
+      const createdPath = base + sanitizedStartedName;
+      if (result && typeof result === "object" && "success" in result) {
+        if (!("createdPath" in result)) result.createdPath = createdPath;
+        const jobId =
+          (result.result && result.result.jobId) || result.jobId || null;
+        const createdPathCheck = result.createdPath || createdPath;
+        const isZip = matchZipPath(createdPathCheck);
+        if (jobId && isZip) {
+          try {
+            const zipParts = matchZipPath(createdPathCheck) || [];
+            await waitForZipJobCompletion(jobId, "create-file-in-zip", {
+              onProgress: (d) => console.log("zip progress:", d),
+              showModal: true,
+              zipFilePath: zipParts[1] || createdPathCheck,
+              filePathInZip:
+                zipParts[2] && zipParts[2].startsWith("/")
+                  ? zipParts[2].substring(1)
+                  : zipParts[2],
+            });
+          } catch (e) {
+            console.error("Zip job wait finished with error", e && e.message);
+            return {
+              success: false,
+              error: (e && e.message) || "Zip job failed",
+            };
+          }
+        }
+        return result;
+      }
+      return { success: true, result, createdPath };
+    } catch (err) {
+      console.error("createOtherPanelNewFile error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.createActivePanelNewFolder
+  // Creates a new folder in the active panel using the built-in UI handlers
+  methods.createActivePanelNewFolder = async function (name) {
+    const state = getAppState();
+    if (typeof state.handleStartNewFolder !== "function") {
+      const error = "handleStartNewFolder not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleConfirmNewFolder !== "function") {
+      const error = "handleConfirmNewFolder not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      const started = state.handleStartNewFolder(state.activePanel, name);
+      const startedName =
+        typeof started === "string"
+          ? started
+          : (started && started.name) || name;
+      const startedPanel =
+        typeof started === "string"
+          ? state.activePanel
+          : (started && started.panelId) || state.activePanel;
+      const result = await state.handleConfirmNewFolder(
+        startedPanel,
+        startedName
+      );
+      const panelPath = state.panels[startedPanel].path;
+      const sep = panelPath.includes("\\") ? "\\" : "/";
+      const base = panelPath.endsWith(sep) ? panelPath : panelPath + sep;
+      const sanitizedStartedName = normalizeNameToPanel(startedName, panelPath);
+      const createdPath = base + sanitizedStartedName;
+      if (result && typeof result === "object" && "success" in result) {
+        if (!("createdPath" in result)) result.createdPath = createdPath;
+        const jobId =
+          (result.result && result.result.jobId) || result.jobId || null;
+        const createdPathCheck = result.createdPath || createdPath;
+        const isZip = matchZipPath(createdPathCheck);
+        if (jobId && isZip) {
+          try {
+            const zipParts = matchZipPath(createdPathCheck) || [];
+            await waitForZipJobCompletion(jobId, "create-folder-in-zip", {
+              onProgress: (d) => console.log("zip progress:", d),
+              showModal: true,
+              zipFilePath: zipParts[1] || createdPathCheck,
+              filePathInZip:
+                zipParts[2] && zipParts[2].startsWith("/")
+                  ? zipParts[2].substring(1)
+                  : zipParts[2],
+            });
+          } catch (e) {
+            console.error("Zip job wait finished with error", e && e.message);
+            return {
+              success: false,
+              error: (e && e.message) || "Zip job failed",
+            };
+          }
+        }
+        return result;
+      }
+      return { success: true, result, createdPath };
+    } catch (err) {
+      console.error("createActivePanelNewFolder error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.createOtherPanelNewFolder
+  // Creates a new folder in the other (inactive) panel
+  methods.createOtherPanelNewFolder = async function (name) {
+    const state = getAppState();
+    const otherPanel = methods.getOtherPanelSide();
+    if (typeof state.handleStartNewFolder !== "function") {
+      const error = "handleStartNewFolder not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleConfirmNewFolder !== "function") {
+      const error = "handleConfirmNewFolder not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      const started = state.handleStartNewFolder(otherPanel, name);
+      const startedName =
+        typeof started === "string"
+          ? started
+          : (started && started.name) || name;
+      const startedPanel =
+        typeof started === "string"
+          ? otherPanel
+          : (started && started.panelId) || otherPanel;
+      const result = await state.handleConfirmNewFolder(
+        startedPanel,
+        startedName
+      );
+      const panelPath = state.panels[otherPanel].path;
+      const sep = panelPath.includes("\\") ? "\\" : "/";
+      const base = panelPath.endsWith(sep) ? panelPath : panelPath + sep;
+      const sanitizedStartedName = normalizeNameToPanel(startedName, panelPath);
+      const createdPath = base + sanitizedStartedName;
+      if (result && typeof result === "object" && "success" in result) {
+        if (!("createdPath" in result)) result.createdPath = createdPath;
+        const jobId =
+          (result.result && result.result.jobId) || result.jobId || null;
+        const createdPathCheck = result.createdPath || createdPath;
+        const isZip = matchZipPath(createdPathCheck);
+        if (jobId && isZip) {
+          try {
+            const zipParts = matchZipPath(createdPathCheck) || [];
+            await waitForZipJobCompletion(jobId, "create-folder-in-zip", {
+              onProgress: (d) => console.log("zip progress:", d),
+              showModal: true,
+              zipFilePath: zipParts[1] || createdPathCheck,
+              filePathInZip:
+                zipParts[2] && zipParts[2].startsWith("/")
+                  ? zipParts[2].substring(1)
+                  : zipParts[2],
+            });
+          } catch (e) {
+            console.error("Zip job wait finished with error", e && e.message);
+            return {
+              success: false,
+              error: (e && e.message) || "Zip job failed",
+            };
+          }
+        }
+        return result;
+      }
+      return { success: true, result, createdPath };
+    } catch (err) {
+      console.error("createOtherPanelNewFolder error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.editActivePanelFile
+  // Edits (writes) content to a file in the active panel. If `filePath` is a relative name
+  // it will be resolved relative to the active panel path. Returns an object with { success, result, createdPath }
+  methods.editActivePanelFile = async function (filePath, content = "") {
+    const state = getAppState();
+    const panel = state.panels[state.activePanel];
+    if (!filePath) {
+      const error = "filePath is required";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (!panel) {
+      const error = "Active panel not available.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      // If filePath looks absolute (starts with '/' or a drive letter like 'C:\\'), don't prefix
+      const looksAbsolute =
+        typeof filePath === "string" &&
+        (filePath.startsWith("/") || /^[a-zA-Z]:\\/.test(filePath));
+      const panelPath = panel.path;
+      const sep = panelPath.includes("\\") ? "\\" : "/";
+      const sanitizedPath = looksAbsolute
+        ? filePath
+        : normalizeNameToPanel(filePath, panelPath);
+      const fullPath = looksAbsolute
+        ? filePath
+        : panelPath.endsWith(sep)
+        ? panelPath + sanitizedPath
+        : panelPath + sep + sanitizedPath;
+
+      const response = await fetch("/api/save-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: fullPath, content }),
+      });
+
+      // If the operation started async (zip), server returns 202
+      if (response.status === 202) {
+        const data = await response.json();
+        // If a zip job started, wait for its completion so FM await is in sync
+        if (data && data.jobId && matchZipPath(fullPath)) {
+          try {
+            const zipParts = matchZipPath(fullPath) || [];
+            await waitForZipJobCompletion(data.jobId, "update-file-in-zip", {
+              onProgress: (d) => console.log("zip progress:", d),
+              showModal: true,
+              zipFilePath: zipParts[1] || fullPath,
+              filePathInZip:
+                zipParts[2] && zipParts[2].startsWith("/")
+                  ? zipParts[2].substring(1)
+                  : zipParts[2],
+              title: "Updating file in zip...",
+            });
+          } catch (e) {
+            console.error("Zip job wait finished with error", e && e.message);
+            return {
+              success: false,
+              error: (e && e.message) || "Zip update failed",
+            };
+          }
+        }
+        return { success: true, result: data, createdPath: fullPath };
+      }
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          error: err.message || `HTTP ${response.status}`,
+        };
+      }
+      const data = await response.json();
+      return { success: true, result: data, createdPath: fullPath };
+    } catch (err) {
+      console.error("editActivePanelFile error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.editOtherPanelFile
+  // Edits (writes) content to a file in the other (inactive) panel. If `filePath` is a relative name
+  // it will be resolved relative to the other panel path. Returns an object with { success, result, createdPath }
+  methods.editOtherPanelFile = async function (filePath, content = "") {
+    const state = getAppState();
+    const otherPanel = methods.getOtherPanelSide();
+    const panel = state.panels[otherPanel];
+    if (!filePath) {
+      const error = "filePath is required";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (!panel) {
+      const error = "Other panel not available.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      const looksAbsolute =
+        typeof filePath === "string" &&
+        (filePath.startsWith("/") || /^[a-zA-Z]:\\/.test(filePath));
+      const panelPath = panel.path;
+      const sep = panelPath.includes("\\") ? "\\" : "/";
+      const sanitizedPath = looksAbsolute
+        ? filePath
+        : normalizeNameToPanel(filePath, panelPath);
+      const fullPath = looksAbsolute
+        ? filePath
+        : panelPath.endsWith(sep)
+        ? panelPath + sanitizedPath
+        : panelPath + sep + sanitizedPath;
+
+      const response = await fetch("/api/save-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: fullPath, content }),
+      });
+
+      if (response.status === 202) {
+        const data = await response.json();
+        if (data && data.jobId) {
+          try {
+            if (matchZipPath(fullPath)) {
+              const zipParts = matchZipPath(fullPath) || [];
+              await waitForZipJobCompletion(data.jobId, "update-file-in-zip", {
+                onProgress: (d) => console.log("zip progress:", d),
+                showModal: true,
+                zipFilePath: zipParts[1] || fullPath,
+                filePathInZip:
+                  zipParts[2] && zipParts[2].startsWith("/")
+                    ? zipParts[2].substring(1)
+                    : zipParts[2],
+                title: "Updating file in zip...",
+              });
+            }
+          } catch (e) {
+            console.error("Zip job wait finished with error", e && e.message);
+            return {
+              success: false,
+              error: (e && e.message) || "Zip update failed",
+            };
+          }
+        }
+        return { success: true, result: data, createdPath: fullPath };
+      }
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        return {
+          success: false,
+          error: err.message || `HTTP ${response.status}`,
+        };
+      }
+      const data = await response.json();
+      return { success: true, result: data, createdPath: fullPath };
+    } catch (err) {
+      console.error("editOtherPanelFile error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
   };
 
   methods.getName = function () {

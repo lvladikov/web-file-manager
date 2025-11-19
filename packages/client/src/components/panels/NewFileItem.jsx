@@ -14,11 +14,11 @@ const NewFileItem = ({ value, onChange, onSubmit, onCancel, style }) => {
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          const point = value.lastIndexOf('.');
+          const point = value.lastIndexOf(".");
           if (point !== -1) {
             inputRef.current.setSelectionRange(0, point);
           } else {
-            input_ref.current.select();
+            inputRef.current.select();
           }
         }
       }, 150);

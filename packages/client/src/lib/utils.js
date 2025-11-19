@@ -1,13 +1,24 @@
 import { startSizeCalculation } from "./api";
 
-const buildFullPath = (basePath, fileName) =>
-  `${basePath}${
-    basePath.endsWith("\\") || basePath.endsWith("/")
-      ? ""
-      : basePath.includes("\\")
-      ? "\\"
-      : "/"
-  }${fileName}`;
+const buildFullPath = (basePath, fileName) => {
+  const sep = basePath && basePath.includes("\\") ? "\\" : "/";
+  const sanitizedFileName =
+    typeof fileName === "string" ? fileName.replace(/[\\/]/g, sep) : fileName;
+  // Escape special regex characters in `sep` when building RegExp
+  const escapeForRegExp = (s) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const escapedSep = escapeForRegExp(sep);
+  const leadingSepRegex = new RegExp(`^${escapedSep}+`);
+  const multipleSepRegex = new RegExp(`${escapedSep}+`, "g");
+  const trimmedFileName =
+    typeof sanitizedFileName === "string"
+      ? sanitizedFileName
+          .replace(leadingSepRegex, "")
+          .replace(multipleSepRegex, sep)
+      : sanitizedFileName;
+  const addSep =
+    basePath && (basePath.endsWith("\\") || basePath.endsWith("/")) ? "" : sep;
+  return `${basePath}${addSep}${trimmedFileName}`;
+};
 
 const formatBytes = (bytes, spaceBeforeUnit = true) => {
   if (bytes === null || typeof bytes === "undefined") return "";

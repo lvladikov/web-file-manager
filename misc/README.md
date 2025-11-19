@@ -95,7 +95,7 @@ This project exposes a small, developer-friendly global named `FM` in the page c
 
 - `FM()` or `FM.getInfo()` — returns a single string: `"<package-name> - version <version>"`.
 - `FM.getName()` — returns package name (eg `web-file-manager`).
-- `FM.getVersion()` — returns package version (eg `1.1.7`).
+- `FM.getVersion()` — returns package version (eg `1.1.8`).
 - `FM.getBuildType()` — returns one of: `Node:Dev`, `Electron:Dev`, `Electron:Dist` depending on how the app is running.
 - `FM.exit()` — exits/quits the application cleanly. Works for both Node:Dev and Electron builds. Returns a promise that resolves to `{ success: boolean, cancelledJobs?: number, error?: string }`. The method triggers a graceful shutdown that cancels all ongoing jobs (copy, duplicate, compress, decompress, archive tests, size calculations, zip operations, and terminal sessions), closes the server, and exits the process without leaving hanging Node.js processes.
 - `FM.getPanels(relativeSelection=true)` — returns an object with both panels: `{ active: { side, path, selection }, other: { side, path, selection } }`. Each panel object contains `side` ('left' or 'right'), `path` (absolute panel path), and `selection` (array of selected items - relative by default, absolute if `false` is passed).
@@ -149,7 +149,13 @@ This project exposes a small, developer-friendly global named `FM` in the page c
 - `FM.getOtherPanelPath()` — returns the absolute path (string) of the currently other/inactive panel.
 - `FM.getActivePanelSelection(relative=true)` — returns an array of paths for selected items in the active panel. By default returns relative paths (relative to the panel path). Pass `false` to get absolute paths.
 - `FM.getOtherPanelSelection(relative=true)` — returns an array of paths for selected items in the other panel. By default returns relative paths (relative to the panel path). Pass `false` to get absolute paths.
-- `FM.help()` — prints a short intro, current build type, and lists all available FM methods and properties (one-per-line). Useful for interactive console discovery.`FM.help()` prints the help to the console by default and DOES NOT return the help string (this avoids the console echoing the return value). If you need the help text as a string, call `FM.help(true)` or `FM.help({ returnOutput: true })`.
+- `FM.createActivePanelNewFile(name?, content?)` — creates a new file in the active panel. `name` is optional (defaults to `New File.txt`), `content` is optional initial content (supports `\n` and backtick template literals). Returns `{ success, result, createdPath }` and creates intermediate directories if a nested path is provided.
+- `FM.createOtherPanelNewFile(name?, content?)` — creates a new file in the other/inactive panel. Same behavior as above.
+- `FM.createActivePanelNewFolder(name?)` — creates a new folder in the active panel. `name` may include nested path segments like `'dir/subdir/new'`; intermediate dirs will be created. If name exists, a unique suffix is appended.
+- `FM.createOtherPanelNewFolder(name?)` — creates a new folder in the other/inactive panel. Same behavior.
+- `FM.editActivePanelFile(filePath, content)` — writes `content` to a file resolved relative to the active panel path (or absolute path). For zip content this may result in an async job (202 + jobId). Returns `{ success, result, createdPath }`.
+- `FM.editOtherPanelFile(filePath, content)` — writes `content` to a file resolved relative to the other panel path (or absolute path).
+- `FM.help()` — prints a short intro, current build type, and lists all available FM methods and properties (one-per-line). Useful for interactive console discovery.`FM.help()` prints the help to the console by default and DOES NOT return the help string (this avoids the console echoing the return value). If you need the help text as a string, call `FM.help(true)` or `FM.help({ returnOutput: true })`. You can also pass a filter string or `maxLineLength` as an optional second parameter to control output. Examples: `FM.help('File')`, `FM.help('active', 120)`, or `FM.help({ filter: 'file', returnOutput: true, maxLineLength: 120 })`.
 
 ### Properties
 

@@ -821,7 +821,12 @@ const HelpModal = ({ isVisible, onClose }) => {
               run{" "}
               <code className="bg-gray-900 px-2 py-1 rounded">FM.help()</code>{" "}
               to see a complete list of all available methods with their
-              descriptions.
+              descriptions. You can also filter for specific keyword like
+              <code className="bg-gray-900 px-2 py-1 rounded">
+                FM.help('File')
+              </code>
+              , which would return only methods and properties with 'File' in
+              their name or description.
             </p>
             <p>
               The <code className="bg-gray-900 px-2 py-1 rounded">FM</code>{" "}

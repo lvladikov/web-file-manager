@@ -217,6 +217,13 @@ export default function App() {
         handleQuickFilterFolders,
         handleQuickFilterZipFiles,
         handleResetQuickFilter,
+        // New file & folder handlers (exposed for FM console API)
+        handleStartNewFile,
+        handleConfirmNewFile,
+        handleCancelNewFile,
+        handleStartNewFolder,
+        handleConfirmNewFolder,
+        handleCancelNewFolder,
       };
     }
     return () => {

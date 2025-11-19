@@ -3,7 +3,11 @@
  * Generates and displays formatted help documentation for FM methods and properties
  */
 
-import { detectBuildType } from "./utils.js";
+import {
+  detectBuildType,
+  parseItemLine,
+  expandBacktickNewlines,
+} from "./utils.js";
 
 /**
  * Creates the FM.help function that displays documentation
@@ -16,19 +20,50 @@ function createHelpFunction(FM) {
   // help string (prevents the console from showing the return value as a cyan
   // result when called interactively). Pass `true` or `{ returnOutput: true }` to
   // receive the help text string as the return value.
-  return function (opts) {
+  return function (opts, maxLineLengthInput) {
     // Support both a boolean shorthand (FM.help(true)) and an options object
-    const shouldReturnOutput =
-      typeof opts === "boolean" ? opts : opts && opts.returnOutput;
+    // Accepts:
+    // - falsey -> prints help
+    // - boolean -> { returnOutput }
+    // - string -> context filter
+    // - object -> { filter: string, returnOutput: boolean }
+    let shouldReturnOutput = false;
+    let filterWords = null;
+    let maxLineLength = 72;
+    if (typeof opts === "boolean") {
+      shouldReturnOutput = opts;
+    } else if (typeof opts === "string") {
+      filterWords = opts
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 0);
+    } else if (opts && typeof opts === "object") {
+      shouldReturnOutput = !!opts.returnOutput;
+      const fs = opts.filter ? String(opts.filter).toLowerCase() : null;
+      filterWords = fs ? fs.split(/\s+/).filter((w) => w.length > 0) : null;
+      if (opts.maxLineLength && Number.isInteger(opts.maxLineLength)) {
+        // allow passing maxLineLength as part of the options object
+        maxLineLength = opts.maxLineLength;
+      }
+    }
 
-    const MAX_LINE_LENGTH = 72;
+    // (keeping this assignment just in case) - already initialized above
     const isBrowser =
       typeof window !== "undefined" && typeof window.document !== "undefined";
     const lines = [];
 
-    // Helper function to wrap long text at MAX_LINE_LENGTH
+    // If a second parameter was passed, treat it as desired max line length
+    if (
+      typeof maxLineLengthInput === "number" &&
+      Number.isInteger(maxLineLengthInput) &&
+      maxLineLengthInput > 0
+    ) {
+      maxLineLength = maxLineLengthInput;
+    }
+
+    // Helper function to wrap long text at maxLineLength
     function wrapText(text, indent) {
-      if (text.length + indent.length <= MAX_LINE_LENGTH) {
+      if (text.length + indent.length <= maxLineLength) {
         return [indent + text];
       }
 
@@ -38,7 +73,7 @@ function createHelpFunction(FM) {
 
       for (const word of words) {
         if (
-          (currentLine + word).length > MAX_LINE_LENGTH &&
+          (currentLine + word).length > maxLineLength &&
           currentLine !== indent
         ) {
           wrappedLines.push(currentLine.trimEnd());
@@ -62,6 +97,9 @@ function createHelpFunction(FM) {
     lines.push(`Build: ${detectBuildType()}`);
     lines.push("---");
     lines.push("Methods:");
+    lines.push(
+      "  - Usage: FM.help() | FM.help('filter') | FM.help(opts, maxLineLength) or FM.help({ filter: 'filter', returnOutput: true, maxLineLength: 120 })"
+    );
 
     // callable FM itself
     if (
@@ -132,6 +170,30 @@ function createHelpFunction(FM) {
         }
       }
 
+      // If filter provided, skip methods that don't match the filter (case-insensitive)
+      if (filterWords && filterWords.length > 0) {
+        const meta = FM && FM._meta && FM._meta.methods && FM._meta.methods[m];
+        const nameLower = m.toLowerCase();
+        const descLower = (meta && meta.desc && meta.desc.toLowerCase()) || "";
+        const paramsLower =
+          (meta && meta.params && meta.params.join(" ").toLowerCase()) || "";
+        const examplesLower =
+          (meta && meta.examples && meta.examples.join(" ").toLowerCase()) ||
+          "";
+
+        const matches = filterWords.every(
+          (word) =>
+            nameLower.includes(word) ||
+            descLower.includes(word) ||
+            paramsLower.includes(word) ||
+            examplesLower.includes(word)
+        );
+
+        if (!matches) {
+          continue; // Skip this method
+        }
+      }
+
       // Format: method name, then params line(s), then examples, then description with wrapping
       lines.push("");
       lines.push(`  FM.${m}()`);
@@ -147,15 +209,25 @@ function createHelpFunction(FM) {
 
       // Add examples if available
       if (metaExamples.length === 1) {
-        lines.push(`  - example: ${metaExamples[0]}`);
+        const ex = expandBacktickNewlines(metaExamples[0]);
+        // Split the example on actual newlines so console prints multiple lines
+        const exParts = ex.split("\n");
+        lines.push(`  - example: ${exParts.shift()}`);
+        for (const p of exParts) lines.push(`      ${p}`);
       } else if (metaExamples.length > 1) {
         lines.push(`  - examples:`);
         metaExamples.forEach((example) => {
-          lines.push(`      ${example}`);
+          const ex = expandBacktickNewlines(example);
+          const exParts = ex.split("\n");
+          lines.push(`      ${exParts.shift()}`);
+          for (const p of exParts) lines.push(`      ${p}`);
         });
       }
 
-      const descLines = wrapText(desc, "  - ");
+      // Expand `\n` in descriptions (if someone wrote backticks there) and split by actual newlines
+      desc = expandBacktickNewlines(desc);
+      const descParts = desc.split("\n");
+      const descLines = descParts.flatMap((part) => wrapText(part, "  - "));
       lines.push(...descLines);
     }
 
@@ -187,6 +259,21 @@ function createHelpFunction(FM) {
         desc = "developer-visible property";
       }
 
+      // If filter provided, skip properties that don't match the filter
+      if (filterWords && filterWords.length > 0) {
+        const meta =
+          FM && FM._meta && FM._meta.properties && FM._meta.properties[p];
+        const nameLower = p.toLowerCase();
+        const descLower = (meta && meta.desc && meta.desc.toLowerCase()) || "";
+
+        const matches = filterWords.every(
+          (word) => nameLower.includes(word) || descLower.includes(word)
+        );
+
+        if (!matches) {
+          continue; // Skip property
+        }
+      }
       // Format: property name, then description with wrapping
       lines.push("");
       lines.push(`  FM.${p}`);
@@ -200,124 +287,182 @@ function createHelpFunction(FM) {
     // while Node/Electron's terminal uses ANSI escape sequences.
     const methodColorCss = "color: #4B9DFF; font-weight: bold;";
     const paramsColorCss = "color: #EDCB3A; font-weight: normal;";
+    const argsColorCss = "color: #E49260; font-weight: normal;";
     const propColorCss = "color: #4CAF50; font-weight: bold;";
     const descColorCss = "color: #D4D4D4;";
     const methodAnsi = "\x1b[36m"; // cyan
     const paramsAnsi = "\x1b[33m"; // yellow
+    const argsAnsi = "\x1b[38;2;228;146;96m"; // #E49260
     const propAnsi = "\x1b[32m"; // green
     const descAnsi = "\x1b[37m"; // white/default
+    const commentColorCss = "color: #6A9955;"; // green comment
+    const commentAnsi = "\x1b[32m"; // green
     const resetAnsi = "\x1b[0m";
 
+    let currentSection = null;
+    let parseState = { inMultiline: false, depth: 0 };
+
     for (const l of lines) {
-      if (isBrowser) {
-        // Check if this is a method signature line (starts with "  FM" and ends with "()")
-        if (/^  FM(?:\.|\(|$)/.test(l) && /\(\)$/.test(l)) {
-          const match = l.match(/^(\s*)(FM(?:\.[a-zA-Z0-9_]+)?)\(\)$/);
-          if (match) {
-            const [, indent, name] = match;
+      // Check if this is a method signature line (starts with "  FM" and ends with "()")
+      if (/^  FM(?:\.|\(|$)/.test(l) && /\(\)$/.test(l)) {
+        const match = l.match(/^(\s*)(FM(?:\.[a-zA-Z0-9_]+)?)\(\)$/);
+        if (match) {
+          const [, indent, name] = match;
+          if (isBrowser) {
             console.log(`${indent}%c${name}()`, methodColorCss);
-            continue;
-          }
-        }
-        // Check if this is a property line (starts with "  FM" but no parentheses)
-        if (/^  FM\./.test(l) && !/\(\)$/.test(l)) {
-          const match = l.match(/^(\s*)(FM\.[a-zA-Z0-9_]+)$/);
-          if (match) {
-            const [, indent, name] = match;
-            console.log(`${indent}%c${name}`, propColorCss);
-            continue;
-          }
-        }
-        // Check if this is a parameter(s) or example(s) line
-        if (/^  - (parameters?|examples?):/.test(l)) {
-          const match = l.match(/^(  - (?:parameters?|examples?):)(.*)$/);
-          if (match) {
-            const [, label, content] = match;
-            if (content.trim()) {
-              // Single line: "  - parameter: xxx" or "  - example: xxx"
-              console.log(
-                `%c${label}%c${content}`,
-                "color: #888;",
-                paramsColorCss
-              );
-            } else {
-              // Multi-line start: "  - parameters:" or "  - examples:"
-              console.log(`%c${label}`, "color: #888;");
-            }
-            continue;
-          }
-        }
-        // Check if this is a parameter/example item line (starts with "      " - 6 spaces)
-        if (/^      [^ ]/.test(l)) {
-          console.log(`%c${l}`, paramsColorCss);
-          continue;
-        }
-        // Check if this is a regular description line (starts with "  - " but not "  - parameter(s)/example(s):")
-        if (/^  - /.test(l) && !/^  - (parameters?|examples?):/.test(l)) {
-          console.log(`%c${l}`, descColorCss);
-          continue;
-        }
-        // Check if this is a continuation line (starts with "    " - 4 spaces)
-        if (/^    [^ ]/.test(l)) {
-          console.log(`%c${l}`, descColorCss);
-          continue;
-        }
-        console.log(l);
-      } else {
-        // Node/Electron terminal: use ANSI coloring
-        // Check if this is a method signature line (starts with "  FM" and ends with "()")
-        if (/^  FM(?:\.|\(|$)/.test(l) && /\(\)$/.test(l)) {
-          const match = l.match(/^(\s*)(FM(?:\.[a-zA-Z0-9_]+)?)\(\)$/);
-          if (match) {
-            const [, indent, name] = match;
+          } else {
             console.log(indent + methodAnsi + name + "()" + resetAnsi);
-            continue;
           }
-        }
-        // Check if this is a property line (starts with "  FM" but no parentheses)
-        if (/^  FM\./.test(l) && !/\(\)$/.test(l)) {
-          const match = l.match(/^(\s*)(FM\.[a-zA-Z0-9_]+)$/);
-          if (match) {
-            const [, indent, name] = match;
-            console.log(indent + propAnsi + name + resetAnsi);
-            continue;
-          }
-        }
-        // Check if this is a parameter(s) or example(s) line
-        if (/^  - (parameters?|examples?):/.test(l)) {
-          const match = l.match(/^(  - (?:parameters?|examples?):)(.*)$/);
-          if (match) {
-            const [, label, content] = match;
-            const grayAnsi = "\x1b[90m"; // dark gray
-            if (content.trim()) {
-              // Single line: "  - parameter: xxx" or "  - example: xxx"
-              console.log(
-                grayAnsi + label + resetAnsi + paramsAnsi + content + resetAnsi
-              );
-            } else {
-              // Multi-line start: "  - parameters:" or "  - examples:"
-              console.log(grayAnsi + label + resetAnsi);
-            }
-            continue;
-          }
-        }
-        // Check if this is a parameter/example item line (starts with "      " - 6 spaces)
-        if (/^      [^ ]/.test(l)) {
-          console.log(paramsAnsi + l + resetAnsi);
+          currentSection = null;
+          parseState = { inMultiline: false, depth: 0 };
           continue;
         }
-        // Check if this is a regular description line (starts with "  - " but not "  - parameter(s)/example(s):")
-        if (/^  - /.test(l) && !/^  - (parameters?|examples?):/.test(l)) {
-          console.log(descAnsi + l + resetAnsi);
-          continue;
-        }
-        // Check if this is a continuation line (starts with "    " - 4 spaces)
-        if (/^    [^ ]/.test(l)) {
-          console.log(descAnsi + l + resetAnsi);
-          continue;
-        }
-        console.log(l);
       }
+      // Check if this is a property line (starts with "  FM" but no parentheses)
+      if (/^  FM\./.test(l) && !/\(\)$/.test(l)) {
+        const match = l.match(/^(\s*)(FM\.[a-zA-Z0-9_]+)$/);
+        if (match) {
+          const [, indent, name] = match;
+          if (isBrowser) {
+            console.log(`${indent}%c${name}`, propColorCss);
+          } else {
+            console.log(indent + propAnsi + name + resetAnsi);
+          }
+          currentSection = null;
+          parseState = { inMultiline: false, depth: 0 };
+          continue;
+        }
+      }
+
+      // Check if this is the Usage line
+      const usageMatch = l.match(/^(\s*- Usage:)(.*)$/);
+      if (usageMatch) {
+        const [, label, content] = usageMatch;
+        const { parts, newState } = parseItemLine(content, "usage", parseState);
+        parseState = newState;
+
+        if (isBrowser) {
+          const cssArgs = ["color: #888;"]; // label color
+          let formatStr = `%c${label}`;
+          parts.forEach((p) => {
+            formatStr += `%c${p.text}`;
+            if (p.type === "highlight") cssArgs.push(argsColorCss);
+            else if (p.type === "comment") cssArgs.push(commentColorCss);
+            else cssArgs.push(paramsColorCss);
+          });
+          console.log(formatStr, ...cssArgs);
+        } else {
+          let str = "\x1b[90m" + label + resetAnsi;
+          parts.forEach((p) => {
+            if (p.type === "highlight") str += argsAnsi + p.text + resetAnsi;
+            else if (p.type === "comment")
+              str += commentAnsi + p.text + resetAnsi;
+            else str += paramsAnsi + p.text + resetAnsi;
+          });
+          console.log(str);
+        }
+        continue;
+      }
+
+      // Check if this is a parameter(s) or example(s) line
+      const sectionMatch = l.match(/^(  - (?:parameters?|examples?):)(.*)$/);
+      if (sectionMatch) {
+        const [, label, content] = sectionMatch;
+        if (label.includes("parameter")) currentSection = "parameters";
+        else if (label.includes("example")) currentSection = "examples";
+        parseState = { inMultiline: false, depth: 0 };
+
+        if (content.trim()) {
+          const { parts, newState } = parseItemLine(
+            content,
+            currentSection,
+            parseState
+          );
+          parseState = newState;
+
+          if (isBrowser) {
+            const cssArgs = ["color: #888;"]; // label color
+            let formatStr = `%c${label}`;
+            parts.forEach((p) => {
+              formatStr += `%c${p.text}`;
+              if (p.type === "highlight") cssArgs.push(argsColorCss);
+              else if (p.type === "comment") cssArgs.push(commentColorCss);
+              else cssArgs.push(paramsColorCss);
+            });
+            console.log(formatStr, ...cssArgs);
+          } else {
+            let str = "\x1b[90m" + label + resetAnsi;
+            parts.forEach((p) => {
+              if (p.type === "highlight") str += argsAnsi + p.text + resetAnsi;
+              else if (p.type === "comment")
+                str += commentAnsi + p.text + resetAnsi;
+              else str += paramsAnsi + p.text + resetAnsi;
+            });
+            console.log(str);
+          }
+        } else {
+          if (isBrowser) {
+            console.log(`%c${label}`, "color: #888;");
+          } else {
+            console.log("\x1b[90m" + label + resetAnsi);
+          }
+        }
+        continue;
+      }
+
+      // Check if this is a parameter/example item line (starts with "      " - 6 spaces)
+      if (/^      [^ ]/.test(l)) {
+        const { parts, newState } = parseItemLine(
+          l,
+          currentSection,
+          parseState
+        );
+        parseState = newState;
+
+        if (isBrowser) {
+          let formatStr = "";
+          const cssArgs = [];
+          parts.forEach((p) => {
+            formatStr += `%c${p.text}`;
+            if (p.type === "highlight") cssArgs.push(argsColorCss);
+            else if (p.type === "comment") cssArgs.push(commentColorCss);
+            else cssArgs.push(paramsColorCss);
+          });
+          console.log(formatStr, ...cssArgs);
+        } else {
+          let str = "";
+          parts.forEach((p) => {
+            if (p.type === "highlight") str += argsAnsi + p.text + resetAnsi;
+            else if (p.type === "comment")
+              str += commentAnsi + p.text + resetAnsi;
+            else str += paramsAnsi + p.text + resetAnsi;
+          });
+          console.log(str);
+        }
+        continue;
+      }
+
+      // Check if this is a regular description line (starts with "  - " but not "  - parameter(s)/example(s):")
+      if (/^  - /.test(l) && !/^  - (parameters?|examples?):/.test(l)) {
+        currentSection = null;
+        parseState = { inMultiline: false, depth: 0 };
+        if (isBrowser) {
+          console.log(`%c${l}`, descColorCss);
+        } else {
+          console.log(descAnsi + l + resetAnsi);
+        }
+        continue;
+      }
+      // Check if this is a continuation line (starts with "    " - 4 spaces)
+      if (/^    [^ ]/.test(l)) {
+        if (isBrowser) {
+          console.log(`%c${l}`, descColorCss);
+        } else {
+          console.log(descAnsi + l + resetAnsi);
+        }
+        continue;
+      }
+      console.log(l);
     }
     if (shouldReturnOutput) return output;
     // Otherwise return undefined implicitly so interactive consoles won't print

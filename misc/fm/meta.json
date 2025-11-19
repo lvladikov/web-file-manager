@@ -32,17 +32,23 @@
     },
     "getPanels": {
       "desc": "returns object with active and other panels { active: {...}, other: {...} } each containing side, path, and selection (selection relative by default, absolute if param is false)",
-      "params": ["relativeSelection=true"],
+      "params": [
+        "relativeSelection? (boolean - default true, return relative selection)"
+      ],
       "examples": ["FM.getPanels()", "FM.getPanels(false)"]
     },
     "getActivePanel": {
       "desc": "returns object with side, path, and selection for the active panel (selection relative by default, absolute if param is false)",
-      "params": ["relativeSelection=true"],
+      "params": [
+        "relativeSelection? (boolean - default true, return relative selection)"
+      ],
       "examples": ["FM.getActivePanel()", "FM.getActivePanel(false)"]
     },
     "getOtherPanel": {
       "desc": "returns object with side, path, and selection for the other panel (selection relative by default, absolute if param is false)",
-      "params": ["relativeSelection=true"],
+      "params": [
+        "relativeSelection? (boolean - default true, return relative selection)"
+      ],
       "examples": ["FM.getOtherPanel()", "FM.getOtherPanel(false)"]
     },
     "getActivePanelSide": {
@@ -57,7 +63,7 @@
     },
     "setActivePanelSide": {
       "desc": "sets which panel should be active ('left' or 'right', defaults to 'left')",
-      "params": ["side='left'"],
+      "params": ["side? (string - 'left' or 'right', default 'left')"],
       "examples": [
         "FM.setActivePanelSide('left')",
         "FM.setActivePanelSide('right')"
@@ -90,17 +96,21 @@
     },
     "setActivePanelPath": {
       "desc": "sets the path of the active panel (async, returns {success, error?})",
-      "params": ["path"],
+      "params": ["path (string - absolute path to navigate to)"],
       "examples": ["await FM.setActivePanelPath('/Users/name/Documents')"]
     },
     "setOtherPanelPath": {
       "desc": "sets the path of the other panel (async, returns {success, error?})",
-      "params": ["path"],
+      "params": ["path (string - absolute path to navigate to)"],
       "examples": ["await FM.setOtherPanelPath('/tmp')"]
     },
     "setActivePanelSelection": {
       "desc": "sets the selection for the active panel (returns {selected, notFound})",
-      "params": ["items[]", "ignoreCase=false", "reset=true"],
+      "params": [
+        "items (array - names or absolute paths)",
+        "ignoreCase? (boolean - default false, case-insensitive)",
+        "reset? (boolean - default true, reset selection)"
+      ],
       "examples": [
         "FM.setActivePanelSelection(['file.txt', 'image.png'])",
         "FM.setActivePanelSelection(['FILE.TXT'], true)",
@@ -109,7 +119,11 @@
     },
     "setOtherPanelSelection": {
       "desc": "sets the selection for the other panel (returns {selected, notFound})",
-      "params": ["items[]", "ignoreCase=false", "reset=true"],
+      "params": [
+        "items (array - names or absolute paths)",
+        "ignoreCase? (boolean - default false, case-insensitive)",
+        "reset? (boolean - default true, reset selection)"
+      ],
       "examples": [
         "FM.setOtherPanelSelection(['doc.pdf'])",
         "FM.setOtherPanelSelection(['README.MD'], true)",
@@ -144,10 +158,10 @@
     "setActivePanelQuickSelect": {
       "desc": "performs quick select on active panel using a pattern (returns count of items selected)",
       "params": [
-        "pattern",
-        "useRegex=false",
-        "caseSensitive=false",
-        "resetSelection=true"
+        "pattern (string - wildcard or regex)",
+        "useRegex? (boolean - default false)",
+        "caseSensitive? (boolean - default false)",
+        "resetSelection? (boolean - default true)"
       ],
       "examples": [
         "FM.setActivePanelQuickSelect(\"*.txt\")",
@@ -162,10 +176,10 @@
     "setOtherPanelQuickSelect": {
       "desc": "performs quick select on other panel using a pattern (returns count of items selected)",
       "params": [
-        "pattern",
-        "useRegex=false",
-        "caseSensitive=false",
-        "resetSelection=true"
+        "pattern (string - wildcard or regex)",
+        "useRegex? (boolean - default false)",
+        "caseSensitive? (boolean - default false)",
+        "resetSelection? (boolean - default true)"
       ],
       "examples": [
         "FM.setOtherPanelQuickSelect(\"*.jpg\")",
@@ -180,10 +194,10 @@
     "setActivePanelQuickUnselect": {
       "desc": "performs quick unselect on active panel using a pattern (returns count of items unselected)",
       "params": [
-        "pattern",
-        "useRegex=false",
-        "caseSensitive=false",
-        "resetSelection=true"
+        "pattern (string - wildcard or regex)",
+        "useRegex? (boolean - default false)",
+        "caseSensitive? (boolean - default false)",
+        "resetSelection? (boolean - default true)"
       ],
       "examples": [
         "FM.setActivePanelQuickUnselect(\"*.tmp\")",
@@ -198,10 +212,10 @@
     "setOtherPanelQuickUnselect": {
       "desc": "performs quick unselect on other panel using a pattern (returns count of items unselected)",
       "params": [
-        "pattern",
-        "useRegex=false",
-        "caseSensitive=false",
-        "resetSelection=true"
+        "pattern (string - wildcard or regex)",
+        "useRegex? (boolean - default false)",
+        "caseSensitive? (boolean - default false)",
+        "resetSelection? (boolean - default true)"
       ],
       "examples": [
         "FM.setOtherPanelQuickUnselect(\"test*\")",
@@ -215,7 +229,11 @@
     },
     "setActivePanelQuickFilter": {
       "desc": "sets a filter pattern for the active panel to show only matching items (returns count of matching items)",
-      "params": ["pattern", "useRegex=false", "caseSensitive=false"],
+      "params": [
+        "pattern (string - wildcard or regex)",
+        "useRegex? (boolean - default false)",
+        "caseSensitive? (boolean - default false)"
+      ],
       "examples": [
         "FM.setActivePanelQuickFilter(\"*.js\")",
         "FM.setActivePanelQuickFilter(\"\\.(ts|tsx)$\", true)",
@@ -227,7 +245,11 @@
     },
     "setOtherPanelQuickFilter": {
       "desc": "sets a filter pattern for the other panel to show only matching items (returns count of matching items)",
-      "params": ["pattern", "useRegex=false", "caseSensitive=false"],
+      "params": [
+        "pattern (string - wildcard or regex)",
+        "useRegex? (boolean - default false)",
+        "caseSensitive? (boolean - default false)"
+      ],
       "examples": [
         "FM.setOtherPanelQuickFilter(\"doc\")",
         "FM.setOtherPanelQuickFilter(\"^[A-Z]\", true)",
@@ -281,6 +303,80 @@
       "desc": "clears the filter for both panels (shows all items, returns combined count of items)",
       "params": [],
       "examples": ["FM.resetBothPanelQuickFilter()"]
+    },
+    "createActivePanelNewFile": {
+      "desc": "creates a new file in the active panel using the app's new file handler (async). If `name` is provided it will be used (and will be made unique if already exists); it may include nested path segments (e.g., 'dir/subdir/file.txt' or 'dir\\subdir\\file.txt') and missing parents will be created. The optional `content` parameter will be written into the file verbatim; newline characters like `` are supported and will be reproduced as line breaks in the created file. Alternatively, you may pass `content` using an ES template literal (backticks), and the literal newlines will be preserved (no `` escapes required). Otherwise a default 'New File' will be used. Returns an object with { success, result, createdPath } where result contains the server response (e.g., jobId). If the operation triggers an archive (zip) update, the method will wait until the zip update completes before resolving (useful when creating files inside zip archives).",
+      "params": [
+        "name? (string - filename, e.g. 'MyFile.txt')",
+        "content? (string - optional initial content)"
+      ],
+      "examples": [
+        "await FM.createActivePanelNewFile()",
+        "await FM.createActivePanelNewFile('MyFile.txt')",
+        "await FM.createActivePanelNewFile('dir/subdir/MyFile.txt', 'initial content...')",
+        "await FM.createActivePanelNewFile('MyFile.txt', 'Initial content')",
+        "await FM.createActivePanelNewFile('MyFile.txt', 'First line\\nSecond line\\nThird line')",
+        "await FM.createActivePanelNewFile('MyFile.txt', `First line\\nSecond line\\nThird line`) // or using template literal and multlines in it"
+      ]
+    },
+    "createOtherPanelNewFile": {
+      "desc": "creates a new file in the other (inactive) panel using the app's new file handler (async). If `name` is provided it will be used (and will be made unique if already exists); it may include nested path segments (e.g., 'dir/subdir/file.txt' or 'dir\\subdir\\file.txt') and missing parents will be created. The optional `content` parameter will be written into the file verbatim; newline characters like `` are supported and will be reproduced as line breaks in the created file. Alternatively, you may pass `content` using an ES template literal (backticks), and the literal newlines will be preserved (no `` escapes required). Otherwise a default 'New File' will be used. Returns an object with { success, result, createdPath } where result contains the server response (e.g., jobId). If the operation triggers an archive (zip) update, the method will wait until the zip update completes before resolving (useful when creating files inside zip archives).",
+      "params": [
+        "name? (string - filename, e.g. 'MyFile.txt')",
+        "content? (string - optional initial content)"
+      ],
+      "examples": [
+        "await FM.createOtherPanelNewFile()",
+        "await FM.createOtherPanelNewFile('MyFile.txt')",
+        "await FM.createOtherPanelNewFile('MyFile.txt', 'Initial content')",
+        "await FM.createOtherPanelNewFile('MyFile.txt', 'First line\\nSecond line')",
+        "await FM.createOtherPanelNewFile('MyFile.txt', `First line\\nSecond line`) // or using template literal and multlines in it"
+      ]
+    },
+    "createActivePanelNewFolder": {
+      "desc": "creates a new folder in the active panel using the app's new folder handler (async). If `name` is provided it will be used; it may include nested paths separated by '/' or '\\' (subfolders will be created). The last segment will be made unique if necessary. Returns an object with { success, result, createdPath } where `result` contains the server response (e.g., jobId). If the operation triggers an archive (zip) update, the method will wait until the zip update completes before resolving.",
+      "params": ["name? (string - folder name, e.g. 'MyFolder')"],
+      "examples": [
+        "await FM.createActivePanelNewFolder()",
+        "await FM.createActivePanelNewFolder('MyFolder')",
+        "await FM.createActivePanelNewFolder('dir/subdir/new')",
+        "await FM.createActivePanelNewFolder('dir\\subdir\\new') // Windows-style separators preserved and normalized",
+        "await FM.createActivePanelNewFolder('MyFolder') // if exists, a unique suffix is appended"
+      ]
+    },
+    "createOtherPanelNewFolder": {
+      "desc": "creates a new folder in the other (inactive) panel using the app's new folder handler (async). If `name` is provided it will be used (and will be made unique if already exists), otherwise a default 'New Folder' will be used. Returns an object with { success, result, createdPath } where result contains the server response (e.g., jobId). If the operation triggers an archive (zip) update, the method will wait until the zip update completes before resolving.",
+      "params": ["name? (string - folder name, e.g. 'MyFolder')"],
+      "examples": [
+        "await FM.createOtherPanelNewFolder()",
+        "await FM.createOtherPanelNewFolder('MyFolder')",
+        "await FM.createOtherPanelNewFolder('dir\\subdir\\new') // windows-style separators accepted",
+        "await FM.createOtherPanelNewFolder('MyFolder') // uniqueness checks apply"
+      ]
+    },
+    "editActivePanelFile": {
+      "desc": "Writes (edits) content to a file in the active panel. If `filePath` is a relative path it will be resolved relative to the active panel path. The `content` parameter is written verbatim; newline characters like `` are supported and template-literal (backtick) strings will preserve literal newlines. Returns an object with { success, result, createdPath } where result contains server response (e.g., jobId for zip operations). If the operation triggers an archive (zip) update, the method will wait until the zip update completes before resolving.",
+      "params": [
+        "filePath (string - relative or absolute path to file)",
+        "content (string - file content)"
+      ],
+      "examples": [
+        "await FM.editActivePanelFile('file.txt', 'Simple content')",
+        "await FM.editActivePanelFile('dir/sub/file.txt', 'First line\\nSecond line')",
+        "await FM.editActivePanelFile('file.txt', `Line 1\nLine 2`) // using backticks template literal"
+      ]
+    },
+    "editOtherPanelFile": {
+      "desc": "Writes (edits) content to a file in the other (inactive) panel. If `filePath` is a relative path it will be resolved relative to the other panel path. The `content` parameter is written verbatim; newline characters like `` are supported and template-literal (backtick) strings will preserve literal newlines. Returns an object with { success, result, createdPath } where result contains server response (e.g., jobId for zip operations). If the operation triggers an archive (zip) update, the method will wait until the zip update completes before resolving.",
+      "params": [
+        "filePath (string - relative or absolute path to file)",
+        "content (string - file content)"
+      ],
+      "examples": [
+        "await FM.editOtherPanelFile('file.txt', 'Simple content')",
+        "await FM.editOtherPanelFile('dir/sub/file.txt', 'First line\\nSecond line')",
+        "await FM.editOtherPanelFile('file.txt', `Line 1\nLine 2`) // using backticks template literal"
+      ]
     },
     "selectActivePanelFiles": {
       "desc": "selects only files (non-folder, non-parent items) in the active panel (returns count of files selected)",
@@ -354,12 +450,16 @@
     },
     "getActivePanelSelection": {
       "desc": "returns array of paths for selected items in the active panel (relative by default, absolute if param is false)",
-      "params": ["relative=true"],
+      "params": [
+        "relative? (boolean - default true, return relative paths when true)"
+      ],
       "examples": ["FM.getActivePanelSelection()"]
     },
     "getOtherPanelSelection": {
       "desc": "returns array of paths for selected items in the other panel (relative by default, absolute if param is false)",
-      "params": ["relative=true"],
+      "params": [
+        "relative? (boolean - default true, return relative paths when true)"
+      ],
       "examples": ["FM.getOtherPanelSelection()"]
     },
     "toString": {
@@ -368,20 +468,29 @@
       "examples": ["FM.toString()"]
     },
     "help": {
-      "desc": "prints this help",
-      "params": [],
-      "examples": ["FM.help()"]
+      "desc": "prints this help. You may pass a filter string (e.g., 'Active', 'File') to limit methods and properties returned. You can also pass a second numeric argument to control line wrapping (max line length) or pass the value as `maxLineLength` in an options object. Example: `FM.help('active', 120)` or `FM.help({ filter: 'File', returnOutput: true, maxLineLength: 120 })`.",
+      "params": [
+        "filter? (string - optional case-insensitive filter to reduce results)",
+        "returnOutput? (boolean - return as string rather than printing)",
+        "maxLineLength? (number - optional maximum line length, defaults to 72)"
+      ],
+      "examples": [
+        "FM.help()",
+        "FM.help('Active')",
+        "FM.help({ filter: 'File', returnOutput: true }) //you can feed this to console.log() for example",
+        "FM.help('file', 120)"
+      ]
     }
   },
   "properties": {
     "name": {
-      "desc": "package name (e.g. web-file-manager)"
+      "desc": "package name (string - e.g., 'web-file-manager')"
     },
     "version": {
-      "desc": "package version (e.g. 1.1.7)"
+      "desc": "package version (string - e.g., '1.1.8')"
     },
     "buildType": {
-      "desc": "current build mode (Node:Dev | Electron:Dev | Electron:Dist)"
+      "desc": "current build mode (string - 'Node:Dev' | 'Electron:Dev' | 'Electron:Dist')"
     }
   }
 }

@@ -477,7 +477,8 @@ export default function createFileSystemRoutes(
             message: "A file or folder with that name already exists.",
           });
         }
-        await fse.mkdir(newFolderPath);
+        // Ensure parent directories exist (create intermediate directories)
+        await fse.mkdir(newFolderPath, { recursive: true });
       }
       res.status(201).json({ message: "Folder created successfully.", jobId });
     } catch (error) {
@@ -579,6 +580,8 @@ export default function createFileSystemRoutes(
             .status(409)
             .json({ message: "A file with that name already exists." });
         }
+        // Ensure parent directory exists so nested paths are supported
+        await fse.ensureDir(path.dirname(newFilePath));
         await fse.createFile(newFilePath);
       }
       res.status(201).json({ message: "File created successfully.", jobId });
