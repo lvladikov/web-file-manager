@@ -107,24 +107,103 @@ export default function createZipRoutes(
     }
   });
 
-  // Endpoint to cancel a zip operation
-  router.post("/zip/operation/cancel", (req, res) => {
+  // Endpoint to cancel a zip operation or any zip-related job (compress, decompress, archive-test)
+  router.post("/zip/operation/cancel", async (req, res) => {
     const { jobId } = req.body;
-    if (!jobId || !activeZipOperations.has(jobId)) {
-      return res.status(404).json({ message: "Zip operation job not found." });
+    if (!jobId) {
+      return res.status(400).json({ message: "jobId is required." });
     }
-    const job = activeZipOperations.get(jobId);
-    if (job && job.controller) {
-      console.log("[zipRoutes] Aborting job:", jobId);
-      job.controller.abort();
+
+    // 1) Look in generic activeZipOperations (delete/modify operations inside zips)
+    if (activeZipOperations.has(jobId)) {
+      const job = activeZipOperations.get(jobId);
+      if (job && job.controller) {
+        console.log("[zipRoutes] Aborting zip operation job:", jobId);
+        job.controller.abort();
+      }
+      try {
+        unregisterAllForJob(jobId, job);
+      } catch (e) {}
+      activeZipOperations.delete(jobId);
+      return res
+        .status(200)
+        .json({ message: "Zip operation cancellation request received." });
     }
-    try {
-      unregisterAllForJob(jobId, job);
-    } catch (e) {}
-    activeZipOperations.delete(jobId);
-    res
-      .status(200)
-      .json({ message: "Zip operation cancellation request received." });
+
+    // 2) Compress jobs
+    if (activeCompressJobs.has(jobId)) {
+      const job = activeCompressJobs.get(jobId);
+      try {
+        console.log("[zipRoutes] Cancelling compress job:", jobId);
+        if (job.status === "pending" || job.status === "running") {
+          job.status = "cancelled";
+          if (job.archive && typeof job.archive.destroy === "function") {
+            try {
+              job.archive.destroy();
+            } catch (ee) {}
+          }
+          if (await fse.pathExists(job.outputPath)) {
+            console.log(
+              `[zipRoutes] Compression job ${jobId} cancelled. Deleting partial archive: ${job.outputPath}`
+            );
+            await fse.remove(job.outputPath);
+          }
+        }
+      } catch (e) {
+        console.warn("[zipRoutes] Error while cancelling compress job:", e);
+      }
+      try {
+        unregisterAllForJob(jobId, job);
+      } catch (e) {}
+      activeCompressJobs.delete(jobId);
+      return res
+        .status(200)
+        .json({ message: "Compression cancellation request received." });
+    }
+
+    // 3) Decompress jobs
+    if (activeDecompressJobs.has(jobId)) {
+      const job = activeDecompressJobs.get(jobId);
+      try {
+        console.log("[zipRoutes] Cancelling decompress job:", jobId);
+        if (job.status === "pending" || job.status === "running") {
+          job.status = "cancelled";
+          if (job.controller) job.controller.abort();
+        }
+      } catch (e) {
+        console.warn("[zipRoutes] Error while cancelling decompress job:", e);
+      }
+      try {
+        unregisterAllForJob(jobId, job);
+      } catch (e) {}
+      activeDecompressJobs.delete(jobId);
+      return res
+        .status(200)
+        .json({ message: "Decompression cancellation request received." });
+    }
+
+    // 4) Archive test jobs
+    if (activeArchiveTestJobs.has(jobId)) {
+      const job = activeArchiveTestJobs.get(jobId);
+      try {
+        console.log("[zipRoutes] Cancelling archive test job:", jobId);
+        if (job.status === "pending" || job.status === "running") {
+          job.status = "cancelled";
+          if (job.controller) job.controller.abort();
+        }
+      } catch (e) {
+        console.warn("[zipRoutes] Error while cancelling archive-test job:", e);
+      }
+      try {
+        unregisterAllForJob(jobId, job);
+      } catch (e) {}
+      activeArchiveTestJobs.delete(jobId);
+      return res
+        .status(200)
+        .json({ message: "Archive test cancellation request received." });
+    }
+
+    return res.status(404).json({ message: "Zip operation job not found." });
   });
 
   // Endpoint to compress files/folders (moved from compressRoutes)
@@ -204,6 +283,10 @@ export default function createZipRoutes(
         await fse.remove(job.outputPath);
       }
     }
+    try {
+      unregisterAllForJob(jobId, job);
+    } catch (e) {}
+    activeCompressJobs.delete(jobId);
     res
       .status(200)
       .json({ message: "Compression cancellation request received." });
@@ -271,13 +354,20 @@ export default function createZipRoutes(
   router.post("/zip/decompress/cancel", (req, res) => {
     const { jobId } = req.body;
     if (!jobId || !activeDecompressJobs.has(jobId)) {
-      return res.status(404).json({ message: "Decompression job not found." });
+      // Return 200 for idempotent cancellation; job may already be finished
+      return res
+        .status(200)
+        .json({ message: "Decompression job not found or already finished." });
     }
     const job = activeDecompressJobs.get(jobId);
     if (job.status === "pending" || job.status === "running") {
       job.status = "cancelled";
       job.controller.abort();
     }
+    try {
+      unregisterAllForJob(jobId, job);
+    } catch (e) {}
+    activeDecompressJobs.delete(jobId);
     res.status(200).json({ message: "Cancellation request received." });
   });
 
@@ -327,6 +417,10 @@ export default function createZipRoutes(
         job.zipfile.close();
       }
     }
+    try {
+      unregisterAllForJob(jobId, job);
+    } catch (e) {}
+    activeArchiveTestJobs.delete(jobId);
     res.status(200).json({ message: "Cancellation request received." });
   });
 

@@ -81,7 +81,7 @@ const OverwriteConfirmModal = ({
               <span className="font-bold font-mono text-gray-100">
                 {item.name}
               </span>{" "}
-              already exists in the Target.
+              already exists in the Target. Do you want to overwrite it?
             </p>
             <p className="text-sm text-gray-400 mb-6">
               You can decide for the folder itself now. If you proceed, you may
@@ -94,7 +94,7 @@ const OverwriteConfirmModal = ({
             <span className="font-bold font-mono text-gray-100">
               {item.name}
             </span>
-            .
+            . Do you want to overwrite it?
           </p>
         )}
 

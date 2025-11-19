@@ -117,6 +117,7 @@ const useDecompress = ({
                     promptId: data.promptId,
                   },
                   jobType: "decompress",
+                  jobId,
                 });
                 break;
               case "failed":
@@ -152,10 +153,7 @@ const useDecompress = ({
                 break;
             }
           };
-          ws.onclose = (event) => {
-            console.log(
-              `[useDecompress] WebSocket onclose for job ${jobId} code=${event.code} reason='${event.reason}' wasClean=${event.wasClean}`
-            );
+          ws.onclose = () => {
             resolve();
           };
           ws.onerror = () => {
@@ -241,14 +239,33 @@ const useDecompress = ({
     ]
   );
 
-  const handleModalCloseOrCancel = () => {
+  const handleModalCloseOrCancel = async () => {
     if (decompressProgress.error) {
       processNextArchive(decompressProgress.targetPanelId);
       return;
     }
-
-    if (decompressProgress.jobId) {
-      cancelDecompress(decompressProgress.jobId);
+    // Close websocket connection if it's the active job's connection
+    if (wsRef.current && wsRef.current.jobId === decompressProgress.jobId) {
+      wsRef.current.close(1000, "Starting new job connection");
+      wsRef.current = null;
+    }
+    // Ensure overwrite prompt modal gets closed immediately so the UI reflects the cancel
+    try {
+      setOverwritePrompt({ isVisible: false, item: null });
+    } catch (e) {}
+    // Prefer the jobId from state, but fall back to the websocket jobId if absent
+    const idToCancel =
+      decompressProgress.jobId || (wsRef.current && wsRef.current.jobId);
+    if (idToCancel) {
+      try {
+        await cancelDecompress(idToCancel);
+      } catch (error) {
+        // Cancellation may already have finished or the server returned 404; log and continue
+        console.error(
+          "Failed to cancel decompress operation on server:",
+          error
+        );
+      }
     }
     queueRef.current = [];
     setDecompressProgress((prev) => ({ ...prev, isVisible: false }));

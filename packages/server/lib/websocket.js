@@ -1600,6 +1600,7 @@ export function initializeWebSocketServer(
 
               // Show overwrite prompt for the destination FOLDER only on FULL extraction.
               if (
+                false &&
                 (await fse.pathExists(job.destination)) &&
                 !(job.itemsToExtract && job.itemsToExtract.length > 0)
               ) {
@@ -1853,6 +1854,112 @@ export function initializeWebSocketServer(
               }, 250);
 
               const entriesToExtractSet = new Set(entriesToExtractNames);
+
+              // If doing a full extraction (no specific items selected), and the
+              // destination folder already exists, only prompt the user if the
+              // archive actually contains entries that would be extracted into
+              // a top-level folder matching the destination's basename.
+              if (!(job.itemsToExtract && job.itemsToExtract.length > 0)) {
+                try {
+                  const targetBase = path.basename(job.destination);
+                  if (
+                    targetBase &&
+                    (await fse.pathExists(job.destination)) &&
+                    entriesToExtractNames.some((n) => {
+                      const seg = n.split("/")[0];
+                      return seg === targetBase;
+                    })
+                  ) {
+                    if (ws && ws.readyState === 1) {
+                      const promptId = crypto.randomUUID();
+                      if (!job.overwriteResolversMap)
+                        ensureInstrumentedResolversMap(job);
+                      ws.send(
+                        JSON.stringify({
+                          type: "overwrite_prompt",
+                          promptId,
+                          file: targetBase,
+                          itemType: "folder",
+                        })
+                      );
+                      // Register metadata pointing at the job destination so
+                      // registry consumers can inspect context.
+                      try {
+                        registerPromptMeta(promptId, {
+                          entryName: job.destination,
+                          itemType: "folder",
+                          isFolderPrompt: true,
+                          jobId,
+                        });
+                      } catch (e) {}
+
+                      let destDecision;
+                      try {
+                        destDecision = await new Promise((resolve) => {
+                          job.overwriteResolversMap.set(promptId, (d) => {
+                            try {
+                              job.overwriteDecision = d;
+                              job.overwriteResolversMap.delete(promptId);
+                              try {
+                                unregisterPromptResolver(promptId);
+                              } catch (e) {}
+                              if (job._promptTimers) {
+                                clearTimeout(job._promptTimers.get(promptId));
+                                job._promptTimers.delete(promptId);
+                              }
+                              resolve(d);
+                            } catch (err) {
+                              try {
+                                job.overwriteResolversMap.delete(promptId);
+                              } catch (e) {}
+                              try {
+                                unregisterPromptResolver(promptId);
+                              } catch (e) {}
+                              try {
+                                if (job._promptTimers)
+                                  job._promptTimers.delete(promptId);
+                              } catch (e) {}
+                              try {
+                                resolve("skip");
+                              } catch (e) {}
+                            }
+                          });
+                        });
+                      } catch (err) {
+                        destDecision = "skip";
+                      }
+
+                      // If user says skip or cancel, end the job early.
+                      if (
+                        destDecision === "skip" ||
+                        destDecision === "cancel"
+                      ) {
+                        if (ws.readyState === 1) {
+                          ws.send(
+                            JSON.stringify({
+                              type: "complete",
+                              status: "skipped",
+                            })
+                          );
+                          console.log(
+                            `[ws] Closing ws for job ${jobId} with code=1000 reason='Job Completed'`
+                          );
+                          await safeCloseJobWs(job, 1000, "Job Completed");
+                        }
+                        return;
+                      }
+                      // Otherwise, continue with extraction; the user choice
+                      // is now stored in job.overwriteDecision for per-entry evaluation.
+                    }
+                  }
+                } catch (e) {
+                  // If anything goes wrong while deciding whether to prompt,
+                  // prefer to continue the operation rather than fail.
+                  console.warn(
+                    `[ws] Error while checking for top-level destination conflicts for job ${jobId}: ${e}`
+                  );
+                }
+              }
               for await (const entry of zipfile) {
                 if (!entriesToExtractSet.has(entry.filename)) {
                   continue;
