@@ -226,6 +226,8 @@ export default function App() {
         handleCancelNewFolder,
         startZipUpdate,
         connectZipUpdateWebSocket,
+        handleTerminal,
+        handleTerminalOtherPanel,
       };
     }
     return () => {
@@ -675,7 +677,16 @@ export default function App() {
       <TerminalModal
         isOpen={terminalModal.isVisible}
         jobId={terminalModal.jobId}
-        onClose={() => setTerminalModal({ isVisible: false, jobId: null })}
+        initialCommand={terminalModal.initialCommand}
+        triggeredFromConsole={terminalModal.triggeredFromConsole}
+        onClose={() =>
+          setTerminalModal({
+            isVisible: false,
+            jobId: null,
+            initialCommand: null,
+            triggeredFromConsole: false,
+          })
+        }
         setAllowContextMenu={setAllowContextMenu}
       />
 

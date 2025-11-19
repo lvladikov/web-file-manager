@@ -480,6 +480,34 @@
         "FM.help({ filter: 'File', returnOutput: true }) //you can feed this to console.log() for example",
         "FM.help('file', 120)"
       ]
+    },
+    "startActivePanelTerminal": {
+      "desc": "Starts an interactive Terminal in the active panel's path (or optional override). If `startingPath` is provided it will attempt to start in that path; if invalid, it falls back to the active panel's path. Optionally pass an `initialCommand` that will be auto-typed and executed (Enter). Returns an object with { success, result }.",
+      "params": [
+        "startingPath? (string - optional path to start terminal in; if relative, resolved against active panel path)",
+        "initialCommand? (string - optional command to auto-type and execute in the terminal)"
+      ],
+      "examples": [
+        "await FM.startActivePanelTerminal()",
+        "await FM.startActivePanelTerminal('/Users/me/project')",
+        "await FM.startActivePanelTerminal('relative/subdir', 'pwd')",
+        "await FM.startActivePanelTerminal(null, 'pwd') // if you just want to run a command in the active panel path",
+        "await FM.startActivePanelTerminal('/path/that/does/not/exist', 'ls -la') // falls back to active panel if path not found"
+      ]
+    },
+    "startOtherPanelTerminal": {
+      "desc": "Starts an interactive Terminal in the other (inactive) panel's path (or an optional override). If `startingPath` is provided it will attempt to start in that path; if invalid, it falls back to the other panel's path. Optionally pass an `initialCommand` that will be auto-typed and executed (Enter). Returns an object with { success, result }.",
+      "params": [
+        "startingPath? (string - optional path to start terminal in; if relative, resolved against other panel path)",
+        "initialCommand? (string - optional command to auto-type and execute in the terminal)"
+      ],
+      "examples": [
+        "await FM.startOtherPanelTerminal()",
+        "await FM.startOtherPanelTerminal('/Users/me/project')",
+        "await FM.startOtherPanelTerminal('relative/subdir', 'pwd')",
+        "await FM.startOtherPanelTerminal(null, 'pwd') // if you just want to run a command in the other panel path",
+        "await FM.startOtherPanelTerminal('/path/that/does/not/exist', 'ls -la') // falls back to other panel if path not found"
+      ]
     }
   },
   "properties": {

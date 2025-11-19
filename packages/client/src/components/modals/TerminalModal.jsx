@@ -6,7 +6,13 @@ import "@xterm/xterm/css/xterm.css";
 
 import TruncatedText from "../ui/TruncatedText";
 
-const TerminalModal = ({ isOpen, onClose, jobId }) => {
+const TerminalModal = ({
+  isOpen,
+  onClose,
+  jobId,
+  initialCommand,
+  triggeredFromConsole,
+}) => {
   const terminalInstanceRef = useRef(null);
   const terminalRef = useRef(null);
   const fitAddon = useRef(new FitAddon());
@@ -89,6 +95,24 @@ const TerminalModal = ({ isOpen, onClose, jobId }) => {
       const resizeObserver = new ResizeObserver(handleResize);
       if (terminalRef.current) {
         resizeObserver.observe(terminalRef.current.parentElement);
+      }
+
+      // If an initial command was provided when triggeredFromConsole=true, send it and press Enter once
+      if (
+        triggeredFromConsole &&
+        initialCommand &&
+        typeof initialCommand === "string"
+      ) {
+        try {
+          // Write to terminal UI
+          term.write(initialCommand + "\r");
+          // Send through websocket to the server PTY
+          ws.send(
+            JSON.stringify({ type: "data", data: initialCommand + "\r" })
+          );
+        } catch (e) {
+          console.error("Failed to send initial command to terminal:", e);
+        }
       }
     };
 

@@ -53,6 +53,8 @@ export default function useModals() {
   const [terminalModal, setTerminalModal] = useState({
     isVisible: false,
     jobId: null,
+    initialCommand: null,
+    triggeredFromConsole: false,
   });
 
   return {

@@ -500,6 +500,64 @@ function createFMMethods(FM) {
     }
   };
 
+  // FM.startActivePanelTerminal
+  // Starts an interactive terminal in the active panel's path or an optional provided path.
+  // If `startingPath` is invalid it will fallback to the active panel path. Optionally pass `initialCommand` to auto-type a command and press Enter.
+  methods.startActivePanelTerminal = async function (
+    startingPath = null,
+    initialCommand = null
+  ) {
+    const state = getAppState();
+    if (typeof state.handleTerminal !== "function") {
+      const error = "handleTerminal not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      const res = await state.handleTerminal(startingPath, initialCommand, {
+        triggeredFromConsole: true,
+      });
+      return res || { success: true };
+    } catch (err) {
+      console.error("startActivePanelTerminal error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.startOtherPanelTerminal
+  // Starts an interactive terminal in the other panel's path or an optional provided path.
+  // If `startingPath` is invalid it will fallback to the other panel path. Optionally pass `initialCommand` to auto-type a command and press Enter.
+  methods.startOtherPanelTerminal = async function (
+    startingPath = null,
+    initialCommand = null
+  ) {
+    const state = getAppState();
+    if (typeof state.handleTerminalOtherPanel !== "function") {
+      const error = "handleTerminalOtherPanel not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      const res = await state.handleTerminalOtherPanel(
+        startingPath,
+        initialCommand,
+        {
+          triggeredFromConsole: true,
+        }
+      );
+      return res || { success: true };
+    } catch (err) {
+      console.error("startOtherPanelTerminal error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
   methods.getName = function () {
     return pkg.name;
   };

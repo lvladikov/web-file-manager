@@ -1,5 +1,11 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { savePaths, fetchDirectory, post, exitApp } from "../lib/api";
+import {
+  savePaths,
+  fetchDirectory,
+  post,
+  exitApp,
+  fetchFileInfo,
+} from "../lib/api";
 import {
   isMac,
   isPreviewableText,
@@ -292,73 +298,150 @@ export default function appState() {
 
   const otherPanelId = activePanel === "left" ? "right" : "left";
 
-  const handleTerminal = useCallback(async () => {
-    try {
-      let terminalPath = panels[activePanel].path;
-      const zipMatch = matchZipPath(terminalPath);
+  const handleTerminal = useCallback(
+    async (startingPath = null, initialCommand = null, options = {}) => {
+      const { triggeredFromConsole = false } = options || {};
+      try {
+        let terminalPath = panels[activePanel].path;
+        // If the caller supplied a startingPath, prefer it if valid
+        if (typeof startingPath === "string" && startingPath.trim() !== "") {
+          // Resolve relative paths to the panel path
+          const looksAbsolute =
+            startingPath.startsWith("/") || /^[a-zA-Z]:\\/.test(startingPath);
+          const resolved = looksAbsolute
+            ? startingPath
+            : buildFullPath(panels[activePanel].path, startingPath);
+          const zipMatch = matchZipPath(resolved);
+          if (zipMatch) {
+            terminalPath = dirname(zipMatch[1]);
+          } else {
+            try {
+              const info = await fetchFileInfo(resolved);
+              if (info && info.isDirectory) terminalPath = resolved;
+              else terminalPath = dirname(resolved);
+            } catch (e) {
+              // fallback to the panel path
+              terminalPath = panels[activePanel].path;
+            }
+          }
+        } else {
+          const zipMatch = matchZipPath(terminalPath);
+          if (zipMatch) {
+            const zipFilePath = zipMatch[1]; // The full path to the .zip file
+            terminalPath = dirname(zipFilePath); // The directory containing the .zip file
+          }
+        }
+        const zipMatch = matchZipPath(terminalPath);
 
-      if (zipMatch) {
-        // If inside a zip, open terminal in the parent directory of the zip file
-        const zipFilePath = zipMatch[1]; // The full path to the .zip file
-        terminalPath = dirname(zipFilePath); // The directory containing the .zip file
+        if (zipMatch) {
+          // If inside a zip, open terminal in the parent directory of the zip file
+          const zipFilePath = zipMatch[1]; // The full path to the .zip file
+          terminalPath = dirname(zipFilePath); // The directory containing the .zip file
+        }
+
+        // Calculate terminal dimensions based on modal size and character dimensions
+        // Modal will be 80vw x 80vh, estimate character size for xterm
+        const charWidth = 8; // pixels per character (approximate for xterm font)
+        const charHeight = 16; // pixels per character line (approximate for xterm font)
+
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth * 0.8 * 0.9; // 80vw * 90% (accounting for padding)
+        const viewportHeight = window.innerHeight * 0.8 * 0.85; // 80vh * 85% (accounting for header and padding)
+
+        const cols = Math.floor(viewportWidth / charWidth);
+        const rows = Math.floor(viewportHeight / charHeight);
+
+        const response = await post("/api/terminals", {
+          path: terminalPath,
+          cols,
+          rows,
+        });
+        const { jobId } = await response.json();
+        modals.setTerminalModal({
+          isVisible: true,
+          jobId,
+          initialCommand: initialCommand || null,
+          triggeredFromConsole,
+        });
+        return { success: true, jobId };
+      } catch (error) {
+        setError(error.message);
+        return { success: false, error: error.message };
       }
+    },
+    [activePanel, panels, modals.setTerminalModal, setError]
+  );
 
-      // Calculate terminal dimensions based on modal size and character dimensions
-      // Modal will be 80vw x 80vh, estimate character size for xterm
-      const charWidth = 8; // pixels per character (approximate for xterm font)
-      const charHeight = 16; // pixels per character line (approximate for xterm font)
+  const handleTerminalOtherPanel = useCallback(
+    async (startingPath = null, initialCommand = null, options = {}) => {
+      const { triggeredFromConsole = false } = options || {};
+      try {
+        let terminalPath = panels[otherPanelId].path;
+        // If the caller supplied a startingPath, prefer it if valid
+        if (typeof startingPath === "string" && startingPath.trim() !== "") {
+          const looksAbsolute =
+            startingPath.startsWith("/") || /^[a-zA-Z]:\\/.test(startingPath);
+          const resolved = looksAbsolute
+            ? startingPath
+            : buildFullPath(panels[otherPanelId].path, startingPath);
+          const zipMatch = matchZipPath(resolved);
+          if (zipMatch) {
+            terminalPath = dirname(zipMatch[1]);
+          } else {
+            try {
+              const info = await fetchFileInfo(resolved);
+              if (info && info.isDirectory) terminalPath = resolved;
+              else terminalPath = dirname(resolved);
+            } catch (e) {
+              // fallback to the panel path
+              terminalPath = panels[otherPanelId].path;
+            }
+          }
+        } else {
+          const zipMatch = matchZipPath(terminalPath);
+          if (zipMatch) {
+            const zipFilePath = zipMatch[1];
+            terminalPath = dirname(zipFilePath);
+          }
+        }
+        const zipMatch = matchZipPath(terminalPath);
 
-      // Get viewport dimensions
-      const viewportWidth = window.innerWidth * 0.8 * 0.9; // 80vw * 90% (accounting for padding)
-      const viewportHeight = window.innerHeight * 0.8 * 0.85; // 80vh * 85% (accounting for header and padding)
+        if (zipMatch) {
+          // If inside a zip, open terminal in the parent directory of the zip file
+          const zipFilePath = zipMatch[1]; // The full path to the .zip file
+          terminalPath = dirname(zipFilePath);
+        }
 
-      const cols = Math.floor(viewportWidth / charWidth);
-      const rows = Math.floor(viewportHeight / charHeight);
+        // Calculate terminal dimensions based on modal size and character dimensions
+        const charWidth = 8; // pixels per character (approximate for xterm font)
+        const charHeight = 16; // pixels per character line (approximate for xterm font)
 
-      const response = await post("/api/terminals", {
-        path: terminalPath,
-        cols,
-        rows,
-      });
-      const { jobId } = await response.json();
-      modals.setTerminalModal({ isVisible: true, jobId });
-    } catch (error) {
-      setError(error.message);
-    }
-  }, [activePanel, panels, modals.setTerminalModal, setError]);
+        const viewportWidth = window.innerWidth * 0.8 * 0.9;
+        const viewportHeight = window.innerHeight * 0.8 * 0.85;
 
-  const handleTerminalOtherPanel = useCallback(async () => {
-    try {
-      let terminalPath = panels[otherPanelId].path;
-      const zipMatch = matchZipPath(terminalPath);
+        const cols = Math.floor(viewportWidth / charWidth);
+        const rows = Math.floor(viewportHeight / charHeight);
 
-      if (zipMatch) {
-        // If inside a zip, open terminal in the parent directory of the zip file
-        const zipFilePath = zipMatch[1]; // The full path to the .zip file
-        terminalPath = dirname(zipFilePath);
+        const response = await post("/api/terminals", {
+          path: terminalPath,
+          cols,
+          rows,
+        });
+        const { jobId } = await response.json();
+        modals.setTerminalModal({
+          isVisible: true,
+          jobId,
+          initialCommand: initialCommand || null,
+          triggeredFromConsole,
+        });
+        return { success: true, jobId };
+      } catch (error) {
+        setError(error.message);
+        return { success: false, error: error.message };
       }
-
-      // Calculate terminal dimensions based on modal size and character dimensions
-      const charWidth = 8; // pixels per character (approximate for xterm font)
-      const charHeight = 16; // pixels per character line (approximate for xterm font)
-
-      const viewportWidth = window.innerWidth * 0.8 * 0.9;
-      const viewportHeight = window.innerHeight * 0.8 * 0.85;
-
-      const cols = Math.floor(viewportWidth / charWidth);
-      const rows = Math.floor(viewportHeight / charHeight);
-
-      const response = await post("/api/terminals", {
-        path: terminalPath,
-        cols,
-        rows,
-      });
-      const { jobId } = await response.json();
-      modals.setTerminalModal({ isVisible: true, jobId });
-    } catch (error) {
-      setError(error.message);
-    }
-  }, [otherPanelId, panels, modals.setTerminalModal, setError]);
+    },
+    [otherPanelId, panels, modals.setTerminalModal, setError]
+  );
 
   // Feature hooks
   const rename = useRename({
