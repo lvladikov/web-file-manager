@@ -236,6 +236,46 @@ class TerminalProcess extends EventEmitter {
     }
   }
 
+  // Normalize payload for echoing to clients. On non-PTY fallback we strip
+  // unsafe CSI/OSC sequences, convert CR -> LF and preserve backspace so the
+  // client UI can handle simple editing locally.
+  normalizeForEcho(data) {
+    if (this.isPty) return data;
+    let payload = String(data);
+    try {
+      // CR/LF normalization
+      payload = payload.replace(/\r\n|\r/g, "\n");
+      // Remove OSC sequences
+      payload = payload.replace(/\x1b\][^\x07]*\x07/g, "");
+      // Remove CSI / function key sequences but preserve backspace (0x7f / 0x08)
+      payload = payload.replace(/\x1bO[A-Za-z]/g, "");
+      payload = payload.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+    } catch (e) {
+      // ignore
+    }
+    return payload;
+  }
+
+  // Normalize payload before passing to shell. For non-PTY fallback we
+  // remove arrow keys and other CSI sequences as well as backspace since the
+  // non-PTY child won't handle in-line editing properly. For PTY we
+  // just return the data untouched.
+  normalizeForShell(data) {
+    if (this.isPty) return data;
+    let payload = String(data);
+    try {
+      payload = payload.replace(/\r\n|\r/g, "\n");
+      payload = payload.replace(/\x1b\][^\x07]*\x07/g, "");
+      payload = payload.replace(/\x1bO[A-Za-z]/g, "");
+      payload = payload.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+      // Remove common editing characters (backspace/delete), do not forward
+      // these to the shell in pipe-mode because they can create strange
+      // behavior when shell isn't attached to a real TTY.
+      payload = payload.replace(/[\x08\x7f]/g, "");
+    } catch (e) {}
+    return payload;
+  }
+
   write(data) {
     if (this.isPty && this.child && typeof this.child.write === "function") {
       // node-pty: direct write
@@ -247,8 +287,55 @@ class TerminalProcess extends EventEmitter {
       return;
     }
 
-    if (this.child.stdin && !this.child.stdin.destroyed) {
-      this.child.stdin.write(data);
+    if (this.child.stdin) {
+      try {
+        // For non-PTY fallback using stdio pipes, some shells (zsh/bash)
+        // expect LF (\n) as newline when reading from pipes. The browser
+        // and PTY keyboard events typically send CR (\r), which a PTY
+        // driver translates to LF. For pipe-based children, translate CR
+        // into LF before writing so commands execute promptly.
+        let payload = data;
+        if (!this.isPty && typeof payload === "string") {
+          try {
+            // Normalize carriage returns to LF for non-PTY shells
+            payload = payload.replace(/\r\n|\r/g, "\n");
+            // Strip common escape sequences (CSI sequences) such as arrow
+            // keys and function keys which the remote shell cannot interpret
+            // when not attached to a real TTY. Keep basic control chars
+            // like backspace (\x7f) so the shell can still receive them if
+            // appropriate.
+            // Remove CSI sequences like ESC [ A or ESC [ 1 ; 2 ~ etc.
+            payload = payload.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+            // Remove simple ESC sequences like ESC O P (function keys)
+            payload = payload.replace(/\x1bO[A-Za-z]/g, "");
+            // Remove OSC sequences that may be present
+            payload = payload.replace(/\x1b\][^\x07]*\x07/g, "");
+          } catch (e) {}
+        }
+        if (process.env.DEBUG_TERMINAL) {
+          try {
+            const len =
+              typeof data === "string"
+                ? data.length
+                : Buffer.isBuffer(data)
+                ? data.length
+                : 0;
+            const b = Buffer.from(String(payload), "utf8");
+            const codes = Array.from(b.slice(0, 80));
+            const esc = String(payload)
+              .replace(/\r/g, "\\r")
+              .replace(/\n/g, "\\n");
+          } catch (e) {}
+        }
+        if (!this.child.stdin.destroyed) {
+          this.child.stdin.write(payload);
+        } else {
+          if (process.env.DEBUG_TERMINAL)
+            console.warn(
+              `[terminal-backend] child.stdin is destroyed for pid=${this.child.pid}`
+            );
+        }
+      } catch (e) {}
     }
   }
 
@@ -643,7 +730,12 @@ function spawn(shell, args = [], opts = {}) {
       if (kicked) return;
       kicked = true;
       try {
-        if (child.stdin && !child.stdin.destroyed) child.stdin.write("\r");
+        if (termProcess && typeof termProcess.write === "function") {
+          // Write through TerminalProcess.write so CR is normalized for pipe-based fallback
+          termProcess.write("\r");
+        } else if (child.stdin && !child.stdin.destroyed) {
+          child.stdin.write("\r");
+        }
       } catch (e) {
         // ignore
       }
@@ -669,7 +761,9 @@ function spawn(shell, args = [], opts = {}) {
   if (process.env.DEBUG_TERMINAL) {
     try {
       console.info(
-        `[terminal-backend] fallback spawn: cwd=${String(spawnOpts.cwd)} shell=${spawnCmd} args=${JSON.stringify(spawnArgs)} kickTimeout=250`
+        `[terminal-backend] fallback spawn: cwd=${String(
+          spawnOpts.cwd
+        )} shell=${spawnCmd} args=${JSON.stringify(spawnArgs)} kickTimeout=250`
       );
     } catch (e) {}
   }

@@ -191,7 +191,10 @@ export function initializeWebSocketServer(
       if (jobMap.has(jobId)) {
         const job = jobMap.get(jobId);
         if (job) {
+          // Add terminal-specific runtime state
           job.ws = ws;
+          job.pendingWrites = job.pendingWrites || [];
+          job.ready = job.ready || false; // will be set true upon first child stdout
         }
         console.log(
           `[ws] Client connected for ${jobType} job: ${jobId} trace=${
@@ -520,25 +523,35 @@ export function initializeWebSocketServer(
                 if (data.type === "resize") {
                   term.resize(data.cols, data.rows);
                 } else if (data.type === "data") {
-                  // Write to the child process stdin
-                  term.write(data.data);
-
-                  // If this is the non-PTY fallback, echo typed characters
-                  // back to the client so they appear immediately in the
-                  // terminal UI (the shell may not echo when not attached to
-                  // a real TTY).
-                  try {
-                    if (
-                      term.isPty === false &&
-                      job.ws &&
-                      job.ws.readyState === 1
-                    ) {
-                      // send raw data so the renderer's onmessage will treat
-                      // it as terminal output and render it
-                      job.ws.send(data.data);
-                    }
-                  } catch (e) {
-                    // ignore send errors
+                  // Determine whether we should queue writes for non-PTY
+                  // fallback until the child sends its first stdout data
+                  // (indicating it's ready). For PTY we can write immediately.
+                  if (term.isPty === false && !job.ready) {
+                    // Queue sanitized write until terminal reports ready.
+                    job.pendingWrites = job.pendingWrites || [];
+                    const sanitizedShell = term.normalizeForShell(data.data);
+                    job.pendingWrites.push(sanitizedShell);
+                    // Echo sanitized data for immediate feedback to the client.
+                    try {
+                      if (job.ws && job.ws.readyState === 1) {
+                        const sanitizedEcho = term.normalizeForEcho(data.data);
+                        job.ws.send(sanitizedEcho);
+                      }
+                    } catch (e) {}
+                  } else {
+                    // Write immediately for PTY or when fallback terminal is ready
+                    const sanitizedShell = term.normalizeForShell(data.data);
+                    term.write(sanitizedShell);
+                    try {
+                      if (
+                        term.isPty === false &&
+                        job.ws &&
+                        job.ws.readyState === 1
+                      ) {
+                        const sanitizedEcho = term.normalizeForEcho(data.data);
+                        job.ws.send(sanitizedEcho);
+                      }
+                    } catch (e) {}
                   }
                 }
               }
@@ -2336,7 +2349,10 @@ export function initializeWebSocketServer(
               // fallback which echoes typed characters back to the client.
               try {
                 ws.send(
-                  JSON.stringify({ type: "pty_info", isPty: !!job.ptyProcess.isPty })
+                  JSON.stringify({
+                    type: "pty_info",
+                    isPty: !!job.ptyProcess.isPty,
+                  })
                 );
               } catch (e) {}
             }
@@ -2345,18 +2361,74 @@ export function initializeWebSocketServer(
             term.on("data", (data) => {
               if (!process.env.DEBUG_TERMINAL) {
                 // no-op
-              } else if (!_loggedFirstChunk) {
+              } else {
                 try {
-                  const snippet = typeof data === "string" ? data : data.toString("utf8");
-                  console.info(
-                    `[pty] first data for job ${jobId}: [${snippet.slice(0, 100).replace(/\n/g, "\\n")}]
-`                  );
+                  const snippet =
+                    typeof data === "string" ? data : data.toString("utf8");
+                  if (!_loggedFirstChunk) {
+                    console.info(
+                      `[pty] first data for job ${jobId}: [${snippet
+                        .slice(0, 100)
+                        .replace(/\n/g, "\\n")}]`
+                    );
+                    _loggedFirstChunk = true;
+                  } else {
+                    console.info(
+                      `[pty] data for job ${jobId} snippet=${snippet
+                        .slice(0, 80)
+                        .replace(/\n/g, "\\n")} length=${snippet.length}`
+                    );
+                  }
                 } catch (e) {}
-                _loggedFirstChunk = true;
               }
               if (ws.readyState === 1) {
-                ws.send(data);
+                try {
+                  ws.send(data);
+                } catch (e) {}
               }
+
+              // Mark the terminal as ready so queued writes (sent before
+              // shell emitted its first stdout) can be flushed. This is
+              // important for pipe-based fallback shells which may not
+              // be able to accept inputs sent too early.
+              try {
+                if (!job.ready) {
+                  job.ready = true;
+                  // Delay flush slightly so the shell settles after emitting
+                  // the initial prompt (some shells may need a few ms to
+                  // update internal state before accepting commands).
+                  const flushPending = () => {
+                    if (
+                      Array.isArray(job.pendingWrites) &&
+                      job.pendingWrites.length > 0
+                    ) {
+                      for (const w of job.pendingWrites) {
+                        try {
+                          term.write(w);
+                          if (
+                            !term.isPty &&
+                            job.ws &&
+                            job.ws.readyState === 1
+                          ) {
+                            job.ws.send(w);
+                          }
+                        } catch (err) {
+                          console.warn(
+                            `[ws] Failed to flush queued write for job ${jobId}:`,
+                            err.message || err
+                          );
+                        }
+                      }
+                      job.pendingWrites = [];
+                    }
+                  };
+                  try {
+                    setTimeout(flushPending, 25);
+                  } catch (e) {
+                    flushPending();
+                  }
+                }
+              } catch (e) {}
             });
 
             ws.on("close", () => {

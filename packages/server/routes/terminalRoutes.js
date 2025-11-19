@@ -9,7 +9,10 @@ export default function terminalRoutes(activeTerminalJobs) {
   router.post("/terminals", (req, res) => {
     const { path = process.env.HOME, cols = 120, rows = 40 } = req.body;
     const jobId = randomUUID();
-    const shell = os.platform() === "win32" ? "powershell.exe" : (process.env.SHELL || "bash");
+    const shell =
+      os.platform() === "win32"
+        ? "powershell.exe"
+        : process.env.SHELL || "bash";
 
     const ptyProcess = pty.spawn(shell, [], {
       name: "xterm-color",
@@ -25,7 +28,12 @@ export default function terminalRoutes(activeTerminalJobs) {
       },
     });
 
-    activeTerminalJobs.set(jobId, { ptyProcess, initialCwd: path });
+    activeTerminalJobs.set(jobId, {
+      ptyProcess,
+      initialCwd: path,
+      pendingWrites: [],
+      ready: false,
+    });
     res.send({ jobId });
   });
 

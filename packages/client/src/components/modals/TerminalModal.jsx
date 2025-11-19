@@ -172,7 +172,10 @@ const TerminalModal = ({
                 ws.readyState === 1
               ) {
                 ws.send(
-                  JSON.stringify({ type: "data", data: "cd " + initialPath + "\r" })
+                  JSON.stringify({
+                    type: "data",
+                    data: "cd " + initialPath + "\r",
+                  })
                 );
                 lastSentInitialPathRef.current = initialPath;
               }
@@ -231,19 +234,25 @@ const TerminalModal = ({
             const remainder = lines.join("\n");
             if (!remainder || remainder.trim() === "") {
               // Nothing else to render; mark received and skip writing
-                hasReceivedData.current = true;
-                console.debug(
-                  "[terminal] Swallowing leading % marker for job",
-                  jobId
-                );
+              hasReceivedData.current = true;
+              console.debug(
+                "[terminal] Swallowing leading % marker for job",
+                jobId
+              );
               return;
             }
             text = remainder;
-              console.debug("[terminal] Swallowed leading % marker, writing remainder for job", jobId);
+            console.debug(
+              "[terminal] Swallowed leading % marker, writing remainder for job",
+              jobId
+            );
           }
         } catch (e) {
           // If any error parsing lines, fall back to normal write
-          console.warn("TerminalModal: failed to check for leading % marker:", e);
+          console.warn(
+            "TerminalModal: failed to check for leading % marker:",
+            e
+          );
         }
       }
       term.write(text);
@@ -336,15 +345,18 @@ const TerminalModal = ({
       if (lastSentInitialPathRef.current === initialPath) return;
       try {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "data", data: "cd " + initialPath + "\r" }));
+          ws.send(
+            JSON.stringify({ type: "data", data: "cd " + initialPath + "\r" })
+          );
         }
         if (initialCommand && typeof initialCommand === "string") {
           if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "data", data: initialCommand + "\r" }));
+            ws.send(
+              JSON.stringify({ type: "data", data: initialCommand + "\r" })
+            );
           }
         }
-      }
-      catch (e) {
+      } catch (e) {
         console.error("Failed to send dynamic cd/command to terminal:", e);
       }
       lastSentInitialPathRef.current = initialPath;
