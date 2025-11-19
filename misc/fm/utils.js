@@ -268,6 +268,7 @@ function waitForZipJobCompletion(jobId, jobType, opts = {}) {
     zipFilePath = null,
     filePathInZip = null,
     title = null,
+    triggeredFromConsole = false,
   } = opts;
   return new Promise((resolve, reject) => {
     if (!jobId) return resolve();
@@ -295,6 +296,7 @@ function waitForZipJobCompletion(jobId, jobType, opts = {}) {
                 zipFilePath,
                 filePathInZip,
                 title: title || "Updating Zip Archive...",
+                triggeredFromConsole,
               });
             } catch (e) {
               // Ignore start errors - proceed to connect

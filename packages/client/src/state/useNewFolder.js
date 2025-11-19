@@ -13,6 +13,7 @@ export default function useNewFolder({
   startZipUpdate,
   hideZipUpdate,
   connectZipUpdateWebSocket,
+  setZipUpdateProgressModal,
 }) {
   const [creatingFolder, setCreatingFolder] = useState({
     panelId: null,
@@ -70,7 +71,7 @@ export default function useNewFolder({
   }, []);
 
   const handleConfirmNewFolder = useCallback(
-    async (panelIdOverride, overrideValue) => {
+    async (panelIdOverride, overrideValue, options = {}) => {
       const panelId = panelIdOverride ?? creatingFolder.panelId;
       const existingValue = creatingFolder.value;
       const finalValue =
@@ -107,12 +108,20 @@ export default function useNewFolder({
             originalZipSize: 0,
             itemType: "folder",
             title: "Creating folder in zip...",
+            triggeredFromConsole: options?.triggeredFromConsole,
           });
+          // Safety timeout to prevent stuck UI
+          const timeoutId = setTimeout(() => {
+            console.error("[useNewFolder] Zip operation timed out");
+            setError("Zip operation timed out");
+            handleCancelNewFolder();
+            hideZipUpdate();
+          }, 30000);
+
           // Now that we have the jobId, connect the WebSocket and only navigate after completion
-          connectZipUpdateWebSocket(
-            response.jobId,
-            "create-folder-in-zip",
-            async () => {
+          connectZipUpdateWebSocket(response.jobId, "create-folder-in-zip", {
+            onComplete: async () => {
+              clearTimeout(timeoutId);
               handleCancelNewFolder(); // Reset state after navigation so the create modal stays visible until done
               await handleNavigate(panelId, panel.path, "");
               setFocusedItem((prev) => ({ ...prev, [panelId]: finalValue }));
@@ -124,8 +133,33 @@ export default function useNewFolder({
                 ...prev,
                 [panelId]: new Set([finalValue]),
               }));
-            }
-          );
+            },
+            onProgress: (data) => {
+              try {
+                if (
+                  setZipUpdateProgressModal &&
+                  data &&
+                  data.tempZipSize !== undefined
+                ) {
+                  setZipUpdateProgressModal((prev) =>
+                    prev.jobId === response.jobId
+                      ? { ...prev, tempZipSize: data.tempZipSize }
+                      : prev
+                  );
+                }
+              } catch (e) {}
+            },
+            onError: (err) => {
+              clearTimeout(timeoutId);
+              console.error("Zip folder creation failed:", err);
+              setError(err || "Failed to create folder in zip");
+              handleCancelNewFolder();
+            },
+            onCancel: () => {
+              clearTimeout(timeoutId);
+              handleCancelNewFolder();
+            },
+          });
           return {
             success: true,
             result: response,

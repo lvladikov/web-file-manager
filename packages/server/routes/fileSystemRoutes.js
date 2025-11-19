@@ -509,7 +509,7 @@ export default function createFileSystemRoutes(
 
   // Endpoint to create a new file
   router.post("/new-file", async (req, res) => {
-    const { newFilePath } = req.body;
+    const { newFilePath, content = undefined } = req.body;
     if (!newFilePath) {
       return res
         .status(400)
@@ -571,9 +571,16 @@ export default function createFileSystemRoutes(
           ? (await fse.stat(zipFilePath)).size
           : 0;
 
-        createFileInZip(zipFilePath, filePathInZip, job)
-          .then(() => job.resolveCompletion())
-          .catch((err) => job.rejectCompletion(err));
+        // If content was provided, use updateFileInZip so content is written in a single job
+        if (typeof content === "string" && content !== "") {
+          updateFileInZip(zipFilePath, filePathInZip, content, job)
+            .then(() => job.resolveCompletion())
+            .catch((err) => job.rejectCompletion(err));
+        } else {
+          createFileInZip(zipFilePath, filePathInZip, job)
+            .then(() => job.resolveCompletion())
+            .catch((err) => job.rejectCompletion(err));
+        }
       } else {
         if (await fse.pathExists(newFilePath)) {
           return res
@@ -582,7 +589,12 @@ export default function createFileSystemRoutes(
         }
         // Ensure parent directory exists so nested paths are supported
         await fse.ensureDir(path.dirname(newFilePath));
-        await fse.createFile(newFilePath);
+        // Create file and write content (if provided) in one step
+        if (typeof content === "string" && content !== "") {
+          await fse.writeFile(newFilePath, content);
+        } else {
+          await fse.createFile(newFilePath);
+        }
       }
       res.status(201).json({ message: "File created successfully.", jobId });
     } catch (error) {

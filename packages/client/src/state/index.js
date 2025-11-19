@@ -385,6 +385,7 @@ export default function appState() {
     startZipUpdate: zipUpdate.startZipUpdate,
     hideZipUpdate: zipUpdate.hideZipUpdate,
     connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
+    setZipUpdateProgressModal: zipUpdate.setZipUpdateProgressModal,
   });
 
   const newFile = useNewFile({
@@ -399,6 +400,7 @@ export default function appState() {
     startZipUpdate: zipUpdate.startZipUpdate,
     hideZipUpdate: zipUpdate.hideZipUpdate,
     connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
+    setZipUpdateProgressModal: zipUpdate.setZipUpdateProgressModal,
   });
 
   const activeSelection = selections[activePanel];
@@ -441,6 +443,7 @@ export default function appState() {
     startZipUpdate: zipUpdate.startZipUpdate,
     hideZipUpdate: zipUpdate.hideZipUpdate,
     connectZipUpdateWebSocket: zipUpdate.connectZipUpdateWebSocket,
+    setZipUpdateProgressModal: zipUpdate.setZipUpdateProgressModal,
   });
 
   const compress = useCompress({

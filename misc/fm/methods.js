@@ -53,7 +53,8 @@ function createFMMethods(FM) {
       const result = await state.handleConfirmNewFile(
         startedPanel,
         startedName,
-        content
+        content,
+        { triggeredFromConsole: true }
       );
       // Compute created path for convenience when not working with zip paths
       const panelPath = state.panels[startedPanel].path;
@@ -81,6 +82,7 @@ function createFMMethods(FM) {
                 zipParts[2] && zipParts[2].startsWith("/")
                   ? zipParts[2].substring(1)
                   : zipParts[2],
+              triggeredFromConsole: true,
             });
           } catch (e) {
             console.error("Zip job wait finished with error", e && e.message);
@@ -132,7 +134,8 @@ function createFMMethods(FM) {
       const result = await state.handleConfirmNewFile(
         startedPanel,
         startedName,
-        content
+        content,
+        { triggeredFromConsole: true }
       );
       const panelPath = state.panels[otherPanel].path;
       const sep = panelPath.includes("\\") ? "\\" : "/";
@@ -156,6 +159,7 @@ function createFMMethods(FM) {
                 zipParts[2] && zipParts[2].startsWith("/")
                   ? zipParts[2].substring(1)
                   : zipParts[2],
+              triggeredFromConsole: true,
             });
           } catch (e) {
             console.error("Zip job wait finished with error", e && e.message);
@@ -204,7 +208,8 @@ function createFMMethods(FM) {
           : (started && started.panelId) || state.activePanel;
       const result = await state.handleConfirmNewFolder(
         startedPanel,
-        startedName
+        startedName,
+        { triggeredFromConsole: true }
       );
       const panelPath = state.panels[startedPanel].path;
       const sep = panelPath.includes("\\") ? "\\" : "/";
@@ -228,6 +233,7 @@ function createFMMethods(FM) {
                 zipParts[2] && zipParts[2].startsWith("/")
                   ? zipParts[2].substring(1)
                   : zipParts[2],
+              triggeredFromConsole: true,
             });
           } catch (e) {
             console.error("Zip job wait finished with error", e && e.message);
@@ -277,7 +283,8 @@ function createFMMethods(FM) {
           : (started && started.panelId) || otherPanel;
       const result = await state.handleConfirmNewFolder(
         startedPanel,
-        startedName
+        startedName,
+        { triggeredFromConsole: true }
       );
       const panelPath = state.panels[otherPanel].path;
       const sep = panelPath.includes("\\") ? "\\" : "/";
@@ -301,6 +308,7 @@ function createFMMethods(FM) {
                 zipParts[2] && zipParts[2].startsWith("/")
                   ? zipParts[2].substring(1)
                   : zipParts[2],
+              triggeredFromConsole: true,
             });
           } catch (e) {
             console.error("Zip job wait finished with error", e && e.message);
@@ -377,6 +385,7 @@ function createFMMethods(FM) {
                   ? zipParts[2].substring(1)
                   : zipParts[2],
               title: "Updating file in zip...",
+              triggeredFromConsole: true,
             });
           } catch (e) {
             console.error("Zip job wait finished with error", e && e.message);
@@ -460,6 +469,7 @@ function createFMMethods(FM) {
                     ? zipParts[2].substring(1)
                     : zipParts[2],
                 title: "Updating file in zip...",
+                triggeredFromConsole: true,
               });
             }
           } catch (e) {

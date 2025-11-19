@@ -14,6 +14,7 @@ export default function useNewFile({
   startZipUpdate,
   hideZipUpdate,
   connectZipUpdateWebSocket,
+  setZipUpdateProgressModal,
 }) {
   const [creatingFile, setCreatingFile] = useState({
     panelId: null,
@@ -90,7 +91,7 @@ export default function useNewFile({
   }, []);
 
   const handleConfirmNewFile = useCallback(
-    async (panelIdOverride, overrideValue, content = "") => {
+    async (panelIdOverride, overrideValue, content = "", options = {}) => {
       const panelId = panelIdOverride ?? creatingFile.panelId;
       const existingValue = creatingFile.value;
       const finalValue =
@@ -115,18 +116,15 @@ export default function useNewFile({
             : zipPathMatch[2];
         }
 
-        const response = await createNewFile(newFilePath);
+        // Pass content directly to createNewFile so the server can create the file with content in a single operation.
+        const response = await createNewFile(
+          newFilePath,
+          typeof content === "string" && content !== "" ? content : null
+        );
         jobId = response?.jobId ?? null;
         let contentSaveResult = null;
-        if (typeof content === "string" && content !== "") {
-          // If the create call returned a jobId (zip), pass it to saveFileContent so the server can reuse/attach
-          contentSaveResult = await saveFileContent(
-            newFilePath,
-            content,
-            null,
-            jobId
-          );
-        }
+        // We send content to the server via createNewFile so it can handle writing the content
+        // (zip or non-zip) in one operation. No further client-side saveFileContent is required here.
 
         if (zipPathMatch && response && response.jobId) {
           // Start the modal now that server accepted the job
@@ -137,16 +135,61 @@ export default function useNewFile({
             originalZipSize: 0,
             itemType: "file",
             title: "Creating file in zip...",
+            triggeredFromConsole: options?.triggeredFromConsole,
           });
-          connectZipUpdateWebSocket(jobId, "create-file-in-zip", async () => {
+          // Safety timeout to prevent stuck UI
+          const timeoutId = setTimeout(() => {
+            console.error("[useNewFile] Zip operation timed out");
+            setError("Zip operation timed out");
             handleCancelNewFile();
-            await handleNavigate(panelId, panel.path, "");
-            setFocusedItem((prev) => ({ ...prev, [panelId]: finalValue }));
-            setSelectionAnchor((prev) => ({ ...prev, [panelId]: finalValue }));
-            setSelections((prev) => ({
-              ...prev,
-              [panelId]: new Set([finalValue]),
-            }));
+            hideZipUpdate();
+          }, 30000);
+
+          // Now that we have the create-file jobId, connect the WebSocket and only navigate after completion
+          connectZipUpdateWebSocket(response.jobId, "create-file-in-zip", {
+            onComplete: async () => {
+              clearTimeout(timeoutId);
+              // The server handles file creation (with provided content) atomically for zip paths,
+              // so we don't need to perform a separate saveFileContent call here.
+
+              // No content save pending — proceed to finalize navigation and selections
+              handleCancelNewFile(); // Reset state after navigation so the create modal stays visible until done
+              await handleNavigate(panelId, panel.path, "");
+              setFocusedItem((prev) => ({ ...prev, [panelId]: finalValue }));
+              setSelectionAnchor((prev) => ({
+                ...prev,
+                [panelId]: finalValue,
+              }));
+              setSelections((prev) => ({
+                ...prev,
+                [panelId]: new Set([finalValue]),
+              }));
+            },
+            onProgress: (data) => {
+              try {
+                if (
+                  setZipUpdateProgressModal &&
+                  data &&
+                  data.tempZipSize !== undefined
+                ) {
+                  setZipUpdateProgressModal((prev) =>
+                    prev.jobId === response.jobId
+                      ? { ...prev, tempZipSize: data.tempZipSize }
+                      : prev
+                  );
+                }
+              } catch (e) {}
+            },
+            onError: (err) => {
+              clearTimeout(timeoutId);
+              console.error("Zip file creation failed:", err);
+              setError(err || "Failed to create file in zip");
+              handleCancelNewFile();
+            },
+            onCancel: () => {
+              clearTimeout(timeoutId);
+              handleCancelNewFile();
+            },
           });
           return {
             success: true,

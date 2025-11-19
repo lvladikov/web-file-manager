@@ -20,12 +20,13 @@ export default function useZipUpdate() {
     tempZipSize: 0,
     title: "Updating Zip Archive...",
     triggeredFromPreview: false,
+    triggeredFromConsole: false,
   });
 
   const wsRef = useRef(null);
   const jobIdRef = useRef(null);
-  // Store multiple completion callbacks for the same job
-  const completionCallbacksRef = useRef([]);
+  // Map of jobId -> { onComplete: Set, onError: Set, onCancel: Set, onProgress: Set }
+  const jobListenersRef = useRef(new Map());
 
   const hideZipUpdate = useCallback(() => {
     setZipUpdateProgressModal((prev) => ({
@@ -41,8 +42,13 @@ export default function useZipUpdate() {
     }));
     // Clear refs as the operation associated with the modal is ending
     wsRef.current = null;
+    // Remove per-job listeners for the current job if present
+    if (jobIdRef.current && jobListenersRef.current) {
+      try {
+        jobListenersRef.current.delete(jobIdRef.current);
+      } catch (e) {}
+    }
     jobIdRef.current = null;
-    completionCallbacksRef.current = [];
   }, [setZipUpdateProgressModal]);
 
   const cancelZipUpdate = useCallback(
@@ -80,6 +86,7 @@ export default function useZipUpdate() {
       title = "Updating Zip Archive...",
       jobId = null, // Allow passing jobId directly if known initially
       triggeredFromPreview = false,
+      triggeredFromConsole = false,
     }) => {
       // If the same job is already running, don't reset the state
       if (jobId && jobIdRef.current === jobId) {
@@ -90,12 +97,18 @@ export default function useZipUpdate() {
 
       if (jobId) {
         jobIdRef.current = jobId; // Store jobId immediately if provided
+        // Ensure listener entry exists for job
+        if (!jobListenersRef.current.has(jobId)) {
+          jobListenersRef.current.set(jobId, {
+            onComplete: new Set(),
+            onError: new Set(),
+            onCancel: new Set(),
+            onProgress: new Set(),
+          });
+        }
       } else {
         jobIdRef.current = null; // Reset if jobId is not provided initially
       }
-      
-      // Clear callbacks for new job
-      completionCallbacksRef.current = [];
 
       const newState = {
         isVisible: true,
@@ -125,6 +138,7 @@ export default function useZipUpdate() {
         tempZipSize: 0,
         title: title,
         triggeredFromPreview: triggeredFromPreview,
+        triggeredFromConsole: triggeredFromConsole,
       };
 
       setZipUpdateProgressModal(newState);
@@ -133,7 +147,7 @@ export default function useZipUpdate() {
   );
 
   const connectZipUpdateWebSocket = useCallback(
-    (jobId, jobType, onComplete = null) => {
+    (jobId, jobType, callbacksOrOnComplete = null) => {
       if (!jobId || !jobType) {
         console.error(
           "connectZipUpdateWebSocket called without jobId or jobType"
@@ -141,13 +155,47 @@ export default function useZipUpdate() {
         return;
       }
 
-      // Add the callback to the list if provided
-      if (onComplete && typeof onComplete === "function") {
-        // If this is a new job (different from current), clear old callbacks first
-        if (jobIdRef.current && jobIdRef.current !== jobId) {
-           completionCallbacksRef.current = [];
+      // Normalize callbacks argument
+      let callbacks = {};
+      if (typeof callbacksOrOnComplete === "function") {
+        callbacks = { onComplete: callbacksOrOnComplete };
+      } else if (
+        typeof callbacksOrOnComplete === "object" &&
+        callbacksOrOnComplete !== null
+      ) {
+        callbacks = callbacksOrOnComplete;
+      }
+
+      // Add the callbacks to the per-job listeners if provided
+      if (Object.keys(callbacks).length > 0) {
+        if (!jobListenersRef.current.has(jobId)) {
+          jobListenersRef.current.set(jobId, {
+            onComplete: new Set(),
+            onError: new Set(),
+            onCancel: new Set(),
+            onProgress: new Set(),
+          });
         }
-        completionCallbacksRef.current.push(onComplete);
+        const listeners = jobListenersRef.current.get(jobId);
+        if (
+          callbacks.onComplete &&
+          typeof callbacks.onComplete === "function"
+        ) {
+          listeners.onComplete.add(callbacks.onComplete);
+        }
+        if (callbacks.onError && typeof callbacks.onError === "function") {
+          listeners.onError.add(callbacks.onError);
+        }
+        if (callbacks.onCancel && typeof callbacks.onCancel === "function") {
+          listeners.onCancel.add(callbacks.onCancel);
+        }
+        if (
+          callbacks.onProgress &&
+          typeof callbacks.onProgress === "function"
+        ) {
+          listeners.onProgress.add(callbacks.onProgress);
+        }
+        jobListenersRef.current.set(jobId, listeners);
       }
 
       // If there's an existing WebSocket for a different job, close it first.
@@ -248,19 +296,72 @@ export default function useZipUpdate() {
                   updatedState.tempZipSize = data.tempZipSize;
                 if (data.originalZipSize !== undefined)
                   updatedState.originalZipSize = data.originalZipSize;
+
+                if (prev.triggeredFromConsole) {
+                  console.log(
+                    `[Zip Update Progress] Job: ${currentWsJobId}`,
+                    data
+                  );
+                }
+                // Fire per-job onProgress listeners
+                try {
+                  const listeners = jobListenersRef.current.get(currentWsJobId);
+                  if (
+                    listeners &&
+                    listeners.onProgress &&
+                    listeners.onProgress.size
+                  ) {
+                    for (const fn of listeners.onProgress) {
+                      try {
+                        fn(data);
+                      } catch (err) {
+                        console.error(
+                          "useZipUpdate: onProgress listener error",
+                          err
+                        );
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.error(
+                    "useZipUpdate: error invoking onProgress listeners",
+                    err
+                  );
+                }
                 break;
               case "complete":
-                // Execute all registered callbacks
-                if (completionCallbacksRef.current && completionCallbacksRef.current.length > 0) {
-                  completionCallbacksRef.current.forEach(cb => {
-                    try {
-                      if (typeof cb === 'function') cb();
-                    } catch (err) {
-                      console.error("connectZipUpdateWebSocket callback error:", err);
-                    }
-                  });
+                if (prev.triggeredFromConsole) {
+                  console.log(
+                    `[Zip Update Progress] Job Completed: ${currentWsJobId}`
+                  );
                 }
-                
+                // Execute per-job onComplete listeners
+                try {
+                  const listeners = jobListenersRef.current.get(currentWsJobId);
+                  if (
+                    listeners &&
+                    listeners.onComplete &&
+                    listeners.onComplete.size
+                  ) {
+                    for (const fn of listeners.onComplete) {
+                      try {
+                        fn();
+                      } catch (err) {
+                        console.error(
+                          "useZipUpdate: onComplete listener error",
+                          err
+                        );
+                      }
+                    }
+                  }
+                  jobListenersRef.current.delete(currentWsJobId);
+                } catch (err) {
+                  console.error(
+                    "useZipUpdate: error invoking onComplete listeners",
+                    err
+                  );
+                }
+
                 if (
                   ws &&
                   !ws._closeCalled &&
@@ -277,6 +378,32 @@ export default function useZipUpdate() {
                   `[useZipUpdate] Job ${currentWsJobId} error via WebSocket:`,
                   data.message
                 );
+                try {
+                  const listeners = jobListenersRef.current.get(currentWsJobId);
+                  if (
+                    listeners &&
+                    listeners.onError &&
+                    listeners.onError.size
+                  ) {
+                    for (const fn of listeners.onError) {
+                      try {
+                        fn(data.message);
+                      } catch (err) {
+                        console.error(
+                          "useZipUpdate: onError listener error",
+                          err
+                        );
+                      }
+                    }
+                  }
+                  jobListenersRef.current.delete(currentWsJobId);
+                } catch (err) {
+                  console.error(
+                    "useZipUpdate: error invoking onError listeners",
+                    err
+                  );
+                }
+
                 if (
                   ws &&
                   !ws._closeCalled &&
@@ -289,6 +416,32 @@ export default function useZipUpdate() {
                 updatedState.isVisible = false;
                 break;
               case "cancelled":
+                try {
+                  const listeners = jobListenersRef.current.get(currentWsJobId);
+                  if (
+                    listeners &&
+                    listeners.onCancel &&
+                    listeners.onCancel.size
+                  ) {
+                    for (const fn of listeners.onCancel) {
+                      try {
+                        fn();
+                      } catch (err) {
+                        console.error(
+                          "useZipUpdate: onCancel listener error",
+                          err
+                        );
+                      }
+                    }
+                  }
+                  jobListenersRef.current.delete(currentWsJobId);
+                } catch (err) {
+                  console.error(
+                    "useZipUpdate: error invoking onCancel listeners",
+                    err
+                  );
+                }
+
                 if (
                   ws &&
                   !ws._closeCalled &&
@@ -343,6 +496,41 @@ export default function useZipUpdate() {
 
         // Only clear refs and hide modal if the closed WS corresponds to the *currently active* job reference
         if (jobIdRef.current === closedWsJobId) {
+          // If callbacks remain, it means the connection closed without a final message (unexpected)
+          const listeners = jobListenersRef.current.get(closedWsJobId);
+          if (
+            listeners &&
+            (listeners.onCancel.size > 0 || listeners.onError.size > 0)
+          ) {
+            console.warn(
+              `[useZipUpdate] WebSocket closed unexpectedly for job ${closedWsJobId}. Triggering onCancel/onError.`
+            );
+            try {
+              if (listeners.onCancel && listeners.onCancel.size) {
+                for (const fn of listeners.onCancel) {
+                  try {
+                    fn();
+                  } catch (err) {
+                    console.error("useZipUpdate: onCancel listener error", err);
+                  }
+                }
+              } else if (listeners.onError && listeners.onError.size) {
+                for (const fn of listeners.onError) {
+                  try {
+                    fn("Connection closed unexpectedly");
+                  } catch (err) {
+                    console.error("useZipUpdate: onError listener error", err);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error(
+                "useZipUpdate: error calling onclose listeners",
+                err
+              );
+            }
+            jobListenersRef.current.delete(closedWsJobId);
+          }
           hideZipUpdate();
         } else {
           console.warn(
@@ -365,6 +553,18 @@ export default function useZipUpdate() {
           console.warn(
             `[useZipUpdate] Cleaning up refs and hiding modal via onerror for currently active job ${errorWsJobId}.`
           );
+          // Trigger onError callbacks
+          const listeners = jobListenersRef.current.get(errorWsJobId);
+          if (listeners && listeners.onError && listeners.onError.size) {
+            for (const fn of listeners.onError) {
+              try {
+                fn(error.message || "WebSocket connection error");
+              } catch (err) {
+                console.error("useZipUpdate: onError listener error", err);
+              }
+            }
+            jobListenersRef.current.delete(errorWsJobId);
+          }
           hideZipUpdate();
         } else {
           console.error(
@@ -384,4 +584,3 @@ export default function useZipUpdate() {
     setZipUpdateProgressModal,
   };
 }
-

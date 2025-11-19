@@ -51,10 +51,12 @@ const exitApp = async () => {
   }
 };
 
-const createNewFile = async (newFilePath) => {
+const createNewFile = async (newFilePath, content = null) => {
+  const payload = { newFilePath };
+  if (content !== null) payload.content = content;
   const response = await post(
     "/api/new-file",
-    { newFilePath },
+    payload,
     "Failed to create file."
   );
   return response.json();
