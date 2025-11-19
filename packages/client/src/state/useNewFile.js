@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { createNewFile, saveFileContent } from "../lib/api";
+import { createNewFile } from "../lib/api";
 import { buildFullPath, matchZipPath } from "../lib/utils";
 
 export default function useNewFile({
@@ -123,8 +123,6 @@ export default function useNewFile({
         );
         jobId = response?.jobId ?? null;
         let contentSaveResult = null;
-        // We send content to the server via createNewFile so it can handle writing the content
-        // (zip or non-zip) in one operation. No further client-side saveFileContent is required here.
 
         if (zipPathMatch && response && response.jobId) {
           // Start the modal now that server accepted the job
@@ -149,10 +147,6 @@ export default function useNewFile({
           connectZipUpdateWebSocket(response.jobId, "create-file-in-zip", {
             onComplete: async () => {
               clearTimeout(timeoutId);
-              // The server handles file creation (with provided content) atomically for zip paths,
-              // so we don't need to perform a separate saveFileContent call here.
-
-              // No content save pending — proceed to finalize navigation and selections
               handleCancelNewFile(); // Reset state after navigation so the create modal stays visible until done
               await handleNavigate(panelId, panel.path, "");
               setFocusedItem((prev) => ({ ...prev, [panelId]: finalValue }));
