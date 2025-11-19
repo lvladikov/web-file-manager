@@ -11,15 +11,28 @@ const TerminalModal = ({
   onClose,
   jobId,
   initialCommand,
+  initialPath,
   triggeredFromConsole,
+  commandToRun,
+  commandId,
 }) => {
   const terminalInstanceRef = useRef(null);
   const terminalRef = useRef(null);
   const fitAddon = useRef(new FitAddon());
   const hasReceivedData = useRef(false);
+  const wsRef = useRef(null); // Keep a ref to the websocket
   const [isFullscreen, setIsFullscreen] = useState(false);
   const previewContainerRef = useRef(null);
   const [cwd, setCwd] = useState("");
+  const [isPty, setIsPty] = useState(null);
+  const lastSentInitialPathRef = useRef(null);
+  const initialCommandWrittenRef = useRef(false);
+
+  // Keep the latest onClose in a ref so we don't need to re-run the effect when it changes
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -54,12 +67,19 @@ const TerminalModal = ({
       `ws://${window.location.host}/ws?jobId=${jobId}&type=terminal`
     );
     ws.jobId = jobId;
+    wsRef.current = ws;
 
     setTimeout(() => {
       fitAddon.current.fit();
       const { cols, rows } = term;
       // Send initial resize to ensure server PTY is sized correctly
-      ws.send(JSON.stringify({ type: "resize", cols, rows }));
+      try {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "resize", cols, rows }));
+        }
+      } catch (e) {
+        // swallow send errors if WS not open
+      }
       term.focus();
     }, 150);
 
@@ -81,14 +101,26 @@ const TerminalModal = ({
     ws.onopen = () => {
       fitAddon.current.fit();
       const { cols, rows } = term;
-      ws.send(JSON.stringify({ type: "resize", cols, rows }));
+      try {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "resize", cols, rows }));
+        }
+      } catch (e) {}
 
       term.onData((data) => {
-        ws.send(JSON.stringify({ type: "data", data }));
+        try {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "data", data }));
+          }
+        } catch (e) {}
       });
 
       term.onResize(({ cols, rows }) => {
-        ws.send(JSON.stringify({ type: "resize", cols, rows }));
+        try {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "resize", cols, rows }));
+          }
+        } catch (e) {}
       });
 
       // Set up resize observer after websocket is open
@@ -97,19 +129,22 @@ const TerminalModal = ({
         resizeObserver.observe(terminalRef.current.parentElement);
       }
 
-      // If an initial command was provided when triggeredFromConsole=true, send it and press Enter once
+      // If an initial command was provided when triggeredFromConsole=true, send it and press Enter once.
+      // We do NOT write it locally here to avoid duplicate echoes on the fallback (non-PTY) case.
+      // Instead, wait for the server to send a 'pty_info' message to decide whether to locally
+      // echo the command. We'll still send the typed data to the server immediately so the
+      // server receives it regardless of backend type.
       if (
         triggeredFromConsole &&
         initialCommand &&
         typeof initialCommand === "string"
       ) {
         try {
-          // Write to terminal UI
-          term.write(initialCommand + "\r");
-          // Send through websocket to the server PTY
-          ws.send(
-            JSON.stringify({ type: "data", data: initialCommand + "\r" })
-          );
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({ type: "data", data: initialCommand + "\r" })
+            );
+          }
         } catch (e) {
           console.error("Failed to send initial command to terminal:", e);
         }
@@ -123,14 +158,96 @@ const TerminalModal = ({
           const parsed = JSON.parse(data);
           if (parsed.type === "cwd") {
             setCwd(parsed.data);
+            // After receiving the server's initial cwd, if an initialPath was
+            // requested by the caller (the console) and it differs from the
+            // server cwd, send a cd command. Only do this once per initialPath
+            // value to avoid duplicate sends on reuse.
+            try {
+              if (
+                triggeredFromConsole &&
+                initialPath &&
+                typeof initialPath === "string" &&
+                parsed.data !== initialPath &&
+                lastSentInitialPathRef.current !== initialPath &&
+                ws.readyState === 1
+              ) {
+                ws.send(
+                  JSON.stringify({ type: "data", data: "cd " + initialPath + "\r" })
+                );
+                lastSentInitialPathRef.current = initialPath;
+              }
+            } catch (e) {
+              console.error("Failed to send initial path after cwd:", e);
+            }
+            return;
+          }
+          if (parsed.type === "pty_info") {
+            setIsPty(Boolean(parsed.isPty));
+            // If the server indicates a proper PTY and we have an initial
+            // command that we sent earlier from the console, opt to echo it
+            // locally for snappy feedback if we didn't yet write it.
+            try {
+              if (
+                parsed.isPty &&
+                triggeredFromConsole &&
+                initialCommand &&
+                !initialCommandWrittenRef.current
+              ) {
+                term.write(initialCommand + "\r");
+                initialCommandWrittenRef.current = true;
+              }
+            } catch (e) {
+              // ignore
+            }
             return;
           }
         } catch (e) {
           // Not a JSON message, treat as raw terminal data
         }
       }
-      const text = data instanceof Blob ? await data.text() : data.toString();
+      let text = data instanceof Blob ? await data.text() : data.toString();
+      // If this is the first chunk, check whether zsh printed a leading
+      // partial-line marker `%` as the first non-empty line. If so, drop
+      // that single-line marker to avoid the stray `%` shown above the
+      // actual prompt. This only affects the first received chunk so we're
+      // conservative and won't swallow legitimate subsequent output.
+      if (!hasReceivedData.current) {
+        try {
+          // Split into lines respecting CRLF or LF
+          const lines = text.split(/\r?\n/);
+          // Find the first non-empty line
+          let i = 0;
+          while (i < lines.length && lines[i].trim() === "") i++;
+          // Strip ANSI/OSC sequences for the single-char check; some shells
+          // may emit color or control sequences around the percent marker.
+          const stripAnsi = (s) =>
+            String(s)
+              .replace(/\x1b\][^\x07]*\x07/g, "") // OSC sequences
+              .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, ""); // ANSI CSI sequences
+          const firstNonEmpty = lines[i] || "";
+          if (i < lines.length && stripAnsi(firstNonEmpty).trim() === "%") {
+            // Remove the percent-only line
+            lines.splice(i, 1);
+            const remainder = lines.join("\n");
+            if (!remainder || remainder.trim() === "") {
+              // Nothing else to render; mark received and skip writing
+                hasReceivedData.current = true;
+                console.debug(
+                  "[terminal] Swallowing leading % marker for job",
+                  jobId
+                );
+              return;
+            }
+            text = remainder;
+              console.debug("[terminal] Swallowed leading % marker, writing remainder for job", jobId);
+          }
+        } catch (e) {
+          // If any error parsing lines, fall back to normal write
+          console.warn("TerminalModal: failed to check for leading % marker:", e);
+        }
+      }
       term.write(text);
+      hasReceivedData.current = true;
     };
 
     // Handle OSC sequences for setting the window/title. Historically the
@@ -155,7 +272,10 @@ const TerminalModal = ({
     ws.onclose = (event) => {
       clearTimeout(resizeTimeout);
       term.dispose();
-      onClose();
+      lastSentInitialPathRef.current = null;
+      initialCommandWrittenRef.current = false;
+      setIsPty(null);
+      if (onCloseRef.current) onCloseRef.current();
     };
 
     ws.onerror = (error) => {
@@ -175,7 +295,63 @@ const TerminalModal = ({
       }
       term.dispose();
     };
-  }, [isOpen, jobId, onClose]);
+  }, [isOpen, jobId]); // Removed onClose from dependencies to prevent re-connection on prop change
+
+  // Effect to handle new commands sent to an existing terminal
+  useEffect(() => {
+    if (
+      isOpen &&
+      commandId &&
+      commandToRun &&
+      wsRef.current &&
+      wsRef.current.readyState === WebSocket.OPEN
+    ) {
+      try {
+        // Write to terminal UI only if we're connected to a real PTY. For
+        // the fallback (non-PTY) the server echoes characters back and
+        // writing locally causes duplicate rendering.
+        if (
+          terminalInstanceRef.current &&
+          (isPty === true || isPty === null) // default to local write for unknown
+        ) {
+          terminalInstanceRef.current.write(commandToRun + "\r");
+        }
+        // Send through websocket to the server PTY
+        wsRef.current.send(
+          JSON.stringify({ type: "data", data: commandToRun + "\r" })
+        );
+      } catch (e) {
+        console.error("Failed to send command to terminal:", e);
+      }
+    }
+  }, [isOpen, commandId, commandToRun]);
+
+  // If the initialPath changes while the modal is open (reusing an existing
+  // terminal modal), send a cd command to change the working directory.
+  useEffect(() => {
+    if (!isOpen || !triggeredFromConsole || !initialPath) return;
+    try {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (lastSentInitialPathRef.current === initialPath) return;
+      try {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "data", data: "cd " + initialPath + "\r" }));
+        }
+        if (initialCommand && typeof initialCommand === "string") {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "data", data: initialCommand + "\r" }));
+          }
+        }
+      }
+      catch (e) {
+        console.error("Failed to send dynamic cd/command to terminal:", e);
+      }
+      lastSentInitialPathRef.current = initialPath;
+    } catch (e) {
+      console.error("Failed to send dynamic cd/command to terminal:", e);
+    }
+  }, [isOpen, initialPath, initialCommand, triggeredFromConsole]);
 
   useEffect(() => {
     const onFullscreenChange = () =>

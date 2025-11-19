@@ -55,6 +55,8 @@ export default function useModals() {
     jobId: null,
     initialCommand: null,
     triggeredFromConsole: false,
+    commandToRun: null,
+    commandId: null,
   });
 
   return {

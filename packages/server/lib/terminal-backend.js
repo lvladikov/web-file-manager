@@ -505,8 +505,9 @@ function spawn(shell, args = [], opts = {}) {
       });
 
       // node-pty doesn't need the "kick" used for pipes; it behaves like a
-      // proper terminal. Return a TerminalProcess wrapper that knows it's
-      // a PTY.
+      // proper terminal and will display the prompt automatically when ready.
+      // Sending an artificial carriage return can cause zsh to display its
+      // partial line marker (%) due to timing races during shell initialization.
       return new TerminalProcess(ptyProcess, true, cols, rows);
     } catch (e) {
       // If node-pty failed at runtime for any reason, emit a concise
@@ -587,25 +588,93 @@ function spawn(shell, args = [], opts = {}) {
     }
   }
 
+  // If node-pty is not available and we're falling back to pipes, sanitize
+  // the shell invocation to avoid loading user rc files and to use a
+  // predictable, minimal prompt. This reduces the chance of intermittent
+  // partial-line markers (%) from zsh or other shells during startup.
+  if (!nodePty || FORCE_PIPE_FALLBACK) {
+    const base = path.basename(spawnCmd);
+    try {
+      if (base === "zsh") {
+        // Don't load user dotfiles
+        if (!spawnArgs.includes("-f")) spawnArgs = [...spawnArgs, "-f"];
+        // Ensure the prompt is a simple `$ ` without leading newlines
+        spawnOpts.env = {
+          ...(spawnOpts.env || {}),
+          PROMPT: "$ ",
+          PROMPT_SP: "",
+        };
+      } else if (base === "bash") {
+        // Avoid reading /etc/profile ~/.bash_profile etc.
+        if (!spawnArgs.includes("--noprofile"))
+          spawnArgs = [...spawnArgs, "--noprofile", "--norc"];
+        spawnOpts.env = {
+          ...(spawnOpts.env || {}),
+          PS1: "$ ",
+        };
+      } else {
+        // Generic fallback: set a minimal PS1 for shells that support it
+        spawnOpts.env = {
+          ...(spawnOpts.env || {}),
+          PS1: "$ ",
+        };
+      }
+    } catch (e) {
+      // ignore adjustments on weird environments
+    }
+  }
+
   const child = spawnChild(spawnCmd, spawnArgs, {
     cwd: spawnOpts.cwd,
     env: spawnOpts.env,
     stdio: ["pipe", "pipe", "pipe"],
     detached: true,
   });
+  const termProcess = new TerminalProcess(child, false, cols, rows);
 
-  // Kick the shell so it prints an initial prompt even when it's not
-  // connected to a real TTY. This helps the frontend show the prompt
-  // immediately when the terminal modal opens.
+  // For the pipe-based fallback (no node-pty available), we want to avoid
+  // blindly sending a kick (\r) because it races with the shell startup
+  // and can cause zsh to print its partial line marker (`%`). Instead,
+  // wait for some stdout activity; if none arrives within a short timeout
+  // then send the kick. This reduces the chance of race-caused extra prompts.
   try {
-    setTimeout(() => {
-      if (child.stdin && !child.stdin.destroyed) child.stdin.write("\r");
-    }, 50);
+    let kicked = false;
+    const kickoff = () => {
+      if (kicked) return;
+      kicked = true;
+      try {
+        if (child.stdin && !child.stdin.destroyed) child.stdin.write("\r");
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    // If stdout emits any data, we assume the shell emitted a prompt and
+    // we don't need to kick. Otherwise, after 250ms we kick.
+    if (child.stdout && typeof child.stdout.once === "function") {
+      const timer = setTimeout(() => kickoff(), 250);
+      child.stdout.once("data", () => {
+        try {
+          clearTimeout(timer);
+        } catch (e) {}
+        kicked = true;
+      });
+    } else {
+      setTimeout(() => kickoff(), 250);
+    }
   } catch (e) {
-    // ignore
+    // ignore any issues while setting up the kick logic
   }
 
-  return new TerminalProcess(child, false, cols, rows);
+  if (process.env.DEBUG_TERMINAL) {
+    try {
+      console.info(
+        `[terminal-backend] fallback spawn: cwd=${String(spawnOpts.cwd)} shell=${spawnCmd} args=${JSON.stringify(spawnArgs)} kickTimeout=250`
+      );
+    } catch (e) {}
+  }
+
+  return termProcess;
 }
 
 export default { spawn };

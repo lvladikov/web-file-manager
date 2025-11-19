@@ -2331,9 +2331,29 @@ export function initializeWebSocketServer(
             const term = job.ptyProcess;
             if (ws.readyState === 1) {
               ws.send(JSON.stringify({ type: "cwd", data: job.initialCwd }));
+              // Provide information about the underlying pty type so the
+              // client can avoid duplicating typed writes on the non-PTY
+              // fallback which echoes typed characters back to the client.
+              try {
+                ws.send(
+                  JSON.stringify({ type: "pty_info", isPty: !!job.ptyProcess.isPty })
+                );
+              } catch (e) {}
             }
 
+            let _loggedFirstChunk = false;
             term.on("data", (data) => {
+              if (!process.env.DEBUG_TERMINAL) {
+                // no-op
+              } else if (!_loggedFirstChunk) {
+                try {
+                  const snippet = typeof data === "string" ? data : data.toString("utf8");
+                  console.info(
+                    `[pty] first data for job ${jobId}: [${snippet.slice(0, 100).replace(/\n/g, "\\n")}]
+`                  );
+                } catch (e) {}
+                _loggedFirstChunk = true;
+              }
               if (ws.readyState === 1) {
                 ws.send(data);
               }

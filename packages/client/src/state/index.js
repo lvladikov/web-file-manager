@@ -303,8 +303,11 @@ export default function appState() {
       const { triggeredFromConsole = false } = options || {};
       try {
         let terminalPath = panels[activePanel].path;
+        let shouldChangePath = false; // Track if user explicitly provided a path
+        
         // If the caller supplied a startingPath, prefer it if valid
         if (typeof startingPath === "string" && startingPath.trim() !== "") {
+          shouldChangePath = true;
           // Resolve relative paths to the panel path
           const looksAbsolute =
             startingPath.startsWith("/") || /^[a-zA-Z]:\\/.test(startingPath);
@@ -339,6 +342,29 @@ export default function appState() {
           terminalPath = dirname(zipFilePath); // The directory containing the .zip file
         }
 
+        // Check if terminal is already open
+        if (modals.terminalModal.isVisible && modals.terminalModal.jobId) {
+          // Reuse existing terminal
+          let command = "";
+          // Only cd if the user explicitly provided a path
+          if (shouldChangePath && terminalPath) {
+            command += `cd "${terminalPath}"`;
+          }
+          // If initial command provided, append it
+          if (initialCommand) {
+            command += command ? ` && ${initialCommand}` : initialCommand;
+          }
+
+          if (command) {
+            modals.setTerminalModal((prev) => ({
+              ...prev,
+              commandToRun: command,
+              commandId: Date.now(), // Trigger effect
+            }));
+          }
+          return { success: true, jobId: modals.terminalModal.jobId };
+        }
+
         // Calculate terminal dimensions based on modal size and character dimensions
         // Modal will be 80vw x 80vh, estimate character size for xterm
         const charWidth = 8; // pixels per character (approximate for xterm font)
@@ -369,7 +395,7 @@ export default function appState() {
         return { success: false, error: error.message };
       }
     },
-    [activePanel, panels, modals.setTerminalModal, setError]
+    [activePanel, panels, modals.terminalModal, modals.setTerminalModal, setError]
   );
 
   const handleTerminalOtherPanel = useCallback(
@@ -377,8 +403,11 @@ export default function appState() {
       const { triggeredFromConsole = false } = options || {};
       try {
         let terminalPath = panels[otherPanelId].path;
+        let shouldChangePath = false; // Track if user explicitly provided a path
+        
         // If the caller supplied a startingPath, prefer it if valid
         if (typeof startingPath === "string" && startingPath.trim() !== "") {
+          shouldChangePath = true;
           const looksAbsolute =
             startingPath.startsWith("/") || /^[a-zA-Z]:\\/.test(startingPath);
           const resolved = looksAbsolute
@@ -412,6 +441,28 @@ export default function appState() {
           terminalPath = dirname(zipFilePath);
         }
 
+        // Check if terminal is already open
+        if (modals.terminalModal.isVisible && modals.terminalModal.jobId) {
+          // Reuse existing terminal
+          let command = "";
+          // Only cd if the user explicitly provided a path
+          if (shouldChangePath && terminalPath) {
+            command += `cd "${terminalPath}"`;
+          }
+          if (initialCommand) {
+            command += command ? ` && ${initialCommand}` : initialCommand;
+          }
+
+          if (command) {
+            modals.setTerminalModal((prev) => ({
+              ...prev,
+              commandToRun: command,
+              commandId: Date.now(),
+            }));
+          }
+          return { success: true, jobId: modals.terminalModal.jobId };
+        }
+
         // Calculate terminal dimensions based on modal size and character dimensions
         const charWidth = 8; // pixels per character (approximate for xterm font)
         const charHeight = 16; // pixels per character line (approximate for xterm font)
@@ -440,7 +491,7 @@ export default function appState() {
         return { success: false, error: error.message };
       }
     },
-    [otherPanelId, panels, modals.setTerminalModal, setError]
+    [otherPanelId, panels, modals.terminalModal, modals.setTerminalModal, setError]
   );
 
   // Feature hooks

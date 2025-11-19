@@ -679,6 +679,8 @@ export default function App() {
         jobId={terminalModal.jobId}
         initialCommand={terminalModal.initialCommand}
         triggeredFromConsole={terminalModal.triggeredFromConsole}
+        commandToRun={terminalModal.commandToRun}
+        commandId={terminalModal.commandId}
         onClose={() =>
           setTerminalModal({
             isVisible: false,
