@@ -24,6 +24,8 @@ export default function useZipUpdate() {
 
   const wsRef = useRef(null);
   const jobIdRef = useRef(null);
+  // Store multiple completion callbacks for the same job
+  const completionCallbacksRef = useRef([]);
 
   const hideZipUpdate = useCallback(() => {
     setZipUpdateProgressModal((prev) => ({
@@ -40,6 +42,7 @@ export default function useZipUpdate() {
     // Clear refs as the operation associated with the modal is ending
     wsRef.current = null;
     jobIdRef.current = null;
+    completionCallbacksRef.current = [];
   }, [setZipUpdateProgressModal]);
 
   const cancelZipUpdate = useCallback(
@@ -78,11 +81,21 @@ export default function useZipUpdate() {
       jobId = null, // Allow passing jobId directly if known initially
       triggeredFromPreview = false,
     }) => {
+      // If the same job is already running, don't reset the state
+      if (jobId && jobIdRef.current === jobId) {
+        // Just ensure it's visible
+        setZipUpdateProgressModal((prev) => ({ ...prev, isVisible: true }));
+        return;
+      }
+
       if (jobId) {
         jobIdRef.current = jobId; // Store jobId immediately if provided
       } else {
         jobIdRef.current = null; // Reset if jobId is not provided initially
       }
+      
+      // Clear callbacks for new job
+      completionCallbacksRef.current = [];
 
       const newState = {
         isVisible: true,
@@ -126,6 +139,15 @@ export default function useZipUpdate() {
           "connectZipUpdateWebSocket called without jobId or jobType"
         );
         return;
+      }
+
+      // Add the callback to the list if provided
+      if (onComplete && typeof onComplete === "function") {
+        // If this is a new job (different from current), clear old callbacks first
+        if (jobIdRef.current && jobIdRef.current !== jobId) {
+           completionCallbacksRef.current = [];
+        }
+        completionCallbacksRef.current.push(onComplete);
       }
 
       // If there's an existing WebSocket for a different job, close it first.
@@ -228,16 +250,17 @@ export default function useZipUpdate() {
                   updatedState.originalZipSize = data.originalZipSize;
                 break;
               case "complete":
-                if (onComplete) {
-                  try {
-                    onComplete();
-                  } catch (err) {
-                    console.error(
-                      "connectZipUpdateWebSocket onComplete error:",
-                      err
-                    );
-                  }
+                // Execute all registered callbacks
+                if (completionCallbacksRef.current && completionCallbacksRef.current.length > 0) {
+                  completionCallbacksRef.current.forEach(cb => {
+                    try {
+                      if (typeof cb === 'function') cb();
+                    } catch (err) {
+                      console.error("connectZipUpdateWebSocket callback error:", err);
+                    }
+                  });
                 }
+                
                 if (
                   ws &&
                   !ws._closeCalled &&
@@ -361,3 +384,4 @@ export default function useZipUpdate() {
     setZipUpdateProgressModal,
   };
 }
+

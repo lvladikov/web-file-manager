@@ -224,6 +224,8 @@ export default function App() {
         handleStartNewFolder,
         handleConfirmNewFolder,
         handleCancelNewFolder,
+        startZipUpdate,
+        connectZipUpdateWebSocket,
       };
     }
     return () => {
