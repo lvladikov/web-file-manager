@@ -116,6 +116,8 @@ const FilePanel = React.forwardRef(
       onCompressToOtherPanel,
       onDecompressInActivePanel,
       onDecompressToOtherPanel,
+      onDecompressInSubfolderInActivePanel,
+      onDecompressInSubfolderToOtherPanel,
       onTestArchive,
       appState,
       onChooseFolder,
@@ -696,6 +698,12 @@ const FilePanel = React.forwardRef(
                   onCompressToOtherPanel={onCompressToOtherPanel}
                   onDecompressInActivePanel={onDecompressInActivePanel}
                   onDecompressToOtherPanel={onDecompressToOtherPanel}
+                  onDecompressInSubfolderInActivePanel={
+                    onDecompressInSubfolderInActivePanel
+                  }
+                  onDecompressInSubfolderToOtherPanel={
+                    onDecompressInSubfolderToOtherPanel
+                  }
                   onTestArchive={onTestArchive}
                   appState={appState}
                   boundaryRef={boundaryRef}

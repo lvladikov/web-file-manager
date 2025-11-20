@@ -49,6 +49,8 @@ const FileMenu = ({ ...props }) => {
     onCompressToOtherPanel,
     onDecompressInActivePanel,
     onDecompressToOtherPanel,
+    onDecompressInSubfolderInActivePanel,
+    onDecompressInSubfolderToOtherPanel,
     onTestArchive,
     onSwapPanels,
     canCopyToOtherPanel,
@@ -139,16 +141,40 @@ const FileMenu = ({ ...props }) => {
 
       {/* Submenu Content (Simulated popover) */}
       {isArchiveSubmenuOpen && (
-        <div className="absolute top-0 left-full mt-[-1px] w-64 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+        <div className="absolute top-0 left-full mt-[-1px] w-96 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
           {canDecompress ? (
             <>
               <MenuItem
                 label="Decompress in active panel"
                 onClick={() => handleItemClick(onDecompressInActivePanel)}
+                className="whitespace-nowrap"
               />
               <MenuItem
                 label="Decompress to other panel"
                 onClick={() => handleItemClick(onDecompressToOtherPanel)}
+                className="whitespace-nowrap"
+              />
+              <MenuItem
+                label={
+                  selectedArchiveCount > 1
+                    ? "Decompress in subfolders in active panel"
+                    : "Decompress in subfolder in active panel"
+                }
+                onClick={() =>
+                  handleItemClick(onDecompressInSubfolderInActivePanel)
+                }
+                className="whitespace-nowrap"
+              />
+              <MenuItem
+                label={
+                  selectedArchiveCount > 1
+                    ? "Decompress in subfolders in other panel"
+                    : "Decompress in subfolder in other panel"
+                }
+                onClick={() =>
+                  handleItemClick(onDecompressInSubfolderToOtherPanel)
+                }
+                className="whitespace-nowrap"
               />
             </>
           ) : null}

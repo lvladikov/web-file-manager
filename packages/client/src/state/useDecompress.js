@@ -33,6 +33,8 @@ const useDecompress = ({
 
   const queueRef = useRef([]);
   const lastProgressRef = useRef({});
+  const forceSubfolderRef = useRef(false);
+  const queueTotalRef = useRef(0);
 
   const processNextArchive = useCallback(
     async (targetPanelId) => {
@@ -50,6 +52,10 @@ const useDecompress = ({
         setDecompressProgress((prev) => ({ ...prev, isVisible: false }));
         handleRefreshPanel("left");
         handleRefreshPanel("right");
+        // clear any persistent force-subfolder flag when the entire queue is done
+        try {
+          forceSubfolderRef.current = false;
+        } catch (e) {}
         setActivePanel(targetPanelId);
         panelRefs[targetPanelId].current?.focus();
         return;
@@ -83,18 +89,44 @@ const useDecompress = ({
       const source = { path: sourcePath, name: archiveItem.name };
       const baseDestinationPath = panels[targetPanelId].path;
 
-      // For multi-archive extraction, extract all to the same target directory
-      // For single archive, create a subfolder (preserving original behavior)
+      // Use `queueTotalRef` (set when the queue is built) as the canonical
+      // source of truth for whether the overall operation is multi-archive.
       const isMultiArchive =
-        queueRef.current.length > 0 || archiveItem.isMultiArchive;
-      const destinationPath = itemsToExtract
-        ? baseDestinationPath
-        : isMultiArchive
-        ? baseDestinationPath
-        : buildFullPath(
-            baseDestinationPath,
-            archiveItem.name.replace(/\.[^/.]+$/, "")
-          );
+        queueTotalRef.current > 1 || archiveItem.isMultiArchive;
+
+      // Only create a subfolder when the user explicitly requested
+      // "Decompress in subfolder" (forceSubfolder).
+      const shouldCreateSubfolder = forceSubfolderRef.current;
+
+      if (isVerboseLogging()) {
+        console.log(
+          `[processNextArchive] archive=${
+            archiveItem.name
+          } isMultiArchive=${isMultiArchive} archiveItem.isMultiArchive=${
+            archiveItem.isMultiArchive
+          } queueTotal=${
+            queueTotalRef.current
+          } forceSubfolder=${!!forceSubfolderRef.current} itemsToExtract=${!!itemsToExtract}`
+        );
+      }
+
+      let destinationPath;
+      if (shouldCreateSubfolder) {
+        // create a unique folder name based on archive name (avoid collisions with existing items)
+        const baseName = archiveItem.name.replace(/\.[^/.]+$/, "");
+        let candidate = baseName;
+        let counter = 2;
+        const existingNames = new Set(
+          (panels[targetPanelId]?.items || []).map((i) => i.name)
+        );
+        while (existingNames.has(candidate)) {
+          candidate = `${baseName} (${counter++})`;
+        }
+        destinationPath = buildFullPath(baseDestinationPath, candidate);
+      } else {
+        // Regular decompression writes directly into the target directory.
+        destinationPath = baseDestinationPath;
+      }
 
       // Log destination and extraction mode
       if (isVerboseLogging())
@@ -274,7 +306,11 @@ const useDecompress = ({
   );
 
   const handleDecompress = useCallback(
-    async (targetPanelId, itemsToExtract = null) => {
+    async (targetPanelId, itemsToExtract = null, forceSubfolder = false) => {
+      // Honor explicit `forceSubfolder` parameter (used by the two
+      // `handleDecompressInSubfolder*` helpers). This sets the shared
+      // ref so `processNextArchive` and downstream logic can read it.
+      forceSubfolderRef.current = !!forceSubfolder;
       const sourcePanelId = activePanel;
       const itemsToConsider = filter[sourcePanelId].pattern
         ? filteredItems[sourcePanelId]
@@ -351,6 +387,7 @@ const useDecompress = ({
         if (singleArchive) {
           singleArchive.itemsToExtract = itemsToExtract;
           queueRef.current = [singleArchive];
+          queueTotalRef.current = 1;
         }
       } else {
         // Mark all archives as part of multi-archive operation if there are multiple
@@ -387,6 +424,9 @@ const useDecompress = ({
           }
           return result;
         });
+
+        // record total count for processNextArchive to consult
+        queueTotalRef.current = queueRef.current.length;
 
         if (isVerboseLogging()) {
           console.log(
@@ -431,7 +471,9 @@ const useDecompress = ({
       if (isVerboseLogging())
         console.log(
           "🗜️ Calling processNextArchive with queue length:",
-          queueRef.current.length
+          queueRef.current.length,
+          "forceSubfolder=",
+          !!forceSubfolderRef.current
         );
       processNextArchive(targetPanelId);
     },
@@ -444,6 +486,21 @@ const useDecompress = ({
       setError,
       processNextArchive,
     ]
+  );
+
+  const handleDecompressInSubfolderInActivePanel = useCallback(
+    (itemsToExtract = null) => {
+      handleDecompress(activePanel, itemsToExtract, true);
+    },
+    [handleDecompress, activePanel]
+  );
+
+  const handleDecompressInSubfolderToOtherPanel = useCallback(
+    (itemsToExtract = null) => {
+      const otherPanelId = activePanel === "left" ? "right" : "left";
+      handleDecompress(otherPanelId, itemsToExtract, true);
+    },
+    [handleDecompress, activePanel]
   );
 
   const handleModalCloseOrCancel = async () => {
@@ -480,7 +537,7 @@ const useDecompress = ({
 
   const handleDecompressInActivePanel = useCallback(
     (itemsToExtract = null) => {
-      handleDecompress(activePanel, itemsToExtract);
+      handleDecompress(activePanel, itemsToExtract, false);
     },
     [handleDecompress, activePanel]
   );
@@ -488,7 +545,7 @@ const useDecompress = ({
   const handleDecompressToOtherPanel = useCallback(
     (itemsToExtract = null) => {
       const otherPanelId = activePanel === "left" ? "right" : "left";
-      handleDecompress(otherPanelId, itemsToExtract);
+      handleDecompress(otherPanelId, itemsToExtract, false);
     },
     [handleDecompress, activePanel]
   );
@@ -498,6 +555,8 @@ const useDecompress = ({
     handleCancelDecompress: handleModalCloseOrCancel,
     handleDecompressInActivePanel,
     handleDecompressToOtherPanel,
+    handleDecompressInSubfolderInActivePanel,
+    handleDecompressInSubfolderToOtherPanel,
   };
 };
 

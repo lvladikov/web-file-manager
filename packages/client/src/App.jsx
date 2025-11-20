@@ -162,6 +162,8 @@ export default function App() {
     handleCancelDecompress,
     handleDecompressInActivePanel,
     handleDecompressToOtherPanel,
+    handleDecompressInSubfolderInActivePanel,
+    handleDecompressInSubfolderToOtherPanel,
     archiveTestProgress,
     handleCancelArchiveTest,
     handleTestArchive,
@@ -456,6 +458,12 @@ export default function App() {
           onCompressToOtherPanel={handleCompressToOtherPanel}
           onDecompressInActivePanel={handleDecompressInActivePanel}
           onDecompressToOtherPanel={handleDecompressToOtherPanel}
+          onDecompressInSubfolderInActivePanel={
+            handleDecompressInSubfolderInActivePanel
+          }
+          onDecompressInSubfolderToOtherPanel={
+            handleDecompressInSubfolderToOtherPanel
+          }
           onTestArchive={handleTestArchive}
           onSwapPanels={handleSwapPanels}
           onTerminal={handleTerminal}
@@ -905,6 +913,12 @@ export default function App() {
               onCompressToOtherPanel={handleCompressToOtherPanel}
               onDecompressInActivePanel={handleDecompressInActivePanel}
               onDecompressToOtherPanel={handleDecompressToOtherPanel}
+              onDecompressInSubfolderInActivePanel={
+                handleDecompressInSubfolderInActivePanel
+              }
+              onDecompressInSubfolderToOtherPanel={
+                handleDecompressInSubfolderToOtherPanel
+              }
               onTestArchive={handleTestArchive}
               appState={appState}
               onChooseFolder={openFolderBrowserForPanel}

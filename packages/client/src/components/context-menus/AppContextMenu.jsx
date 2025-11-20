@@ -51,6 +51,8 @@ const AppContextMenu = ({
   onCompressToOtherPanel,
   onDecompressInActivePanel,
   onDecompressToOtherPanel,
+  onDecompressInSubfolderInActivePanel,
+  onDecompressInSubfolderToOtherPanel,
   onTestArchive,
   onSwapPanels,
   onTerminal,
@@ -144,7 +146,7 @@ const AppContextMenu = ({
         <ContextMenu.Content
           collisionBoundary={boundaryRef.current}
           collisionPadding={80}
-          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-72"
+          className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-80"
         >
           <ScrollArea.Root className="w-full h-full" type="auto">
             <ScrollArea.Viewport
@@ -322,7 +324,7 @@ const AppContextMenu = ({
                     </ContextMenu.SubTrigger>
                     <ContextMenu.Portal>
                       <ContextMenu.SubContent
-                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-64"
+                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-96"
                         sideOffset={2}
                         alignOffset={-5}
                       >
@@ -339,6 +341,22 @@ const AppContextMenu = ({
                               className={itemClassName}
                             >
                               Decompress to other panel
+                            </ContextMenu.Item>
+                            <ContextMenu.Item
+                              onSelect={onDecompressInSubfolderInActivePanel}
+                              className={`${itemClassName} whitespace-nowrap`}
+                            >
+                              {selectedArchiveCount > 1
+                                ? "Decompress in subfolders in active panel"
+                                : "Decompress in subfolder in active panel"}
+                            </ContextMenu.Item>
+                            <ContextMenu.Item
+                              onSelect={onDecompressInSubfolderToOtherPanel}
+                              className={`${itemClassName} whitespace-nowrap`}
+                            >
+                              {selectedArchiveCount > 1
+                                ? "Decompress in subfolders in other panel"
+                                : "Decompress in subfolder in other panel"}
                             </ContextMenu.Item>
                           </>
                         ) : null}

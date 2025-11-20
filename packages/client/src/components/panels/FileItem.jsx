@@ -36,6 +36,8 @@ const FileItem = ({
   onCompressToOtherPanel,
   onDecompressInActivePanel,
   onDecompressToOtherPanel,
+  onDecompressInSubfolderInActivePanel,
+  onDecompressInSubfolderToOtherPanel,
   onTestArchive,
   onSwapPanels,
   onTerminal,
@@ -208,6 +210,10 @@ const FileItem = ({
       onCompressToOtherPanel={onCompressToOtherPanel}
       onDecompressInActivePanel={onDecompressInActivePanel}
       onDecompressToOtherPanel={onDecompressToOtherPanel}
+      onDecompressInSubfolderInActivePanel={
+        onDecompressInSubfolderInActivePanel
+      }
+      onDecompressInSubfolderToOtherPanel={onDecompressInSubfolderToOtherPanel}
       onTestArchive={onTestArchive}
       onSwapPanels={onSwapPanels}
       onTerminal={onTerminal}
