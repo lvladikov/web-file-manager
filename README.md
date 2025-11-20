@@ -255,7 +255,7 @@ When running the Electron app, both client and server and the node binaries and 
 
     - **Archive _Submenu_:**
       - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
-      - <kbd>Decompress</kbd>: Decompresses a selected ZIP archive to the active or other panel, with progress tracking.
+      - <kbd>Decompress</kbd>: Decompress one or more selected ZIP archives into the active or other panel. You can extract files directly into the destination folder or choose to extract each archive into its own archive-named subfolder (with automatic collision suffixing). A progress dialog displays extraction progress and handles overwrite prompts.
       - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, including multiple selected ZIP archives, reporting any corrupt files or general issues.
 
   - **Organization:** Rename and Delete the item.
