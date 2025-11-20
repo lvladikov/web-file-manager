@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { buildFullPath, basename } from "../lib/utils";
+import { buildFullPath, basename, isVerboseLogging } from "../lib/utils";
 import { compressFiles, cancelZipOperation } from "../lib/api";
 
 const useCompress = ({
@@ -97,6 +97,13 @@ const useCompress = ({
       });
 
       try {
+        if (isVerboseLogging())
+          console.log(
+            `[useCompress] Starting compress of ${itemPaths.length} items -> ${destinationPath}`
+          );
+      } catch (e) {}
+
+      try {
         const response = await compressFiles(
           itemPaths,
           destinationPath,
@@ -105,6 +112,10 @@ const useCompress = ({
         const { jobId } = response;
 
         setCompressProgress((prev) => ({ ...prev, jobId }));
+
+        try {
+          if (isVerboseLogging()) console.log(`[useCompress] jobId=${jobId}`);
+        } catch (e) {}
 
         const wsProtocol =
           window.location.protocol === "https:" ? "wss:" : "ws:";

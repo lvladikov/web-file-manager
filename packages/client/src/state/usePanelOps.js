@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { buildFullPath } from "../lib/utils";
+import { useCallback, useRef } from "react";
+import { buildFullPath, isVerboseLogging } from "../lib/utils";
 import { fetchDirectory, openFile } from "../lib/api";
 
 export default function usePanelOps({
@@ -42,6 +42,9 @@ export default function usePanelOps({
     [setPanels]
   );
 
+  const lastNavLogRef = useRef({});
+  const LOG_DEDUP_MS = 1000;
+
   const handleOpenFile = useCallback(
     async (basePath, fileName, appName) => {
       try {
@@ -56,6 +59,17 @@ export default function usePanelOps({
   const handleNavigate = useCallback(
     async (panelId, currentPath, target) => {
       const oldPath = panels[panelId].path;
+      if (isVerboseLogging()) {
+        try {
+          const msg = `[usePanelOps] navigate: panel=${panelId} from=${oldPath} target=${target}`;
+          const now = Date.now();
+          const last = lastNavLogRef.current[panelId] || { text: null, ts: 0 };
+          if (last.text !== msg || now - last.ts > LOG_DEDUP_MS) {
+            console.log(msg);
+            lastNavLogRef.current[panelId] = { text: msg, ts: now };
+          }
+        } catch (e) {}
+      }
       setLoading((prev) => ({ ...prev, [panelId]: true }));
       try {
         const data = await fetchDirectory(currentPath, target);

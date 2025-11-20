@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 import { Copy, XCircle, Search, Move, CopyCheck } from "lucide-react";
-import { formatBytes, formatSpeed, matchZipPath } from "../../lib/utils";
+import {
+  formatBytes,
+  formatSpeed,
+  matchZipPath,
+  isVerboseLogging,
+} from "../../lib/utils";
 import TruncatedText from "../ui/TruncatedText";
 
 const ProgressModal = ({
@@ -25,6 +30,13 @@ const ProgressModal = ({
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
+
+  try {
+    if (isVerboseLogging())
+      console.log(
+        `[ProgressModal] visible status=${status} copied=${copied} total=${total} currentFile=${currentFile}`
+      );
+  } catch (e) {}
 
   const isScanning = status === "scanning";
   const isZipDuplicateOperation = isDuplicate && isZipDuplicate;

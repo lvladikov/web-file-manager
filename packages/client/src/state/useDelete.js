@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { deleteItem, fetchDeleteSummary } from "../lib/api";
-import { matchZipPath } from "../lib/utils";
+import { matchZipPath, isVerboseLogging } from "../lib/utils";
 
 export default function useDelete({
   activePanel,
@@ -46,7 +46,11 @@ export default function useDelete({
         (itemsToDelete[0] && itemsToDelete[0].name === "..")
       )
         return;
-
+      if (isVerboseLogging()) {
+        console.log(
+          `[useDelete] Prepared ${itemsToDelete.length} items for deletion (panel=${activePanel})`
+        );
+      }
       setDeleteTargets(itemsToDelete);
 
       try {
@@ -87,13 +91,38 @@ export default function useDelete({
 
     const pathsToDelete = deleteTargets.map((item) => item.fullPath);
     const zipPathMatch = matchZipPath(pathsToDelete[0]);
+    const zipFilePath = zipPathMatch ? zipPathMatch[1] : null;
     const isInnerZipPath =
       !!zipPathMatch && zipPathMatch[2] && zipPathMatch[2] !== "/";
+
+    if (isVerboseLogging()) {
+      try {
+        const summary = deleteTargets.map((t) => ({
+          name: t.name,
+          fullPath: t.fullPath,
+          type: t.type,
+        }));
+        console.log(
+          `[useDelete] Confirming deletion of ${pathsToDelete.length} items:`,
+          summary
+        );
+      } catch (e) {
+        console.log(
+          `[useDelete] Confirming deletion of ${pathsToDelete.length} items`
+        );
+      }
+    }
 
     try {
       const response = await deleteItem(pathsToDelete);
 
       if (isInnerZipPath && response && response.jobId) {
+        try {
+          if (isVerboseLogging())
+            console.log(
+              `[useDelete] Starting zip delete job ${response.jobId} for ${zipFilePath}`
+            );
+        } catch (e) {}
         const zipFilePath = zipPathMatch[1];
         startZipUpdate({
           jobId: response.jobId,

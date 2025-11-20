@@ -1321,6 +1321,33 @@ export function initializeWebSocketServer(
                         }));
 
                   for (const item of itemsToProcess) {
+                    // Defensive check: prevent copying a folder into itself or into one of its
+                    // own subfolders which would cause infinite nesting (endless copy).
+                    try {
+                      const src = path.resolve(item.sourcePath);
+                      const dst = path.resolve(item.destPath);
+                      const relative = path.relative(src, dst);
+                      // If `relative` is empty (same path) or does not start with '..',
+                      // then the destination is the same as or inside the source.
+                      if (
+                        relative === "" ||
+                        (!relative.startsWith("..") &&
+                          !path.isAbsolute(relative))
+                      ) {
+                        const msg = `Destination '${dst}' is inside source '${src}' — aborting to avoid recursive copy.`;
+                        console.error(`[ws] ${msg}`);
+                        // Propagate an error to abort the job and notify the client
+                        throw new Error(msg);
+                      }
+                    } catch (e) {
+                      // If path.relative or resolve throws for some reason, fail safe and abort
+                      console.error(
+                        `[ws] Error checking source/destination relationship for job ${jobId}:`,
+                        e.message || e
+                      );
+                      throw e;
+                    }
+
                     await copyWithProgress(item.sourcePath, item.destPath, job);
                   }
 

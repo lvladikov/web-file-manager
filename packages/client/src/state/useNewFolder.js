@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { createNewFolder } from "../lib/api";
-import { buildFullPath, matchZipPath } from "../lib/utils";
+import { buildFullPath, matchZipPath, isVerboseLogging } from "../lib/utils";
 
 export default function useNewFolder({
   renamingItem,
@@ -85,6 +85,10 @@ export default function useNewFolder({
       const panel = panels[panelId];
       const newFolderPath = buildFullPath(panel.path, finalValue);
       try {
+        if (isVerboseLogging())
+          console.log(
+            `[useNewFolder] Creating folder '${finalValue}' on panel ${panelId}`
+          );
         const zipPathMatch = matchZipPath(newFolderPath);
         let jobId = null;
 

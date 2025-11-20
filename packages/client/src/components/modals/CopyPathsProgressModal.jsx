@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { LoaderCircle, XCircle } from "lucide-react";
 import TruncatedText from "../ui/TruncatedText";
+import { isVerboseLogging } from "../../lib/utils";
 
 const CopyPathsProgressModal = ({
   isVisible,
@@ -28,6 +29,16 @@ const CopyPathsProgressModal = ({
       document.removeEventListener("keydown", handleEscape);
     };
   }, [isVisible, onCancel]);
+
+  useEffect(() => {
+    try {
+      if (isVisible && isVerboseLogging()) {
+        console.log(
+          `[CopyPathsProgressModal] mode=${mode} count=${count} currentPath=${currentPath}`
+        );
+      }
+    } catch (e) {}
+  }, [isVisible, currentPath, count, mode]);
 
   if (!isVisible) return null;
   return (

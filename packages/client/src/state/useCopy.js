@@ -6,7 +6,13 @@ import {
   startDuplicateItems,
   cancelDuplicate,
 } from "../lib/api";
-import { buildFullPath, basename, dirname, matchZipPath } from "../lib/utils";
+import {
+  buildFullPath,
+  basename,
+  dirname,
+  matchZipPath,
+  isVerboseLogging,
+} from "../lib/utils";
 
 const getUniqueName = (originalName, existingNames) => {
   const dotIndex = originalName.lastIndexOf(".");
@@ -78,6 +84,14 @@ export default function useCopy({
 
   const performCopy = useCallback(
     async (sources, destinationPath, isMove = false) => {
+      try {
+        if (isVerboseLogging())
+          console.log(
+            `[useCopy] performCopy: sources=${
+              sources?.length || 0
+            } destination=${destinationPath} isMove=${isMove}`
+          );
+      } catch (e) {}
       if (!sources || sources.length === 0) return;
       handleCancelRename();
       handleCancelNewFolder();
@@ -376,6 +390,13 @@ export default function useCopy({
         sources: [],
       });
     };
+
+    try {
+      if (isVerboseLogging())
+        console.log(
+          `[useCopy] WebSocket created for job ${copyProgress.jobId}`
+        );
+    } catch (e) {}
 
     ws.onerror = () => {
       console.error(`[useCopy] WebSocket error for job ${copyProgress.jobId}`);

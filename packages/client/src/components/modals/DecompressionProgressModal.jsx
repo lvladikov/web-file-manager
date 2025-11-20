@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { LoaderCircle, XCircle } from "lucide-react";
-import { formatBytes, formatSpeed } from "../../lib/utils";
+import { formatBytes, formatSpeed, isVerboseLogging } from "../../lib/utils";
 import TruncatedText from "../ui/TruncatedText";
 
 const DecompressionProgressModal = ({
@@ -19,6 +19,13 @@ const DecompressionProgressModal = ({
 }) => {
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
+
+  try {
+    if (isVerboseLogging())
+      console.log(
+        `[DecompressionProgressModal] visible archive=${currentArchiveName} archives=${processedArchives}/${totalArchives} total=${totalBytes} processed=${processedBytes}`
+      );
+  } catch (e) {}
 
   const progressPercentage =
     typeof processedBytes === "number" &&

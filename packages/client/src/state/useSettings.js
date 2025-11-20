@@ -9,6 +9,7 @@ import {
   fetchAutoLoadLyrics,
   saveAutoLoadLyrics,
 } from "../lib/api";
+import { isVerboseLogging } from "../lib/utils";
 
 export default function useSettings({ setError }) {
   // --- Settings State ---
@@ -23,6 +24,8 @@ export default function useSettings({ setError }) {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [initialPaths, setInitialPaths] = useState({ left: null, right: null });
   const isInitialMount = useRef(true);
+  const lastSettingsLogRef = useRef({ text: null, ts: 0 });
+  const SETTINGS_LOG_DEDUP_MS = 1000;
 
   // Effect to load all initial settings data from the server
   useEffect(() => {
@@ -34,6 +37,19 @@ export default function useSettings({ setError }) {
           fetchLayout(),
           fetchAutoLoadLyrics(),
         ]);
+        if (isVerboseLogging()) {
+          try {
+            const msg = `[useSettings] Loaded initial settings: favs=${
+              favs?.length || 0
+            } paths=${Object.keys(paths || {}).length}`;
+            const now = Date.now();
+            const last = lastSettingsLogRef.current || { text: null, ts: 0 };
+            if (last.text !== msg || now - last.ts > SETTINGS_LOG_DEDUP_MS) {
+              console.log(msg);
+              lastSettingsLogRef.current = { text: msg, ts: now };
+            }
+          } catch (e) {}
+        }
         setFavourites(favs);
         setInitialPaths(paths);
         setColumnWidths(layout);

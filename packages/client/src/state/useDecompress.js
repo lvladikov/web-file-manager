@@ -43,8 +43,10 @@ const useDecompress = ({
         );
 
       if (queueRef.current.length === 0) {
-        if (isVerboseLogging())
-          console.log("✅ All archives processed, closing modal");
+        try {
+          if (isVerboseLogging())
+            console.log("✅ All archives processed, closing modal");
+        } catch (e) {}
         setDecompressProgress((prev) => ({ ...prev, isVisible: false }));
         handleRefreshPanel("left");
         handleRefreshPanel("right");
@@ -187,8 +189,10 @@ const useDecompress = ({
                 break;
               case "failed":
               case "error":
-                if (isVerboseLogging())
-                  console.log(`[ws:${jobId}] error:`, data);
+                try {
+                  if (isVerboseLogging())
+                    console.log(`[ws:${jobId}] error:`, data);
+                } catch (e) {}
                 hasError = true;
                 errorMessage = data.title
                   ? `${data.title} (${data.details || data.message || ""})`
@@ -208,8 +212,10 @@ const useDecompress = ({
                 resolve();
                 break;
               case "complete":
-                if (isVerboseLogging())
-                  console.log("✅ Archive decompression completed");
+                try {
+                  if (isVerboseLogging())
+                    console.log("✅ Archive decompression completed");
+                } catch (e) {}
                 try {
                   delete lastProgressRef.current[jobId];
                 } catch (e) {}
@@ -243,11 +249,16 @@ const useDecompress = ({
       }
 
       if (hasError) {
-        if (isVerboseLogging()) console.log("❌ Error occurred:", errorMessage);
+        try {
+          if (isVerboseLogging())
+            console.log("❌ Error occurred:", errorMessage);
+        } catch (e) {}
         setDecompressProgress((prev) => ({ ...prev, error: errorMessage }));
       } else {
-        if (isVerboseLogging())
-          console.log("✅ Archive completed, processing next...");
+        try {
+          if (isVerboseLogging())
+            console.log("✅ Archive completed, processing next...");
+        } catch (e) {}
         processNextArchive(targetPanelId);
       }
     },
@@ -269,41 +280,49 @@ const useDecompress = ({
         ? filteredItems[sourcePanelId]
         : panels[sourcePanelId].items;
 
-      if (isVerboseLogging()) {
-        console.log("🔍 Selection debug:");
-        console.log("  - Source panel:", sourcePanelId);
-        console.log("  - Selected items:", [...selections[sourcePanelId]]);
-        console.log(
-          "  - Items to consider:",
-          itemsToConsider.length,
-          "total items"
-        );
-        console.log("  - Filter active:", !!filter[sourcePanelId].pattern);
-      }
+      try {
+        if (isVerboseLogging()) {
+          console.log("🔍 Selection debug:");
+          console.log("  - Source panel:", sourcePanelId);
+          console.log("  - Selected items:", [...selections[sourcePanelId]]);
+          console.log(
+            "  - Items to consider:",
+            itemsToConsider.length,
+            "total items"
+          );
+          console.log("  - Filter active:", !!filter[sourcePanelId].pattern);
+        }
+      } catch (e) {}
 
       const archivesToDecompress = [...selections[sourcePanelId]]
         .map((itemName) => {
           const found = itemsToConsider.find((item) => item.name === itemName);
-          if (isVerboseLogging())
-            console.log(
-              `  - Mapping ${itemName}:`,
-              found ? `${found.name} (${found.type})` : "NOT FOUND"
-            );
+          try {
+            if (isVerboseLogging())
+              console.log(
+                `  - Mapping ${itemName}:`,
+                found ? `${found.name} (${found.type})` : "NOT FOUND"
+              );
+          } catch (e) {}
           return found;
         })
         .filter(Boolean)
         .filter((item) => {
           const isArchive = item.type === "archive";
-          if (isVerboseLogging())
-            console.log(`  - ${item.name} is archive:`, isArchive);
+          try {
+            if (isVerboseLogging())
+              console.log(`  - ${item.name} is archive:`, isArchive);
+          } catch (e) {}
           return isArchive;
         });
 
-      if (isVerboseLogging())
-        console.log(
-          "🗂️ Final archives to decompress:",
-          archivesToDecompress.map((a) => a.name)
-        );
+      try {
+        if (isVerboseLogging())
+          console.log(
+            "🗂️ Final archives to decompress:",
+            archivesToDecompress.map((a) => a.name)
+          );
+      } catch (e) {}
 
       if (archivesToDecompress.length === 0) {
         setError("No archive files selected for decompression.");

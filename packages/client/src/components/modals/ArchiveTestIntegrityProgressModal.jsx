@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import { isVerboseLogging } from "../../lib/utils";
 
 const ArchiveTestIntegrityProgressModal = ({
   isVisible,
@@ -22,16 +23,32 @@ const ArchiveTestIntegrityProgressModal = ({
   const [modalOpacity, setModalOpacity] = useState(1);
   if (!isVisible) return null;
 
-  const isFinishedOverall = testedArchives === totalArchives && totalArchives > 0;
+  try {
+    if (isVisible && isVerboseLogging()) {
+      console.log(
+        `[ArchiveTestIntegrityProgressModal] visible archive=${currentArchiveName} testedArchives=${testedArchives}/${totalArchives} totalFiles=${totalFiles} testedFiles=${testedFiles} currentFile=${currentFile}`
+      );
+    }
+  } catch (e) {}
+
+  const isFinishedOverall =
+    testedArchives === totalArchives && totalArchives > 0;
   const hasOverallFailures = errors.length > 0;
 
-  const isCurrentArchiveFinished = !!reports.find(r => r.name === currentArchiveName) || !!errors.find(e => e.name === currentArchiveName);
-  const hasCurrentArchiveTotal = typeof totalFiles === "number" && totalFiles > 0;
-  const currentArchiveProgressPercentage = hasCurrentArchiveTotal ? (testedFiles / totalFiles) * 100 : 0;
+  const isCurrentArchiveFinished =
+    !!reports.find((r) => r.name === currentArchiveName) ||
+    !!errors.find((e) => e.name === currentArchiveName);
+  const hasCurrentArchiveTotal =
+    typeof totalFiles === "number" && totalFiles > 0;
+  const currentArchiveProgressPercentage = hasCurrentArchiveTotal
+    ? (testedFiles / totalFiles) * 100
+    : 0;
 
   const renderTitle = () => {
     if (isFinishedOverall) {
-      return hasOverallFailures ? "All Tests Complete: Issues Found" : "All Tests Complete: OK";
+      return hasOverallFailures
+        ? "All Tests Complete: Issues Found"
+        : "All Tests Complete: OK";
     } else if (totalArchives > 1) {
       return `Testing Archives (${testedArchives} of ${totalArchives})...`;
     }
@@ -68,7 +85,12 @@ const ArchiveTestIntegrityProgressModal = ({
 
         {!isFinishedOverall && currentArchiveName && (
           <div className="text-gray-400 bg-gray-900 p-3 rounded-md mb-4 break-all">
-            <p className="text-sm">Current Archive: <span className="font-bold text-sky-300">{currentArchiveName}</span></p>
+            <p className="text-sm">
+              Current Archive:{" "}
+              <span className="font-bold text-sky-300">
+                {currentArchiveName}
+              </span>
+            </p>
             <p className="text-sm">Testing File:</p>
             <p
               className="font-mono text-gray-300 mb-2 w-full truncate overflow-hidden whitespace-nowrap"
@@ -86,7 +108,9 @@ const ArchiveTestIntegrityProgressModal = ({
             </div>
             <div className="flex justify-between items-center text-sm text-gray-400 mt-1">
               <span>
-                {hasCurrentArchiveTotal ? `${currentArchiveProgressPercentage.toFixed(1)}%` : "Scanning..."}
+                {hasCurrentArchiveTotal
+                  ? `${currentArchiveProgressPercentage.toFixed(1)}%`
+                  : "Scanning..."}
               </span>
               <span>
                 {hasCurrentArchiveTotal
@@ -100,46 +124,66 @@ const ArchiveTestIntegrityProgressModal = ({
         {isFinishedOverall && (
           <div className="text-gray-300 space-y-4 mb-6">
             {reports.map((item, index) => (
-              <div key={index} className="bg-gray-900/50 border border-gray-700 rounded-md p-3">
-                <p className="font-bold text-sky-300 mb-2">Archive: {item.name}</p>
-                {errors.find(e => e.name === item.name) ? (
+              <div
+                key={index}
+                className="bg-gray-900/50 border border-gray-700 rounded-md p-3"
+              >
+                <p className="font-bold text-sky-300 mb-2">
+                  Archive: {item.name}
+                </p>
+                {errors.find((e) => e.name === item.name) ? (
                   <div className="bg-red-900/50 border border-red-700 rounded-md p-3">
-                    <p className="text-red-300 font-bold mb-3">{errors.find(e => e.name === item.name).error.title}</p>
+                    <p className="text-red-300 font-bold mb-3">
+                      {errors.find((e) => e.name === item.name).error.title}
+                    </p>
                     <div className="max-h-60 overflow-y-auto space-y-3">
-                      {errors.find(e => e.name === item.name).error.generalError && (
+                      {errors.find((e) => e.name === item.name).error
+                        .generalError && (
                         <div>
                           <h4 className="font-semibold text-gray-200 text-sm">
                             General Archive Error:
                           </h4>
                           <pre className="mt-1 text-sm text-gray-400 whitespace-pre-wrap font-mono bg-gray-900 p-2 rounded">
-                            {errors.find(e => e.name === item.name).error.generalError}
+                            {
+                              errors.find((e) => e.name === item.name).error
+                                .generalError
+                            }
                           </pre>
                         </div>
                       )}
-                      {errors.find(e => e.name === item.name).error.fileErrors && errors.find(e => e.name === item.name).error.fileErrors.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold text-gray-200 text-sm">
-                            File-Specific Errors:
-                          </h4>
-                          <ul className="space-y-2 text-sm mt-1">
-                            {errors.find(e => e.name === item.name).error.fileErrors.map((failure, fileIndex) => (
-                              <li key={fileIndex} className="bg-gray-900 p-2 rounded">
-                                <p className="font-semibold text-gray-200">
-                                  {failure.fileName}
-                                </p>
-                                <pre className="text-xs text-gray-400 pl-2 border-l-2 border-gray-600 ml-2 mt-1 whitespace-pre-wrap font-mono">
-                                  {failure.message}
-                                </pre>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                      {errors.find((e) => e.name === item.name).error
+                        .fileErrors &&
+                        errors.find((e) => e.name === item.name).error
+                          .fileErrors.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-gray-200 text-sm">
+                              File-Specific Errors:
+                            </h4>
+                            <ul className="space-y-2 text-sm mt-1">
+                              {errors
+                                .find((e) => e.name === item.name)
+                                .error.fileErrors.map((failure, fileIndex) => (
+                                  <li
+                                    key={fileIndex}
+                                    className="bg-gray-900 p-2 rounded"
+                                  >
+                                    <p className="font-semibold text-gray-200">
+                                      {failure.fileName}
+                                    </p>
+                                    <pre className="text-xs text-gray-400 pl-2 border-l-2 border-gray-600 ml-2 mt-1 whitespace-pre-wrap font-mono">
+                                      {failure.message}
+                                    </pre>
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        )}
                     </div>
                   </div>
                 ) : (
                   <p className="text-green-400 bg-green-900/50 border border-green-700 rounded-md p-3">
-                    All {item.report.totalFiles} files passed the integrity check.
+                    All {item.report.totalFiles} files passed the integrity
+                    check.
                   </p>
                 )}
               </div>

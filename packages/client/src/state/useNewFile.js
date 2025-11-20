@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { createNewFile } from "../lib/api";
-import { buildFullPath, matchZipPath } from "../lib/utils";
+import { buildFullPath, matchZipPath, isVerboseLogging } from "../lib/utils";
 
 export default function useNewFile({
   renamingItem,
@@ -105,6 +105,10 @@ export default function useNewFile({
       const panel = panels[panelId];
       const newFilePath = buildFullPath(panel.path, finalValue);
       try {
+        if (isVerboseLogging())
+          console.log(
+            `[useNewFile] Creating file '${finalValue}' in panel ${panelId}`
+          );
         const zipPathMatch = matchZipPath(newFilePath);
         let jobId = null;
 

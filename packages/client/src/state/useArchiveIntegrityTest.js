@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { testArchive, cancelArchiveTest } from "../lib/api";
-import { truncatePath } from "../lib/utils";
+import { truncatePath, isVerboseLogging } from "../lib/utils";
 
 const useArchiveIntegrityTest = ({
   activePanel,
@@ -48,6 +48,12 @@ const useArchiveIntegrityTest = ({
   };
 
   const handleTestArchive = useCallback(async () => {
+    try {
+      if (isVerboseLogging())
+        console.log(
+          "[useArchiveIntegrityTest] Starting archive integrity tests"
+        );
+    } catch (e) {}
     const sourcePanelId = activePanel;
 
     const itemsToConsider = filter[sourcePanelId].pattern
@@ -96,6 +102,12 @@ const useArchiveIntegrityTest = ({
       let currentJobId = null;
 
       try {
+        if (isVerboseLogging())
+          console.log(
+            `[useArchiveIntegrityTest] Testing archive ${archiveItem.name} (${
+              i + 1
+            }/${itemsToTest.length})`
+          );
         const source = {
           path: panels[sourcePanelId].path,
           name: archiveItem.name,

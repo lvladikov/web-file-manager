@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { LoaderCircle } from "lucide-react";
-import { formatBytes } from "../../lib/utils";
+import { formatBytes, isVerboseLogging } from "../../lib/utils";
 import TruncatedText from "../ui/TruncatedText";
 
 const ZipUpdateProgressModal = (zipUpdateProgressModal) => {
@@ -20,6 +20,13 @@ const ZipUpdateProgressModal = (zipUpdateProgressModal) => {
   const [modalOpacity, setModalOpacity] = useState(1);
 
   if (!isVisible) return null;
+
+  try {
+    if (isVerboseLogging())
+      console.log(
+        `[ZipUpdateProgressModal] visible zip=${zipFilePath} fileInZip=${filePathInZip} original=${originalZipSize} temp=${tempZipSize} triggeredFromPreview=${triggeredFromPreview}`
+      );
+  } catch (e) {}
 
   const itemLabel = itemType === "folder" ? "Folder" : "File";
 

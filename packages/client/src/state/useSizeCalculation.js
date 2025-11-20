@@ -1,5 +1,9 @@
 import { useState, useCallback } from "react";
-import { buildFullPath, calculateFolderSize } from "../lib/utils";
+import {
+  buildFullPath,
+  calculateFolderSize,
+  isVerboseLogging,
+} from "../lib/utils";
 import { startSizeCalculation } from "../lib/api";
 
 export default function useSizeCalculation({
@@ -62,12 +66,21 @@ export default function useSizeCalculation({
       };
 
       try {
+        if (isVerboseLogging())
+          console.log(
+            `[useSizeCalculation] Starting size calc for ${item.name}`
+          );
+
         const finalSize = await calculateFolderSize(
           folder,
           wsRef,
           setSizeCalcModal
         );
         updateItemInPanel(panelId, item.name, { size: finalSize });
+        if (isVerboseLogging())
+          console.log(
+            `[useSizeCalculation] Completed size calc for ${item.name}: ${finalSize}`
+          );
       } catch (err) {
         setError(
           `Folder Size Calculation for "${item.name}" failed: ${err.message}`

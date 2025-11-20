@@ -171,6 +171,28 @@ const PreviewModal = ({
 
   const previewType = getPreviewType(item);
 
+  const lastPreviewLogRef = useRef({ text: null, ts: 0 });
+  const PREVIEW_LOG_DEDUP_MS = 1000;
+
+  useEffect(() => {
+    if (!isVisible || !isVerboseLogging()) return;
+    try {
+      const msg = `[PreviewModal] opened item=${
+        item?.fullPath
+      } type=${previewType} triggeredFromPreview=${
+        item?.triggeredFromPreview || false
+      }`;
+      const now = Date.now();
+      const last = lastPreviewLogRef.current || { text: null, ts: 0 };
+      if (last.text !== msg || now - last.ts > PREVIEW_LOG_DEDUP_MS) {
+        console.log(msg);
+        lastPreviewLogRef.current = { text: msg, ts: now };
+      }
+    } catch (e) {
+      // swallow logging errors
+    }
+  }, [isVisible, item, previewType]);
+
   // Unified clearing function for View Mode search state
   const handleClearViewModeSearch = useCallback(() => {
     setSearchTerm("");
@@ -430,6 +452,12 @@ const PreviewModal = ({
     }
 
     const fetchContent = async () => {
+      try {
+        if (isVerboseLogging())
+          console.log(
+            `[PreviewModal] fetchContent start for ${fullPath} previewType=${previewType}`
+          );
+      } catch (e) {}
       setTextContent("Loading...");
       setEditedContent("Loading...");
       setTextError("");

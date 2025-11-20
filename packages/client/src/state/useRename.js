@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { renameItem } from "../lib/api";
-import { buildFullPath, matchZipPath } from "../lib/utils";
+import { buildFullPath, matchZipPath, isVerboseLogging } from "../lib/utils";
 
 export default function useRename({
   panels,
@@ -31,6 +31,12 @@ export default function useRename({
   }, []);
 
   const handleConfirmRename = useCallback(async () => {
+    try {
+      if (isVerboseLogging())
+        console.log(
+          `[useRename] Attempt rename: ${renamingItem.panelId}:${renamingItem.name} -> ${renamingItem.value}`
+        );
+    } catch (e) {}
     const { panelId, name, value } = renamingItem;
     if (!panelId || !name || !value || name === value) {
       handleCancelRename();

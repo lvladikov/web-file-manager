@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { isModKey, isPreviewableText } from "../lib/utils";
+import { isModKey, isPreviewableText, isVerboseLogging } from "../lib/utils";
 import { exitApp } from "../lib/api";
 
 export default function useKeyboardShortcuts(props) {
@@ -7,6 +7,9 @@ export default function useKeyboardShortcuts(props) {
   useEffect(() => {
     latestProps.current = props;
   });
+
+  const lastKeydownLogRef = useRef({ text: null, ts: 0 });
+  const KEYDOWN_LOG_DEDUP_MS = 1000;
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
@@ -674,6 +677,17 @@ export default function useKeyboardShortcuts(props) {
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown);
+    if (isVerboseLogging()) {
+      try {
+        const msg = "[useKeyboardShortcuts] keydown handler attached";
+        const now = Date.now();
+        const last = lastKeydownLogRef.current || { text: null, ts: 0 };
+        if (last.text !== msg || now - last.ts > KEYDOWN_LOG_DEDUP_MS) {
+          console.log(msg);
+          lastKeydownLogRef.current = { text: msg, ts: now };
+        }
+      } catch (e) {}
+    }
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
 }
