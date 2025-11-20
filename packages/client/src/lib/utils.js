@@ -351,6 +351,8 @@ const matchZipPath = (path) => {
   return path.match(/^(.*?\.zip)(.*)$/);
 };
 
+const isVerboseLogging = () => Boolean(window?.__VERBOSE_LOGGING__);
+
 export {
   buildFullPath,
   formatBytes,
@@ -375,4 +377,5 @@ export {
   separatorClassName,
   submenuTriggerClassName,
   matchZipPath,
+  isVerboseLogging,
 };

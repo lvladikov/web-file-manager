@@ -1,3 +1,5 @@
+import { isVerboseLogging } from "./utils";
+
 const post = async (
   url,
   data,
@@ -40,7 +42,11 @@ const exitApp = async () => {
           window.close();
         }
       } catch (e) {
-        console.log("[exitApp] Window close not allowed or failed");
+        try {
+          if (isVerboseLogging()) {
+            console.log("[exitApp] Window close not allowed or failed");
+          }
+        } catch (e) {}
       }
     }, 100);
 
@@ -282,10 +288,15 @@ const compressFiles = async (sources, destination, sourceDirectory) => {
   return response.json();
 };
 
-const decompressFiles = async (source, destination, itemsToExtract = null) => {
+const decompressFiles = async (
+  source,
+  destination,
+  itemsToExtract = null,
+  verboseLogging = false
+) => {
   const response = await post(
     "/api/zip/decompress",
-    { source, destination, itemsToExtract },
+    { source, destination, itemsToExtract, verboseLogging },
     "Failed to decompress archive."
   );
   return response.json();

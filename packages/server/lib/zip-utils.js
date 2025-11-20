@@ -2119,6 +2119,210 @@ const extractFilesFromZip = async (job) => {
     }
   }
 
+  // --- Pre-scan for folder-level overwrite decisions ---
+  // Collect folder prefixes from the entries we'll extract so we can prompt
+  // at folder granularity before extracting files (avoids file-by-file prompts)
+  const folderDecisions = new Map();
+  if (job) job._folderDecisions = folderDecisions;
+
+  const collectAncestors = (relPath) => {
+    const parts = relPath.split("/");
+    const ancestors = [];
+    if (parts.length <= 1) return ancestors;
+    let accum = "";
+    for (let i = 0; i < parts.length - 1; i++) {
+      accum = accum ? `${accum}${parts[i]}/` : `${parts[i]}/`;
+      ancestors.push(accum);
+    }
+    return ancestors;
+  };
+
+  const folderPrefixes = new Set();
+  // Debug: report the set of filenames we're considering
+  try {
+    if (job && job.verboseLogging) {
+      console.log(
+        `[extractFilesFromZip] job=${job?.id} verbose: filenamesToExtract count=${filenamesToExtractSet.size}`
+      );
+      if (filenamesToExtractSet.size < 50) {
+        console.log(
+          `[extractFilesFromZip] job=${
+            job?.id
+          } verbose: filenamesToExtract=${Array.from(
+            filenamesToExtractSet
+          ).join(", ")}`
+        );
+      } else {
+        console.log(
+          `[extractFilesFromZip] job=${
+            job?.id
+          } verbose: filenamesToExtract sample=${Array.from(
+            filenamesToExtractSet
+          )
+            .slice(0, 20)
+            .join(", ")}...`
+        );
+      }
+    }
+  } catch (e) {}
+  for (const entryName of filenamesToExtractSet) {
+    let rel = entryName;
+    if (
+      commonBasePathToStrip !== "" &&
+      entryName.startsWith(commonBasePathToStrip)
+    ) {
+      rel = path.relative(commonBasePathToStrip, entryName);
+    }
+    // Normalize trailing slash for folder entries
+    if (rel.endsWith("/")) {
+      const normalized = rel.endsWith("/") ? rel : `${rel}/`;
+      folderPrefixes.add(normalized);
+      // also add ancestors
+      for (const a of collectAncestors(rel.slice(0, -1))) folderPrefixes.add(a);
+    } else {
+      // add parent dirs as candidates
+      const parent = path.dirname(rel);
+      if (parent && parent !== ".") {
+        for (const a of collectAncestors(parent)) folderPrefixes.add(a);
+        // include the immediate parent as folder
+        folderPrefixes.add(parent.endsWith("/") ? parent : `${parent}/`);
+      }
+    }
+  }
+
+  // Convert to array and sort shallow-to-deep so outer folder prompts appear first
+  const sortedFolderPrefixes = Array.from(folderPrefixes).sort((a, b) => {
+    const da = a.split("/").length;
+    const db = b.split("/").length;
+    return da - db;
+  });
+  // Ask folder-level overwrite prompts for folders that already exist at destination
+  for (const folderPrefix of sortedFolderPrefixes) {
+    if (signal.aborted) throw new Error("Zip extract cancelled.");
+    const relFolder = folderPrefix.endsWith("/")
+      ? folderPrefix.slice(0, -1)
+      : folderPrefix;
+    const destFolder = path.join(job.destination, relFolder);
+    try {
+      if (job && job.verboseLogging) {
+        console.log(
+          `[extractFilesFromZip] job=${job?.id} checking folderPrefix='${folderPrefix}' destFolder='${destFolder}'`
+        );
+      }
+      if (await fse.pathExists(destFolder)) {
+        const st = await fse.stat(destFolder);
+        if (st.isDirectory()) {
+          // We have a folder conflict; prompt if job asks for prompts
+          if (
+            job.overwriteDecision === "prompt" &&
+            job.ws &&
+            job.ws.readyState === 1
+          ) {
+            const promptId = crypto.randomUUID();
+            if (!job.overwriteResolversMap) ensureInstrumentedResolversMap(job);
+            job.ws.send(
+              JSON.stringify({
+                type: "overwrite_prompt",
+                promptId,
+                file: path.basename(relFolder),
+                itemType: "folder",
+                isFolderPrompt: true,
+              })
+            );
+            const decision = await new Promise((resolve) => {
+              job.overwriteResolversMap.set(promptId, (d) => {
+                try {
+                  job.overwriteDecision = d;
+                  job.overwriteResolversMap.delete(promptId);
+                  unregisterPromptResolver(promptId);
+                  if (job._promptTimers) {
+                    clearTimeout(job._promptTimers.get(promptId));
+                    job._promptTimers.delete(promptId);
+                  }
+                  resolve(d);
+                } catch (err) {
+                  try {
+                    job.overwriteResolversMap.delete(promptId);
+                  } catch (e) {}
+                  try {
+                    unregisterPromptResolver(promptId);
+                  } catch (e) {}
+                  resolve("skip");
+                }
+              });
+
+              try {
+                registerPromptMeta(promptId, {
+                  entryName: relFolder,
+                  itemType: "folder",
+                  isFolderPrompt: true,
+                });
+              } catch (e) {}
+
+              if (!job._promptTimers) job._promptTimers = new Map();
+              const t = setTimeout(() => {
+                try {
+                  if (
+                    job.overwriteResolversMap &&
+                    job.overwriteResolversMap.has(promptId)
+                  ) {
+                    const r = job.overwriteResolversMap.get(promptId);
+                    job.overwriteDecision = "skip";
+                    try {
+                      if (typeof r === "function") r("skip");
+                    } catch (e) {}
+                    job.overwriteResolversMap.delete(promptId);
+                    unregisterPromptResolver(promptId);
+                  }
+                } finally {
+                  if (job._promptTimers) job._promptTimers.delete(promptId);
+                }
+              }, 30000);
+              job._promptTimers.set(promptId, t);
+            });
+
+            if (job && job.verboseLogging) {
+              console.log(
+                `[extractFilesFromZip] job=${job?.id} sent folder overwrite_prompt promptId=${promptId} folder='${relFolder}'`
+              );
+            }
+            // Normalize decision for folderDecisions map
+            let mapped = null;
+            switch (decision) {
+              case "skip":
+              case "skip_all":
+                mapped = "skip";
+                break;
+              case "overwrite":
+              case "overwrite_all":
+                mapped = "overwrite";
+                break;
+              case "cancel":
+                throw new Error("Zip extract cancelled by user.");
+              default:
+                mapped = "skip";
+            }
+            const normalized = relFolder.endsWith("/")
+              ? relFolder
+              : `${relFolder}/`;
+            folderDecisions.set(normalized, mapped);
+            if (job && job.verboseLogging) {
+              console.log(
+                `[extractFilesFromZip] job=${job?.id} folderDecision set ${normalized} -> ${mapped}`
+              );
+            }
+          }
+        }
+      }
+    } catch (err) {
+      // Ignore errors during pre-scan (continue extraction but log)
+      console.warn(
+        `[extractFilesFromZip] pre-scan folder check failed for ${destFolder}:`,
+        err.message
+      );
+    }
+  }
+
   for await (const entry of zipfile) {
     if (signal.aborted) throw new Error("Zip extract cancelled.");
 
@@ -2180,7 +2384,45 @@ const extractFilesFromZip = async (job) => {
       relativeEntryPath = path.relative(commonBasePathToStrip, entry.filename);
     }
 
+    // Respect any folder-level decisions made during pre-scan.
+    if (job && job._folderDecisions && job._folderDecisions.size > 0) {
+      let isInsideSkippedFolder = false;
+      for (const [
+        folderPrefixOrig,
+        decision,
+      ] of job._folderDecisions.entries()) {
+        const folderPrefix = folderPrefixOrig.endsWith("/")
+          ? folderPrefixOrig
+          : `${folderPrefixOrig}/`;
+        if (
+          decision === "skip" &&
+          (relativeEntryPath === folderPrefix ||
+            relativeEntryPath.startsWith(folderPrefix))
+        ) {
+          isInsideSkippedFolder = true;
+          break;
+        }
+      }
+      if (isInsideSkippedFolder) {
+        // Skip extracting entries inside folders the user chose to skip
+        if (job && job.verboseLogging) {
+          console.log(
+            `[extractFilesFromZip] job=${job?.id} skipping entry='${entry.filename}' because parent folder decision=skip`
+          );
+        }
+        continue;
+      }
+    }
+
     const destPath = path.join(job.destination, relativeEntryPath);
+    if (job && job.verboseLogging) {
+      try {
+        const exists = await fse.pathExists(destPath);
+        console.log(
+          `[extractFilesFromZip] job=${job?.id} processing entry='${entry.filename}' destPath='${destPath}' exists=${exists}`
+        );
+      } catch (e) {}
+    }
 
     if (entry.filename.endsWith("/")) {
       await fse.mkdir(destPath, { recursive: true });

@@ -25,6 +25,7 @@ import {
   metaKey,
   isModKey,
   matchZipPath,
+  isVerboseLogging,
 } from "../../lib/utils";
 
 import AudioPreview from "./preview-views/AudioPreview";
@@ -578,9 +579,13 @@ const PreviewModal = ({
           // Update the modal state only if jobId differs (unlikely now)
           setZipUpdateProgressModal((prev) => {
             if (prev.jobId !== saveResponse.jobId) {
-              console.warn(
-                `[PreviewModal] Server jobId ${saveResponse.jobId} differs from client jobId ${clientJobId}. Updating.`
-              );
+              try {
+                if (isVerboseLogging()) {
+                  console.warn(
+                    `[PreviewModal] Server jobId ${saveResponse.jobId} differs from client jobId ${clientJobId}. Updating.`
+                  );
+                }
+              } catch (e) {}
               return {
                 ...prev,
                 jobId: saveResponse.jobId,
@@ -610,9 +615,13 @@ const PreviewModal = ({
           lastSavedItemRef.current = item;
         } else {
           // This case should ideally not happen for zip saves anymore
-          console.warn(
-            "[PreviewModal] Zip save responded synchronously. Hiding modal."
-          );
+          try {
+            if (isVerboseLogging()) {
+              console.warn(
+                "[PreviewModal] Zip save responded synchronously. Hiding modal."
+              );
+            }
+          } catch (e) {}
           isAsyncOperation = false; // Treat as synchronous if it didn't return 202/async
           setShowSuccessMessage(true);
           setSaveError("");

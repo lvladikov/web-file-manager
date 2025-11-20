@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 
+import { isVerboseLogging } from "../lib/utils";
+
 export default function useCopyPaths({
   setError,
   activePanel,
@@ -158,9 +160,13 @@ export default function useCopyPaths({
         };
 
         jobWs.onclose = (event) => {
-          console.log(
-            `[useCopyPaths] WebSocket onclose for job ${jobId} code=${event.code} reason='${event.reason}' wasClean=${event.wasClean}`
-          );
+          try {
+            if (isVerboseLogging()) {
+              console.log(
+                `[useCopyPaths] WebSocket onclose for job ${jobId} code=${event.code} reason='${event.reason}' wasClean=${event.wasClean}`
+              );
+            }
+          } catch (e) {}
           setCopyPathsModal({
             isVisible: false,
             jobId: null,

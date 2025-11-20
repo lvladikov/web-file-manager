@@ -5,6 +5,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
 import TruncatedText from "../ui/TruncatedText";
+import { isVerboseLogging } from "../../lib/utils";
 
 const TerminalModal = ({
   isOpen,
@@ -235,24 +236,36 @@ const TerminalModal = ({
             if (!remainder || remainder.trim() === "") {
               // Nothing else to render; mark received and skip writing
               hasReceivedData.current = true;
-              console.debug(
-                "[terminal] Swallowing leading % marker for job",
-                jobId
-              );
+              try {
+                if (isVerboseLogging()) {
+                  console.debug(
+                    "[terminal] Swallowing leading % marker for job",
+                    jobId
+                  );
+                }
+              } catch (e) {}
               return;
             }
             text = remainder;
-            console.debug(
-              "[terminal] Swallowed leading % marker, writing remainder for job",
-              jobId
-            );
+            try {
+              if (isVerboseLogging()) {
+                console.debug(
+                  "[terminal] Swallowed leading % marker, writing remainder for job",
+                  jobId
+                );
+              }
+            } catch (e) {}
           }
         } catch (e) {
           // If any error parsing lines, fall back to normal write
-          console.warn(
-            "TerminalModal: failed to check for leading % marker:",
-            e
-          );
+          try {
+            if (isVerboseLogging()) {
+              console.warn(
+                "TerminalModal: failed to check for leading % marker:",
+                e
+              );
+            }
+          } catch (e) {}
         }
       }
       term.write(text);

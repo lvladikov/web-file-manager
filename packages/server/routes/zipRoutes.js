@@ -345,6 +345,8 @@ export default function createZipRoutes(
       isNestedZip,
       zipFilePath,
       filePathInZip,
+      // allow client to enable server-side verbose logging for debugging
+      verboseLogging: !!req.body.verboseLogging,
     };
     activeDecompressJobs.set(jobId, job);
     res.status(202).json({ jobId });

@@ -1855,6 +1855,135 @@ export function initializeWebSocketServer(
 
               const entriesToExtractSet = new Set(entriesToExtractNames);
 
+              // --- Pre-scan for folder-level overwrite prompts ---
+              // Collect candidate folder prefixes from entriesToExtractNames
+              const collectAncestors = (relPath) => {
+                const parts = relPath.split("/");
+                const ancestors = [];
+                if (parts.length <= 1) return ancestors;
+                let accum = "";
+                for (let i = 0; i < parts.length - 1; i++) {
+                  accum = accum ? `${accum}${parts[i]}/` : `${parts[i]}/`;
+                  ancestors.push(accum);
+                }
+                return ancestors;
+              };
+
+              const folderPrefixes = new Set();
+              for (const entryName of entriesToExtractNames) {
+                const rel = entryName;
+                if (rel.endsWith("/")) {
+                  folderPrefixes.add(rel.endsWith("/") ? rel : `${rel}/`);
+                  for (const a of collectAncestors(rel.slice(0, -1)))
+                    folderPrefixes.add(a);
+                } else {
+                  const parent = path.dirname(rel);
+                  if (parent && parent !== ".") {
+                    for (const a of collectAncestors(parent))
+                      folderPrefixes.add(a);
+                    folderPrefixes.add(
+                      parent.endsWith("/") ? parent : `${parent}/`
+                    );
+                  }
+                }
+              }
+
+              // Sort shallow-to-deep so outer folder prompts appear first
+              const sortedFolderPrefixes = Array.from(folderPrefixes).sort(
+                (a, b) => a.split("/").length - b.split("/").length
+              );
+
+              // Attach folder decisions map to job so per-entry logic can consult it
+              const folderDecisions = new Map();
+              job._folderDecisions = folderDecisions;
+
+              // Ask folder-level overwrite prompts for existing destination folders
+              for (const folderPrefix of sortedFolderPrefixes) {
+                if (job.controller.signal.aborted)
+                  throw new Error("Zip extract cancelled.");
+                const relFolder = folderPrefix.endsWith("/")
+                  ? folderPrefix.slice(0, -1)
+                  : folderPrefix;
+                const destFolder = path.join(job.destination, relFolder);
+                try {
+                  if (await fse.pathExists(destFolder)) {
+                    const st = await fse.stat(destFolder);
+                    if (st.isDirectory()) {
+                      if (
+                        job.overwriteDecision === "prompt" &&
+                        ws &&
+                        ws.readyState === 1
+                      ) {
+                        const promptId = crypto.randomUUID();
+                        if (!job.overwriteResolversMap)
+                          ensureInstrumentedResolversMap(job);
+                        ws.send(
+                          JSON.stringify({
+                            type: "overwrite_prompt",
+                            promptId,
+                            file: path.basename(relFolder),
+                            itemType: "folder",
+                            isFolderPrompt: true,
+                          })
+                        );
+                        const decision = await new Promise((resolve) => {
+                          job.overwriteResolversMap.set(promptId, (d) => {
+                            try {
+                              job.overwriteDecision = d;
+                              job.overwriteResolversMap.delete(promptId);
+                              try {
+                                unregisterPromptResolver(promptId);
+                              } catch (e) {}
+                              if (job._promptTimers) {
+                                clearTimeout(job._promptTimers.get(promptId));
+                                job._promptTimers.delete(promptId);
+                              }
+                              resolve(d);
+                            } catch (err) {
+                              try {
+                                job.overwriteResolversMap.delete(promptId);
+                              } catch (e) {}
+                              try {
+                                unregisterPromptResolver(promptId);
+                              } catch (e) {}
+                              resolve("skip");
+                            }
+                          });
+                        });
+                        let mapped = null;
+                        switch (decision) {
+                          case "skip":
+                          case "skip_all":
+                            mapped = "skip";
+                            break;
+                          case "overwrite":
+                          case "overwrite_all":
+                            mapped = "overwrite";
+                            break;
+                          case "cancel":
+                            throw new Error("Zip extract cancelled by user.");
+                          default:
+                            mapped = "skip";
+                        }
+                        const normalized = relFolder.endsWith("/")
+                          ? relFolder
+                          : `${relFolder}/`;
+                        folderDecisions.set(normalized, mapped);
+                        if (job.verboseLogging)
+                          console.log(
+                            `[ws] job ${jobId} folderDecision set ${normalized} -> ${mapped}`
+                          );
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn(
+                    `[ws] pre-scan folder check failed for ${destFolder}:`,
+                    err.message
+                  );
+                }
+              }
+
               // If doing a full extraction (no specific items selected), and the
               // destination folder already exists, only prompt the user if the
               // archive actually contains entries that would be extracted into
@@ -1977,6 +2106,44 @@ export function initializeWebSocketServer(
 
                 if (await fse.pathExists(destPath)) {
                   let decision = job.overwriteDecision;
+
+                  // Consult any folder-level decisions made during pre-scan.
+                  if (
+                    job &&
+                    job._folderDecisions &&
+                    job._folderDecisions.size > 0
+                  ) {
+                    for (const [
+                      folderPrefixOrig,
+                      fdDecision,
+                    ] of job._folderDecisions.entries()) {
+                      const folderPrefix = folderPrefixOrig.endsWith("/")
+                        ? folderPrefixOrig
+                        : `${folderPrefixOrig}/`;
+                      if (
+                        entry.filename === folderPrefix ||
+                        entry.filename.startsWith(folderPrefix)
+                      ) {
+                        if (fdDecision === "skip") {
+                          // Skip this entry entirely
+                          if (job.verboseLogging)
+                            console.log(
+                              `[ws] job ${jobId} skipping entry ${entry.filename} due to folder-level skip ${folderPrefix}`
+                            );
+                          decision = "skip";
+                        } else if (fdDecision === "overwrite") {
+                          // Treat as overwrite without prompting
+                          if (job.verboseLogging)
+                            console.log(
+                              `[ws] job ${jobId} auto-overwriting entry ${entry.filename} due to folder-level overwrite ${folderPrefix}`
+                            );
+                          decision = "overwrite";
+                        }
+                        break;
+                      }
+                    }
+                  }
+
                   const needsPrompt = decision === "prompt";
 
                   if (needsPrompt) {

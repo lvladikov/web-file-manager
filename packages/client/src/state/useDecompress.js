@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { decompressFiles, cancelDecompress } from "../lib/api";
-import { buildFullPath } from "../lib/utils";
+import { buildFullPath, isVerboseLogging } from "../lib/utils";
 
 const useDecompress = ({
   activePanel,
@@ -32,10 +32,19 @@ const useDecompress = ({
   });
 
   const queueRef = useRef([]);
+  const lastProgressRef = useRef({});
 
   const processNextArchive = useCallback(
     async (targetPanelId) => {
+      if (isVerboseLogging())
+        console.log(
+          "📦 processNextArchive: Queue length:",
+          queueRef.current.length
+        );
+
       if (queueRef.current.length === 0) {
+        if (isVerboseLogging())
+          console.log("✅ All archives processed, closing modal");
         setDecompressProgress((prev) => ({ ...prev, isVisible: false }));
         handleRefreshPanel("left");
         handleRefreshPanel("right");
@@ -45,6 +54,14 @@ const useDecompress = ({
       }
 
       const archiveItem = queueRef.current.shift();
+      if (isVerboseLogging())
+        console.log(
+          "🔄 Processing archive:",
+          archiveItem.name,
+          "Queue remaining:",
+          queueRef.current.length
+        );
+
       const itemsToExtract = archiveItem.itemsToExtract;
       const sourcePanelId = activePanel;
       const sourcePath = panels[sourcePanelId].path;
@@ -64,18 +81,31 @@ const useDecompress = ({
       const source = { path: sourcePath, name: archiveItem.name };
       const baseDestinationPath = panels[targetPanelId].path;
 
+      // For multi-archive extraction, extract all to the same target directory
+      // For single archive, create a subfolder (preserving original behavior)
+      const isMultiArchive =
+        queueRef.current.length > 0 || archiveItem.isMultiArchive;
       const destinationPath = itemsToExtract
+        ? baseDestinationPath
+        : isMultiArchive
         ? baseDestinationPath
         : buildFullPath(
             baseDestinationPath,
             archiveItem.name.replace(/\.[^/.]+$/, "")
           );
 
+      // Log destination and extraction mode
+      if (isVerboseLogging())
+        console.log(
+          `🗂️ Archive destination: ${destinationPath} (multiArchive=${isMultiArchive}) itemsToExtract=${!!itemsToExtract}`
+        );
+
       try {
         const { jobId } = await decompressFiles(
           source,
           destinationPath,
-          itemsToExtract
+          itemsToExtract,
+          isVerboseLogging()
         );
         setDecompressProgress((prev) => ({ ...prev, jobId }));
 
@@ -92,12 +122,39 @@ const useDecompress = ({
             const data = JSON.parse(event.data);
             switch (data.type) {
               case "start":
+                if (isVerboseLogging())
+                  console.log(
+                    `[ws:${jobId}] start totalSize=${data.totalSize}`
+                  );
+                // initialize last progress for this job
+                lastProgressRef.current[jobId] = {
+                  file: null,
+                  processed: null,
+                };
                 setDecompressProgress((prev) => ({
                   ...prev,
                   totalBytes: data.totalSize,
                 }));
                 break;
               case "progress":
+                try {
+                  const last = lastProgressRef.current[jobId] || {
+                    file: null,
+                    processed: null,
+                  };
+                  const sameFile = last.file === data.currentFile;
+                  const sameProcessed = last.processed === data.processed;
+                  if (!sameFile || !sameProcessed) {
+                    if (isVerboseLogging())
+                      console.log(
+                        `[ws:${jobId}] progress file=${data.currentFile} processed=${data.processed} currentFileBytes=${data.currentFileBytesProcessed}`
+                      );
+                    lastProgressRef.current[jobId] = {
+                      file: data.currentFile,
+                      processed: data.processed,
+                    };
+                  }
+                } catch (e) {}
                 setDecompressProgress((prev) => ({
                   ...prev,
                   currentFile: data.currentFile,
@@ -109,6 +166,14 @@ const useDecompress = ({
                 }));
                 break;
               case "overwrite_prompt":
+                // Log prompt and reset last progress so subsequent progress after a decision will be logged once
+                if (isVerboseLogging())
+                  console.log(
+                    `[ws:${jobId}] overwrite_prompt file=${data.file} itemType=${data.itemType} isFolder=${data.isFolderPrompt} promptId=${data.promptId}`
+                  );
+                try {
+                  delete lastProgressRef.current[jobId];
+                } catch (e) {}
                 setOverwritePrompt({
                   isVisible: true,
                   item: {
@@ -122,6 +187,8 @@ const useDecompress = ({
                 break;
               case "failed":
               case "error":
+                if (isVerboseLogging())
+                  console.log(`[ws:${jobId}] error:`, data);
                 hasError = true;
                 errorMessage = data.title
                   ? `${data.title} (${data.details || data.message || ""})`
@@ -135,9 +202,17 @@ const useDecompress = ({
                   ws._closeCalled = true;
                   ws.close(1000, "Decompress failed");
                 }
+                try {
+                  delete lastProgressRef.current[jobId];
+                } catch (e) {}
                 resolve();
                 break;
               case "complete":
+                if (isVerboseLogging())
+                  console.log("✅ Archive decompression completed");
+                try {
+                  delete lastProgressRef.current[jobId];
+                } catch (e) {}
                 if (
                   ws &&
                   !ws._closeCalled &&
@@ -168,8 +243,11 @@ const useDecompress = ({
       }
 
       if (hasError) {
+        if (isVerboseLogging()) console.log("❌ Error occurred:", errorMessage);
         setDecompressProgress((prev) => ({ ...prev, error: errorMessage }));
       } else {
+        if (isVerboseLogging())
+          console.log("✅ Archive completed, processing next...");
         processNextArchive(targetPanelId);
       }
     },
@@ -190,16 +268,63 @@ const useDecompress = ({
       const itemsToConsider = filter[sourcePanelId].pattern
         ? filteredItems[sourcePanelId]
         : panels[sourcePanelId].items;
+
+      if (isVerboseLogging()) {
+        console.log("🔍 Selection debug:");
+        console.log("  - Source panel:", sourcePanelId);
+        console.log("  - Selected items:", [...selections[sourcePanelId]]);
+        console.log(
+          "  - Items to consider:",
+          itemsToConsider.length,
+          "total items"
+        );
+        console.log("  - Filter active:", !!filter[sourcePanelId].pattern);
+      }
+
       const archivesToDecompress = [...selections[sourcePanelId]]
-        .map((itemName) =>
-          itemsToConsider.find((item) => item.name === itemName)
-        )
+        .map((itemName) => {
+          const found = itemsToConsider.find((item) => item.name === itemName);
+          if (isVerboseLogging())
+            console.log(
+              `  - Mapping ${itemName}:`,
+              found ? `${found.name} (${found.type})` : "NOT FOUND"
+            );
+          return found;
+        })
         .filter(Boolean)
-        .filter((item) => item.type === "archive");
+        .filter((item) => {
+          const isArchive = item.type === "archive";
+          if (isVerboseLogging())
+            console.log(`  - ${item.name} is archive:`, isArchive);
+          return isArchive;
+        });
+
+      if (isVerboseLogging())
+        console.log(
+          "🗂️ Final archives to decompress:",
+          archivesToDecompress.map((a) => a.name)
+        );
 
       if (archivesToDecompress.length === 0) {
         setError("No archive files selected for decompression.");
         return;
+      }
+
+      if (isVerboseLogging()) console.log("🔍 itemsToExtract:", itemsToExtract);
+
+      // The context menu `onSelect` handler passes a DOM/CustomEvent object as
+      // the first argument. If that event gets forwarded here it will be truthy
+      // and make the code treat it like a selective `itemsToExtract` array,
+      // causing only the first archive to be processed. Detect and ignore
+      // event-like objects so normal calls (with null or an array) work.
+      if (
+        itemsToExtract &&
+        typeof itemsToExtract === "object" &&
+        // SyntheticEvent/CustomEvent often include `isTrusted` and `type` props
+        // so use those as heuristics to detect event objects.
+        ("isTrusted" in itemsToExtract || "type" in itemsToExtract)
+      ) {
+        itemsToExtract = null;
       }
 
       if (itemsToExtract) {
@@ -209,7 +334,64 @@ const useDecompress = ({
           queueRef.current = [singleArchive];
         }
       } else {
-        queueRef.current = [...archivesToDecompress];
+        // Mark all archives as part of multi-archive operation if there are multiple
+        const isMultiArchive = archivesToDecompress.length > 1;
+        if (isVerboseLogging()) {
+          console.log(
+            "🗜️ archivesToDecompress count:",
+            archivesToDecompress.length
+          );
+          console.log(
+            "🗜️ archivesToDecompress names:",
+            archivesToDecompress.map((a) => a.name)
+          );
+        }
+
+        queueRef.current = archivesToDecompress.map((archive, index) => {
+          if (isVerboseLogging()) {
+            console.log(
+              `🗜️ Mapping archive ${index}:`,
+              archive.name,
+              archive.type
+            );
+          }
+          const result = {
+            ...archive,
+            isMultiArchive,
+          };
+          if (isVerboseLogging()) {
+            console.log(
+              `🗜️ Result for ${archive.name}:`,
+              result.name,
+              result.type
+            );
+          }
+          return result;
+        });
+
+        if (isVerboseLogging()) {
+          console.log(
+            "🗜️ queueRef after assignment count:",
+            queueRef.current.length
+          );
+          console.log(
+            "🗜️ queueRef after assignment names:",
+            queueRef.current.map((a) => a.name)
+          );
+        }
+      }
+
+      if (isVerboseLogging()) {
+        console.log(
+          "🗜️ Starting decompression of",
+          queueRef.current.length,
+          "archives:",
+          queueRef.current.map((a) => a.name)
+        );
+        console.log(
+          "🗜️ About to call processNextArchive, queue length:",
+          queueRef.current.length
+        );
       }
 
       setDecompressProgress((prev) => ({
@@ -224,8 +406,14 @@ const useDecompress = ({
         processedArchives: 0,
         currentArchiveName: "",
         targetPanelId: targetPanelId,
+        isMultiArchive: queueRef.current.length > 1,
       }));
 
+      if (isVerboseLogging())
+        console.log(
+          "🗜️ Calling processNextArchive with queue length:",
+          queueRef.current.length
+        );
       processNextArchive(targetPanelId);
     },
     [

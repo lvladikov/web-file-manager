@@ -110,6 +110,21 @@ export default function appState() {
   const [recentPaths, setRecentPaths] = useState([]);
   const [clipboard, setClipboard] = useState({ sources: [], isMove: false });
   const [allowContextMenu, setAllowContextMenu] = useState(false);
+  // Global verbose logging flag for developer debugging. Toggle to enable
+  // verbose client-side logs added during troubleshooting.
+  const [verboseLogging, setVerboseLogging] = useState(false);
+
+  // Sync verbose flag to a global so non-hook modules can check it when
+  // they don't receive `verboseLogging` via params. This lets us wrap
+  // console.debug/log/warn checks across the codebase without changing
+  // every call site that may not have access to the app state.
+  useEffect(() => {
+    try {
+      window.__VERBOSE_LOGGING__ = verboseLogging;
+    } catch (e) {
+      // ignore
+    }
+  }, [verboseLogging]);
 
   // --- Core Refs ---
   const wsRef = useRef(null);
@@ -304,7 +319,7 @@ export default function appState() {
       try {
         let terminalPath = panels[activePanel].path;
         let shouldChangePath = false; // Track if user explicitly provided a path
-        
+
         // If the caller supplied a startingPath, prefer it if valid
         if (typeof startingPath === "string" && startingPath.trim() !== "") {
           shouldChangePath = true;
@@ -395,7 +410,13 @@ export default function appState() {
         return { success: false, error: error.message };
       }
     },
-    [activePanel, panels, modals.terminalModal, modals.setTerminalModal, setError]
+    [
+      activePanel,
+      panels,
+      modals.terminalModal,
+      modals.setTerminalModal,
+      setError,
+    ]
   );
 
   const handleTerminalOtherPanel = useCallback(
@@ -404,7 +425,7 @@ export default function appState() {
       try {
         let terminalPath = panels[otherPanelId].path;
         let shouldChangePath = false; // Track if user explicitly provided a path
-        
+
         // If the caller supplied a startingPath, prefer it if valid
         if (typeof startingPath === "string" && startingPath.trim() !== "") {
           shouldChangePath = true;
@@ -491,7 +512,13 @@ export default function appState() {
         return { success: false, error: error.message };
       }
     },
-    [otherPanelId, panels, modals.terminalModal, modals.setTerminalModal, setError]
+    [
+      otherPanelId,
+      panels,
+      modals.terminalModal,
+      modals.setTerminalModal,
+      setError,
+    ]
   );
 
   // Feature hooks
@@ -1583,6 +1610,7 @@ export default function appState() {
     editingPath,
     wsRef,
     panelRefs,
+    verboseLogging,
     activeSelection,
     activePath,
     overwritePrompt,
@@ -1601,6 +1629,7 @@ export default function appState() {
     setEditingPath,
     setOverwritePrompt,
     setAllowContextMenu,
+    setVerboseLogging,
     // State & Handlers from Hooks
     ...settings,
     ...modals,

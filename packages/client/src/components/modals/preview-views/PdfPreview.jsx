@@ -12,6 +12,8 @@ import {
   getPdfNumPages,
 } from "../../../lib/pdfOffscreenRenderer";
 
+import { isVerboseLogging } from "../../../lib/utils";
+
 const PdfPreview = ({ fileUrl, isFullscreen }) => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -94,7 +96,11 @@ const PdfPreview = ({ fileUrl, isFullscreen }) => {
         try {
           dataUrl = canvas.toDataURL("image/png");
         } catch (e) {
-          console.warn("Failed to convert canvas to data URL", e);
+          try {
+            if (isVerboseLogging()) {
+              console.warn("Failed to convert canvas to data URL", e);
+            }
+          } catch (e) {}
         }
 
         if (dataUrl && mounted) {
