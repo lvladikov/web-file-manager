@@ -512,12 +512,14 @@
     "decompressToActivePanel": {
       "desc": "Decompress selected ZIP archive(s) into the active panel (async). If `itemsToExtract` array is provided it will extract only those entries from the first selected archive.",
       "params": [
-        "itemsToExtract? (array - optional list of paths inside the archive to extract)",
+        "itemsToExtract? (array - optional list of paths, glob patterns or regular expressions (e.g. ['*.jpg','docs/*.txt','/^images\\/.*\\.jpg$/i']) inside the archive to extract)",
         "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
       ],
       "examples": [
         "await FM.decompressToActivePanel()",
         "await FM.decompressToActivePanel(['folder/file.txt'])",
+        "await FM.decompressToActivePanel(['*.jpg','docs/*.txt']) // use wildcards to select by pattern",
+        "await FM.decompressToActivePanel(['/^images\\/.*\\.jpg$/i']) // use a regex (string literal form) to match entries",
         "// Overwrite parameter: pass a boolean or one of the server decision tokens below.",
         "// - boolean: true -> overwrite (no prompts), false -> skip (no prompts)",
         "// - string tokens: 'overwrite' | 'skip' (no prompts), or server policy tokens:",
@@ -542,12 +544,14 @@
     "decompressToOtherPanel": {
       "desc": "Decompress selected ZIP archive(s) into the other (inactive) panel (async). Optional `itemsToExtract` applies to the first selected archive. Optional `overwrite` controls conflict resolution (see examples).",
       "params": [
-        "itemsToExtract? (array - optional list of paths inside the archive to extract)",
+        "itemsToExtract? (array - optional list of paths, glob patterns or regular expressions (e.g. ['*.jpg','docs/*.txt','/^images\\/.*\\.jpg$/i']) inside the archive to extract)",
         "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
       ],
       "examples": [
         "await FM.decompressToOtherPanel()",
         "await FM.decompressToOtherPanel(['folder/file.txt'])",
+        "await FM.decompressToOtherPanel(['*.jpg','docs/*.txt']) // use wildcards to select by pattern",
+        "await FM.decompressToOtherPanel(['/^images\\/.*\\.jpg$/i']) // use a regex (string literal form) to match entries",
         "// Overwrite parameter: pass a boolean or one of the server decision tokens below.",
         "// - boolean: true -> overwrite (no prompts), false -> skip (no prompts)",
         "// - string tokens: 'overwrite' | 'skip' (no prompts), or server policy tokens:",
@@ -570,23 +574,27 @@
       ]
     },
     "decompressInSubfolderToActivePanel": {
-      "desc": "Decompress selected ZIP archive(s) into archive-named subfolder(s) inside the active panel (async). Automatically appends suffixes if folder names collide. Supports optional `itemsToExtract`.",
+      "desc": "Decompress selected ZIP archive(s) into archive-named subfolder(s) inside the active panel (async). Automatically appends suffixes if folder names collide. Supports optional `itemsToExtract` which accepts exact paths, wildcard patterns, or regular expressions.",
       "params": [
-        "itemsToExtract? (array - optional list of paths inside the archive to extract)"
+        "itemsToExtract? (array - optional list of paths, glob patterns or regular expressions (e.g. ['*.jpg','docs/*.txt','/^images\\/.*\\.jpg$/i']) inside the archive to extract)"
       ],
       "examples": [
         "await FM.decompressInSubfolderToActivePanel()",
-        "await FM.decompressInSubfolderToActivePanel(['a/b.txt'])"
+        "await FM.decompressInSubfolderToActivePanel(['a/b.txt'])",
+        "await FM.decompressInSubfolderToActivePanel(['*.jpg','docs/*.txt']) // use wildcards to select by pattern",
+        "await FM.decompressInSubfolderToActivePanel(['/^images\\/.*\\.jpg$/i']) // use a regex (string literal form) to match entries"
       ]
     },
     "decompressInSubfolderToOtherPanel": {
-      "desc": "Decompress selected ZIP archive(s) into archive-named subfolder(s) inside the other panel (async). Automatically appends suffixes if folder names collide. Supports optional `itemsToExtract`.",
+      "desc": "Decompress selected ZIP archive(s) into archive-named subfolder(s) inside the other panel (async). Automatically appends suffixes if folder names collide. Supports optional `itemsToExtract` which accepts exact paths, wildcard patterns, or regular expressions.",
       "params": [
-        "itemsToExtract? (array - optional list of paths inside the archive to extract)"
+        "itemsToExtract? (array - optional list of paths, glob patterns or regular expressions (e.g. ['*.jpg','docs/*.txt','/^images\\/.*\\.jpg$/i']) inside the archive to extract)"
       ],
       "examples": [
         "await FM.decompressInSubfolderToOtherPanel()",
-        "await FM.decompressInSubfolderToOtherPanel(['a/b.txt'])"
+        "await FM.decompressInSubfolderToOtherPanel(['a/b.txt'])",
+        "await FM.decompressInSubfolderToOtherPanel(['*.jpg','docs/*.txt']) // use wildcards to select by pattern",
+        "await FM.decompressInSubfolderToOtherPanel(['/^images\\/.*\\.jpg$/i']) // use a regex (string literal form) to match entries"
       ]
     },
     "testArchive": {
@@ -596,13 +604,129 @@
     },
     "compressToActivePanel": {
       "desc": "Compress the current selection (files/folders) into a zip archive in the active panel (async). Returns error if no selection is made.",
-      "params": [],
-      "examples": ["await FM.compressToActivePanel()"]
+      "params": [
+        "itemsToCompress? (array - optional names, glob patterns or regular expressions (RegExp objects or '/pattern/flags' strings) e.g. ['*.jpg','docs/*.txt','/^IMG_\\\\d+\\.JPG$/i'] to filter the selected items)"
+      ],
+      "examples": [
+        "await FM.compressToActivePanel()",
+        "await FM.compressToActivePanel(['*.jpg','file.txt'])",
+        "await FM.compressToActivePanel(['/^IMG_\\\\d+\\.JPG$/i'])"
+      ]
     },
     "compressToOtherPanel": {
       "desc": "Compress the current selection (files/folders) into a zip archive in the other panel (async). Returns error if no selection is made.",
-      "params": [],
-      "examples": ["await FM.compressToOtherPanel()"]
+      "params": [
+        "itemsToCompress? (array - optional names, glob patterns or regular expressions (RegExp objects or '/pattern/flags' strings) e.g. ['*.jpg','docs/*.txt','/^IMG_\\\\d+\\.JPG$/i'] to filter the selected items)"
+      ],
+      "examples": [
+        "await FM.compressToOtherPanel()",
+        "await FM.compressToOtherPanel(['*.jpg','file.txt'])",
+        "await FM.compressToOtherPanel(['/^IMG_\\\\d+\\.JPG$/i'])"
+      ]
+    },
+    "copyToActivePanel": {
+      "desc": "Copies selected items from the other (inactive) panel into the active panel. Optional itemsToCopy filters which of the selected items should be copied; overwrite can be a boolean or canonical overwrite token which will be used by the UI when an overwrite prompt appears. If there is no selection in the source panel and itemsToCopy is provided, the filter will be applied against all items in the panel.",
+      "params": [
+        "itemsToCopy? (array - optional names, glob patterns or regular expressions (RegExp objects or '/pattern/flags' strings) e.g. ['*.jpg','docs/*.txt','/^IMG_\\\\d+\\.JPG$/i'] to filter the selected items)",
+        "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
+      ],
+      "examples": [
+        "await FM.copyToActivePanel()",
+        "await FM.copyToActivePanel(['file.txt'])",
+        "await FM.copyToActivePanel(['*.jpg','*.txt']) // use wildcards to select by pattern",
+        "await FM.copyToActivePanel(['/^IMG_\\\\d+\\.JPG$/i']) // use regex string to select by regex (case-insensitive)",
+        "await FM.copyToActivePanel(['file.txt'], true) // overwrite (no prompts)",
+        "await FM.copyToActivePanel(['file.txt'], 'skip') // skip (no prompts)",
+        "await FM.copyToActivePanel(null, true) // overwrite (no prompts)",
+        "await FM.copyToActivePanel(null, 'overwrite') // overwrite (no prompts)",
+        "await FM.copyToActivePanel(null, false) // skip (no prompts)",
+        "await FM.copyToActivePanel(null, 'skip') // skip (no prompts)",
+        "await FM.copyToActivePanel(null, 'if_newer') // copy only if dest missing or older",
+        "await FM.copyToActivePanel(null, 'smaller_only') // replace dest if smaller",
+        "await FM.copyToActivePanel(null, 'no_zero_length') // skip when source is zero-length",
+        "await FM.copyToActivePanel(null, 'size_differs') // overwrite when sizes differ",
+        "await FM.copyToActivePanel(null, 'cancel') // cancel the whole copy",
+        "// combine itemsToCopy with an explicit decision:",
+        "await FM.copyToActivePanel(['a.txt','b/c.jpg'], 'if_newer')"
+      ]
+    },
+    "copyToOtherPanel": {
+      "desc": "Copies selected items from the active panel to the other (inactive) panel. Optional itemsToCopy filters which of the selected items should be copied; overwrite can be a boolean or canonical overwrite token which will be used by the UI when an overwrite prompt appears. If there is no selection in the source panel and itemsToCopy is provided, the filter will be applied against all items in the panel.",
+      "params": [
+        "itemsToCopy? (array - optional names, glob patterns or regular expressions (RegExp objects or '/pattern/flags' strings) e.g. ['*.jpg','docs/*.txt','/^IMG_\\\\d+\\.JPG$/i'] to filter the selected items)",
+        "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
+      ],
+      "examples": [
+        "await FM.copyToOtherPanel()",
+        "await FM.copyToOtherPanel(['file.txt'])",
+        "await FM.copyToOtherPanel(['*.jpg','*.txt']) // use wildcards to select by pattern",
+        "await FM.copyToOtherPanel(['/^IMG_\\\\d+\\.JPG$/i']) // use regex string to select by regex (case-insensitive)",
+        "await FM.copyToOtherPanel(['file.txt'], true) // overwrite (no prompts)",
+        "await FM.copyToOtherPanel(['file.txt'], 'skip') // skip (no prompts)",
+        "await FM.copyToOtherPanel(null, true) // overwrite (no prompts)",
+        "await FM.copyToOtherPanel(null, 'overwrite') // overwrite (no prompts)",
+        "await FM.copyToOtherPanel(null, false) // skip (no prompts)",
+        "await FM.copyToOtherPanel(null, 'skip') // skip (no prompts)",
+        "await FM.copyToOtherPanel(null, 'if_newer') // copy only if dest missing or older",
+        "await FM.copyToOtherPanel(null, 'smaller_only') // replace dest if smaller",
+        "await FM.copyToOtherPanel(null, 'no_zero_length') // skip when source is zero-length",
+        "await FM.copyToOtherPanel(null, 'size_differs') // overwrite when sizes differ",
+        "await FM.copyToOtherPanel(null, 'cancel') // cancel the whole copy",
+        "// combine itemsToCopy with an explicit decision:",
+        "await FM.copyToOtherPanel(['a.txt','b/c.jpg'], 'if_newer')"
+      ]
+    },
+    "moveToActivePanel": {
+      "desc": "Moves selected items from the other (inactive) panel into the active panel. Optional itemsToMove filters which of the selected items should be moved; overwrite behaves like copy's overwrite parameter. If there is no selection in the source panel and itemsToMove is provided, the filter will be applied against all items in the panel.",
+      "params": [
+        "itemsToMove? (array - optional names, glob patterns or regular expressions (RegExp objects or '/pattern/flags' strings) e.g. ['*.jpg','docs/*.txt','/^IMG_\\d+\\.JPG$/i'] to filter the selected items)",
+        "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
+      ],
+      "examples": [
+        "await FM.moveToActivePanel()",
+        "await FM.moveToActivePanel(['file.txt'])",
+        "await FM.moveToActivePanel(['*.jpg','*.txt']) // use wildcards to select by pattern",
+        "await FM.moveToActivePanel(['/^IMG_\\d+\\.JPG$/i']) // use regex string to select by regex (case-insensitive)",
+        "await FM.moveToActivePanel(['file.txt'], true) // overwrite (no prompts)",
+        "await FM.moveToActivePanel(['file.txt'], 'skip') // skip (no prompts)",
+        "await FM.moveToActivePanel(null, true) // overwrite (no prompts)",
+        "await FM.moveToActivePanel(null, 'overwrite') // overwrite (no prompts)",
+        "await FM.moveToActivePanel(null, false) // skip (no prompts)",
+        "await FM.moveToActivePanel(null, 'skip') // skip (no prompts)",
+        "await FM.moveToActivePanel(null, 'if_newer') // copy only if dest missing or older",
+        "await FM.moveToActivePanel(null, 'smaller_only') // replace dest if smaller",
+        "await FM.moveToActivePanel(null, 'no_zero_length') // skip when source is zero-length",
+        "await FM.moveToActivePanel(null, 'size_differs') // overwrite when sizes differ",
+        "await FM.moveToActivePanel(null, 'cancel') // cancel the whole move",
+        "// combine itemsToMove with an explicit decision:",
+        "await FM.moveToActivePanel(['a.txt','b/c.jpg'], 'if_newer')"
+      ]
+    },
+    "moveToOtherPanel": {
+      "desc": "Moves selected items from the active panel into the other (inactive) panel. Optional itemsToMove filters which of the selected items should be moved; overwrite behaves like copy's overwrite parameter. If there is no selection in the source panel and itemsToMove is provided, the filter will be applied against all items in the panel.",
+      "params": [
+        "itemsToMove? (array - optional names, glob patterns or regular expressions (RegExp objects or '/pattern/flags' strings) e.g. ['*.jpg','docs/*.txt','/^IMG_\\d+\\.JPG$/i'] to filter the selected items)",
+        "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
+      ],
+      "examples": [
+        "await FM.moveToOtherPanel()",
+        "await FM.moveToOtherPanel(['file.txt'])",
+        "await FM.moveToOtherPanel(['*.jpg','*.txt']) // use wildcards to select by pattern",
+        "await FM.moveToOtherPanel(['/^IMG_\\d+\\.JPG$/i']) // use regex string to select by regex (case-insensitive)",
+        "await FM.moveToOtherPanel(['file.txt'], true) // overwrite (no prompts)",
+        "await FM.moveToOtherPanel(['file.txt'], 'skip') // skip (no prompts)",
+        "await FM.moveToOtherPanel(null, true) // overwrite (no prompts)",
+        "await FM.moveToOtherPanel(null, 'overwrite') // overwrite (no prompts)",
+        "await FM.moveToOtherPanel(null, false) // skip (no prompts)",
+        "await FM.moveToOtherPanel(null, 'skip') // skip (no prompts)",
+        "await FM.moveToOtherPanel(null, 'if_newer') // copy only if dest missing or older",
+        "await FM.moveToOtherPanel(null, 'smaller_only') // replace dest if smaller",
+        "await FM.moveToOtherPanel(null, 'no_zero_length') // skip when source is zero-length",
+        "await FM.moveToOtherPanel(null, 'size_differs') // overwrite when sizes differ",
+        "await FM.moveToOtherPanel(null, 'cancel') // cancel the whole move",
+        "// combine itemsToMove with an explicit decision:",
+        "await FM.moveToOtherPanel(['a.txt','b/c.jpg'], 'if_newer')"
+      ]
     }
   },
   "properties": {

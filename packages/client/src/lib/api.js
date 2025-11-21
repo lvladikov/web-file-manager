@@ -185,10 +185,16 @@ const renameItem = async (oldPath, newName, options = {}) => {
   return response.json();
 };
 
-const startCopyItems = async (sources, destination, isMove = false) => {
+const startCopyItems = async (
+  sources,
+  destination,
+  isMove = false,
+  overwrite = undefined
+) => {
+  // include optional overwrite hint in the request so server can avoid prompting
   const response = await post(
     "/api/copy",
-    { sources, destination, isMove },
+    { sources, destination, isMove, overwrite },
     "An unknown server error occurred during copy initiation."
   );
   return response.json();

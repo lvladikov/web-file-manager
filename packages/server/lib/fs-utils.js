@@ -331,11 +331,36 @@ const copyWithProgress = async (source, destination, job) => {
     } else {
       job.overwriteDecision = decision;
     }
+    const shouldSkip = evaluateDecision();
     console.log(
       `[copyWithProgress] [debug] job ${job?.id} trace=${
         job?._traceId ?? "n/a"
-      } evaluated decision=${decision} shouldSkip=${evaluateDecision()}`
+      } evaluated decision=${decision} shouldSkip=${shouldSkip}`
     );
+
+    // If decision says we should skip this item, advance overall progress
+    // by the size of the skipped entry (file or directory) so job progress
+    // remains consistent, then return without copying.
+    if (shouldSkip) {
+      try {
+        if (sourceStats.isDirectory()) {
+          // Directory: add full subtree bytes so progress reflects skipped bytes
+          const dirSize = await getDirSize(source);
+          job.copied += dirSize || 0;
+        } else {
+          job.copied += sourceStats.size || 0;
+        }
+        if (job.ws && job.ws.readyState === 1) {
+          job.ws.send(JSON.stringify({ type: "progress", copied: job.copied }));
+        }
+      } catch (e) {
+        // If computing dir size fails, just log and proceed without adjusting
+        console.warn(
+          `[copyWithProgress] failed to compute skipped size for ${source}: ${e?.message}`
+        );
+      }
+      return; // skip actual copy
+    }
   }
 
   // --- End of Decision Logic. If we are here, we need to copy. ---

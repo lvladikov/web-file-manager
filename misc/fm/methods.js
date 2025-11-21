@@ -11,6 +11,10 @@ import {
   normalizeNameToPanel,
   waitForZipJobCompletion,
   matchZipPath,
+  looksLikeWildcard,
+  looksLikeRegex,
+  globToRegExp,
+  parsePatternToRegex,
 } from "./utils.js";
 
 /**
@@ -736,6 +740,174 @@ function createFMMethods(FM) {
     state.handleRefreshAllPanels();
   };
 
+  // FM.compressToActivePanel
+  // Compresses the current selection into the active panel
+  // Optional parameters:
+  // - itemsToCompress: array of basenames (strings) to filter which of the
+  //   currently selected items in the source panel should be compressed.
+  //   If no selection is made in the source panel and `itemsToCompress` is
+  //   provided, the filter will be applied across all items in the panel and
+  //   matching items will be compressed (behaves as if a selection was made).
+  //   Each entry may be an exact filename, a wildcard pattern (e.g. '*.jpg'
+  //   or 'file?.txt'), or a regular expression (RegExp instance or a string
+  //   like '/pattern/flags').
+  methods.compressToActivePanel = async function (itemsToCompress = null) {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    let candidates;
+    if (!selection || selection.length === 0) {
+      if (Array.isArray(itemsToCompress) && itemsToCompress.length > 0) {
+        // No selection made, but caller provided a filter: treat all panel items as candidates
+        candidates = panelItems;
+      } else {
+        const error = "No selection made in source panel to compress.";
+        console.error(error);
+        return { success: false, error };
+      }
+    } else {
+      // Filter candidate items by the current selection
+      candidates = panelItems.filter((i) => selection.includes(i.name));
+    }
+
+    // Apply itemsToCompress filter if provided (supports names, wildcards or regex strings)
+    let filtered = candidates;
+    if (Array.isArray(itemsToCompress) && itemsToCompress.length > 0) {
+      const patterns = itemsToCompress.map((p) => ({
+        raw: p,
+        re: parsePatternToRegex(p),
+      }));
+      filtered = candidates.filter((i) => {
+        for (const pat of patterns) {
+          try {
+            if (pat.re) {
+              if (pat.re.test(i.name)) return true;
+            } else if (String(pat.raw) === i.name) {
+              return true;
+            }
+          } catch (e) {}
+        }
+        return false;
+      });
+    }
+
+    if (!filtered || filtered.length === 0) {
+      const error = "No items matched itemsToCompress filter.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    if (typeof state.handleCompressInActivePanel !== "function") {
+      const error = "Compress handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      // Build full path list for compress handler to work with
+      const sourcePanelPath = state.panels[state.activePanel].path;
+      const sep = sourcePanelPath.includes("\\") ? "\\" : "/";
+      const base = sourcePanelPath.endsWith(sep)
+        ? sourcePanelPath
+        : sourcePanelPath + sep;
+      const sources = filtered.map((i) => base + i.name);
+
+      const res = state.handleCompressInActivePanel(sources);
+      if (res && typeof res.then === "function") await res;
+      return { success: true, message: "Compression started in active panel." };
+    } catch (err) {
+      console.error("compressToActivePanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.compressToOtherPanel
+  // Compresses the current selection into the other panel
+  // Optional parameters:
+  // - itemsToCompress: array of basenames (strings) to filter which of the
+  //   currently selected items in the source panel should be compressed.
+  //   If no selection is made in the source panel and `itemsToCompress` is
+  //   provided, the filter will be applied across all items in the panel and
+  //   matching items will be compressed (behaves as if a selection was made).
+  //   Each entry may be an exact filename, a wildcard pattern (e.g. '*.jpg'
+  //   or 'file?.txt'), or a regular expression (RegExp instance or a string
+  //   like '/pattern/flags').
+  methods.compressToOtherPanel = async function (itemsToCompress = null) {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    let candidates;
+    if (!selection || selection.length === 0) {
+      if (Array.isArray(itemsToCompress) && itemsToCompress.length > 0) {
+        candidates = panelItems;
+      } else {
+        const error = "No selection made in source panel to compress.";
+        console.error(error);
+        return { success: false, error };
+      }
+    } else {
+      candidates = panelItems.filter((i) => selection.includes(i.name));
+    }
+
+    let filtered = candidates;
+    if (Array.isArray(itemsToCompress) && itemsToCompress.length > 0) {
+      const patterns = itemsToCompress.map((p) => ({
+        raw: p,
+        re: parsePatternToRegex(p),
+      }));
+      filtered = candidates.filter((i) => {
+        for (const pat of patterns) {
+          try {
+            if (pat.re) {
+              if (pat.re.test(i.name)) return true;
+            } else if (String(pat.raw) === i.name) {
+              return true;
+            }
+          } catch (e) {}
+        }
+        return false;
+      });
+    }
+
+    if (!filtered || filtered.length === 0) {
+      const error = "No items matched itemsToCompress filter.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    if (typeof state.handleCompressToOtherPanel !== "function") {
+      const error = "Compress (to other) handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      const sourcePanelPath = state.panels[state.activePanel].path;
+      const sep = sourcePanelPath.includes("\\") ? "\\" : "/";
+      const base = sourcePanelPath.endsWith(sep)
+        ? sourcePanelPath
+        : sourcePanelPath + sep;
+      const sources = filtered.map((i) => base + i.name);
+
+      const res = state.handleCompressToOtherPanel(sources);
+      if (res && typeof res.then === "function") await res;
+      return { success: true, message: "Compression started to other panel." };
+    } catch (err) {
+      console.error("compressToOtherPanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
   // FM.decompressToActivePanel
   // Starts decompression of selected archive(s) into the active panel.
   // Optional `itemsToExtract` can be provided (array of paths inside the archive).
@@ -798,7 +970,12 @@ function createFMMethods(FM) {
 
   // FM.decompressToOtherPanel
   // Starts decompression of selected archive(s) into the other (inactive) panel.
-  // `overwrite` works same as in `decompressToActivePanel`.
+  // Optional `itemsToExtract` can be provided (array of paths inside the archive).
+  // `overwrite` may be:
+  // - boolean: true -> overwrite / false -> skip
+  // - string: either the short shorthands 'overwrite'|'skip' (no prompts),
+  //   or one of the server canonical policy tokens:
+  //   'if_newer', 'smaller_only', 'no_zero_length', 'size_differs', 'cancel'
   methods.decompressToOtherPanel = async function (
     itemsToExtract = null,
     overwrite = undefined
@@ -851,7 +1028,12 @@ function createFMMethods(FM) {
   };
 
   // FM.decompressInSubfolderToActivePanel
-  // Starts decompression of selected archive(s) into archive-named subfolder(s) in the active panel.
+  // Starts decompression of selected archive(s) into archive-named subfolder(s)
+  // in the active panel. Supports an optional `itemsToExtract` parameter which
+  // accepts the same forms supported by `decompressToActivePanel`:
+  // - exact paths (strings),
+  // - wildcard/glob patterns (e.g. '*.jpg', 'docs/*.txt'),
+  // - regular expressions (RegExp instances or string forms like '/pattern/flags').
   methods.decompressInSubfolderToActivePanel = async function (
     itemsToExtract = null
   ) {
@@ -898,7 +1080,10 @@ function createFMMethods(FM) {
   };
 
   // FM.decompressInSubfolderToOtherPanel
-  // Starts decompression of selected archive(s) into archive-named subfolder(s) in the other panel.
+  // Starts decompression of selected archive(s) into archive-named subfolder(s)
+  // in the other (inactive) panel. Supports an optional `itemsToExtract` parameter
+  // which accepts the same formats as `decompressToOtherPanel` (exact paths,
+  // wildcard/glob patterns, or regular expressions).
   methods.decompressInSubfolderToOtherPanel = async function (
     itemsToExtract = null
   ) {
@@ -1091,27 +1276,104 @@ function createFMMethods(FM) {
     return { success: true, reports };
   };
 
-  // FM.compressToActivePanel
-  // Compresses the current selection into the active panel
-  methods.compressToActivePanel = async function () {
+  // FM.copyToActivePanel
+  // Copy selected items from the other (inactive) panel into the active panel.
+  // Optional parameters:
+  // - itemsToCopy: array of names (basenames) to filter which of the selected items should be copied.
+  //   If there is no selection in the source panel and `itemsToCopy` is
+  //   provided, the filter will be applied across all items in that panel and
+  //   the matching items will be copied (acts as if those items were selected).
+  // - overwrite: optional overwrite hint (boolean or canonical server overwrite token) which will be provided
+  //   to the client overwrite prompt handler if an interactive UI is present.
+  // `overwrite` may be:
+  // - boolean: true -> overwrite / false -> skip
+  // - string: either the short shorthands 'overwrite'|'skip' (no prompts),
+  //   or one of the server canonical policy tokens:
+  //   'if_newer', 'smaller_only', 'no_zero_length', 'size_differs', 'cancel'
+  methods.copyToActivePanel = async function (
+    itemsToCopy = null,
+    overwrite = undefined
+  ) {
     const state = getAppState();
-    const selection = buildSelection(state.activePanel, true) || [];
+    const otherPanel = methods.getOtherPanelSide();
+    const selection = buildSelection(otherPanel, true) || [];
+    const panelItems =
+      (state.panels[otherPanel] && state.panels[otherPanel].items) || [];
+    let candidates;
     if (!selection || selection.length === 0) {
-      const error = "No selection made in active panel to compress.";
+      if (Array.isArray(itemsToCopy) && itemsToCopy.length > 0) {
+        candidates = panelItems;
+      } else {
+        const error = "No selection made in other panel.";
+        console.error(error);
+        return { success: false, error };
+      }
+    } else {
+      candidates = panelItems.filter((i) => selection.includes(i.name));
+    }
+    if (!candidates || candidates.length === 0) {
+      const error = "No items found to copy in other panel.";
       console.error(error);
       return { success: false, error };
     }
-    if (typeof state.handleCompressInActivePanel !== "function") {
-      const error = "Compress handler not available in app state.";
+
+    // Apply itemsToCopy filter if provided.
+    // Support exact names, simple glob/wildcard patterns like '*.jpg' or 'file?.txt',
+    // or full regular expressions (RegExp instances or '/pattern/flags' strings).
+    let filtered = candidates;
+    if (Array.isArray(itemsToCopy) && itemsToCopy.length > 0) {
+      const patterns = itemsToCopy.map((p) => ({
+        raw: p,
+        re: parsePatternToRegex(p),
+      }));
+      filtered = candidates.filter((i) => {
+        for (const pat of patterns) {
+          try {
+            if (pat.re) {
+              // Test candidate name against the compiled regex
+              if (pat.re.test(i.name)) return true;
+            } else if (String(pat.raw) === i.name) {
+              return true;
+            }
+          } catch (e) {}
+        }
+        return false;
+      });
+    }
+
+    if (!filtered || filtered.length === 0) {
+      const error = "No items matched itemsToCopy filter.";
       console.error(error);
       return { success: false, error };
     }
+
     try {
-      const res = state.handleCompressInActivePanel();
+      try {
+        if (typeof window !== "undefined" && typeof overwrite !== "undefined") {
+          window.__FM_PENDING_OVERWRITE__ = overwrite;
+        }
+      } catch (e) {}
+
+      const sourcePanelPath = state.panels[otherPanel].path;
+      const destinationPath = state.panels[state.activePanel].path;
+
+      const sep = sourcePanelPath.includes("\\") ? "\\" : "/";
+      const base = sourcePanelPath.endsWith(sep)
+        ? sourcePanelPath
+        : sourcePanelPath + sep;
+      const sources = filtered.map((i) => base + i.name);
+
+      if (typeof state.performCopy !== "function") {
+        const error = "Copy handler not available in app state.";
+        console.error(error);
+        return { success: false, error };
+      }
+
+      const res = state.performCopy(sources, destinationPath, false);
       if (res && typeof res.then === "function") await res;
-      return { success: true, message: "Compression started in active panel." };
+      return { success: true, message: "Copy started to active panel." };
     } catch (err) {
-      console.error("compressToActivePanel error:", err);
+      console.error("copyToActivePanel error:", err);
       return {
         success: false,
         error: err && err.message ? err.message : String(err),
@@ -1119,27 +1381,332 @@ function createFMMethods(FM) {
     }
   };
 
-  // FM.compressToOtherPanel
-  // Compresses the current selection into the other panel
-  methods.compressToOtherPanel = async function () {
+  // FM.copyToOtherPanel
+  // Copy selected items from the active panel into the other (inactive) panel.
+  // Optional parameters:
+  // - itemsToCopy: array of names (basenames) to filter which of the selected items should be copied.
+  //   If there is no selection in the source panel and `itemsToCopy` is
+  //   provided, the filter will be applied across all items in that panel and
+  //   the matching items will be copied (acts as if those items were selected).
+  // - overwrite: optional overwrite hint (boolean or canonical server overwrite token) which will be provided
+  //   to the client overwrite prompt handler if an interactive UI is present.
+  // `overwrite` may be:
+  // - boolean: true -> overwrite / false -> skip
+  // - string: either the short shorthands 'overwrite'|'skip' (no prompts),
+  //   or one of the server canonical policy tokens:
+  //   'if_newer', 'smaller_only', 'no_zero_length', 'size_differs', 'cancel'
+  methods.copyToOtherPanel = async function (
+    itemsToCopy = null,
+    overwrite = undefined
+  ) {
     const state = getAppState();
     const selection = buildSelection(state.activePanel, true) || [];
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    let candidates;
     if (!selection || selection.length === 0) {
-      const error = "No selection made in active panel to compress.";
+      if (Array.isArray(itemsToCopy) && itemsToCopy.length > 0) {
+        candidates = panelItems;
+      } else {
+        const error = "No selection made in active panel.";
+        console.error(error);
+        return { success: false, error };
+      }
+    } else {
+      candidates = panelItems.filter((i) => selection.includes(i.name));
+    }
+    if (!candidates || candidates.length === 0) {
+      const error = "No items found to copy in active panel.";
       console.error(error);
       return { success: false, error };
     }
-    if (typeof state.handleCompressToOtherPanel !== "function") {
-      const error = "Compress (to other) handler not available in app state.";
+
+    // Apply itemsToCopy filter if provided.
+    // Support exact names, simple glob/wildcard patterns like '*.jpg' or 'file?.txt',
+    // or full regular expressions (RegExp instances or '/pattern/flags' strings).
+    let filtered = candidates;
+    if (Array.isArray(itemsToCopy) && itemsToCopy.length > 0) {
+      // Pre-build regexes for wildcard/regex patterns
+      const patterns = itemsToCopy.map((p) => ({
+        raw: p,
+        re: parsePatternToRegex(p),
+      }));
+      filtered = candidates.filter((i) => {
+        for (const pat of patterns) {
+          try {
+            if (pat.re) {
+              // Test candidate name against the compiled regex
+              if (pat.re.test(i.name)) return true;
+            } else if (String(pat.raw) === i.name) {
+              return true;
+            }
+          } catch (e) {
+            // ignore pattern errors
+          }
+        }
+        return false;
+      });
+    }
+
+    if (!filtered || filtered.length === 0) {
+      const error = "No items matched itemsToCopy filter.";
       console.error(error);
       return { success: false, error };
     }
+
     try {
-      const res = state.handleCompressToOtherPanel();
+      // Allow callers to provide an overwrite hint that the UI will consume when a prompt appears
+      try {
+        if (typeof window !== "undefined" && typeof overwrite !== "undefined") {
+          window.__FM_PENDING_OVERWRITE__ = overwrite;
+        }
+      } catch (e) {}
+
+      const sourcePanelPath = state.panels[state.activePanel].path;
+      const otherPanelId = methods.getOtherPanelSide();
+      const destinationPath = state.panels[otherPanelId].path;
+
+      // Build absolute source paths (respect platform separators)
+      const sep = sourcePanelPath.includes("\\") ? "\\" : "/";
+      const base = sourcePanelPath.endsWith(sep)
+        ? sourcePanelPath
+        : sourcePanelPath + sep;
+      const sources = filtered.map((i) => base + i.name);
+
+      // Use the app's copy handler (performCopy) to start the operation
+      if (typeof state.performCopy !== "function") {
+        const error = "Copy handler not available in app state.";
+        console.error(error);
+        return { success: false, error };
+      }
+
+      const res = state.performCopy(sources, destinationPath, false);
       if (res && typeof res.then === "function") await res;
-      return { success: true, message: "Compression started to other panel." };
+      return { success: true, message: "Copy started to other panel." };
     } catch (err) {
-      console.error("compressToOtherPanel error:", err);
+      console.error("copyToOtherPanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.moveToActivePanel
+  // Move selected items from the other (inactive) panel into the active panel.
+  // Optional parameters:
+  // - itemsToMove: array of basenames (strings) used to filter which of the
+  //   currently selected items in the other panel should be moved. Each entry
+  //   may be an exact filename, a wildcard pattern (e.g. '*.jpg' or 'file?.txt'),
+  //   or a regular expression (RegExp instance or a string like '/pattern/flags').
+  //   If there is no selection in the source panel and `itemsToMove` is provided,
+  //   the filter will be applied across all items in that panel (acts as if the
+  //   matched items were selected).
+  // - overwrite: optional overwrite hint to guide behavior when destination
+  //   conflicts occur. Supported forms:
+  //   * boolean: true = overwrite, false = skip
+  //   * string: short hints 'overwrite' or 'skip' (no prompts)
+  //   * server canonical tokens: 'if_newer', 'smaller_only', 'no_zero_length',
+  //     'size_differs', 'cancel'
+  //   If `overwrite` is omitted the UI's interactive prompt (if present) will be
+  //   used. When provided this method sets a short-lived pending overwrite value
+  //   consumed by the client overwrite prompt handler.
+  methods.moveToActivePanel = async function (
+    itemsToMove = null,
+    overwrite = undefined
+  ) {
+    const state = getAppState();
+    const otherPanel = methods.getOtherPanelSide();
+    const selection = buildSelection(otherPanel, true) || [];
+    const panelItems =
+      (state.panels[otherPanel] && state.panels[otherPanel].items) || [];
+    let candidates;
+    if (!selection || selection.length === 0) {
+      if (Array.isArray(itemsToMove) && itemsToMove.length > 0) {
+        // No explicit selection; but caller provided itemsToMove filter —
+        // treat candidates as ALL panel items so the filter may be applied.
+        candidates = panelItems;
+      } else {
+        const error = "No selection made in other panel.";
+        console.error(error);
+        return { success: false, error };
+      }
+    } else {
+      candidates = panelItems.filter((i) => selection.includes(i.name));
+    }
+    if (!candidates || candidates.length === 0) {
+      const error = "No items found to move in other panel.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    let filtered = candidates;
+    if (Array.isArray(itemsToMove) && itemsToMove.length > 0) {
+      const patterns = itemsToMove.map((p) => ({
+        raw: p,
+        re: parsePatternToRegex(p),
+      }));
+      filtered = candidates.filter((i) => {
+        for (const pat of patterns) {
+          try {
+            if (pat.re) {
+              if (pat.re.test(i.name)) return true;
+            } else if (String(pat.raw) === i.name) {
+              return true;
+            }
+          } catch (e) {}
+        }
+        return false;
+      });
+    }
+
+    if (!filtered || filtered.length === 0) {
+      const error = "No items matched itemsToMove filter.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      try {
+        if (typeof window !== "undefined" && typeof overwrite !== "undefined") {
+          window.__FM_PENDING_OVERWRITE__ = overwrite;
+        }
+      } catch (e) {}
+
+      const sourcePanelPath = state.panels[otherPanel].path;
+      const destinationPath = state.panels[state.activePanel].path;
+
+      const sep = sourcePanelPath.includes("\\") ? "\\" : "/";
+      const base = sourcePanelPath.endsWith(sep)
+        ? sourcePanelPath
+        : sourcePanelPath + sep;
+      const sources = filtered.map((i) => base + i.name);
+
+      if (typeof state.performCopy !== "function") {
+        const error = "Copy handler not available in app state.";
+        console.error(error);
+        return { success: false, error };
+      }
+
+      const res = state.performCopy(sources, destinationPath, true);
+      if (res && typeof res.then === "function") await res;
+      return { success: true, message: "Move started to active panel." };
+    } catch (err) {
+      console.error("moveToActivePanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.moveToOtherPanel
+  // Move selected items from the active panel into the other (inactive) panel.
+  // Optional parameters:
+  // - itemsToMove: array of basenames (strings) used to filter which of the
+  //   currently selected items in the active panel should be moved. Each entry
+  //   may be an exact filename, a wildcard pattern (e.g. '*.jpg' or 'file?.txt'),
+  //   or a regular expression (RegExp instance or a string like '/pattern/flags').
+  //   If there is no selection in the source panel and `itemsToMove` is provided,
+  //   the filter will be applied across all items in that panel (acts as if the
+  //   matched items were selected).
+  // - overwrite: optional overwrite hint to guide behavior when destination
+  //   conflicts occur. Supported forms:
+  //   * boolean: true = overwrite, false = skip
+  //   * string: short hints 'overwrite' or 'skip' (no prompts)
+  //   * server canonical tokens: 'if_newer', 'smaller_only', 'no_zero_length',
+  //     'size_differs', 'cancel'
+  //   If `overwrite` is omitted the UI's interactive prompt (if present) will be
+  //   used. When provided this method sets a short-lived pending overwrite value
+  //   consumed by the client overwrite prompt handler.
+
+  methods.moveToOtherPanel = async function (
+    itemsToMove = null,
+    overwrite = undefined
+  ) {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    let candidates;
+    if (!selection || selection.length === 0) {
+      if (Array.isArray(itemsToMove) && itemsToMove.length > 0) {
+        // No explicit selection; apply move filter to all panel items
+        candidates = panelItems;
+      } else {
+        const error = "No selection made in active panel.";
+        console.error(error);
+        return { success: false, error };
+      }
+    } else {
+      candidates = panelItems.filter((i) => selection.includes(i.name));
+    }
+    if (!candidates || candidates.length === 0) {
+      const error = "No items found to move in active panel.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    // Apply itemsToMove filter if provided. Patterns supported: exact, wildcard, regex
+    let filtered = candidates;
+    if (Array.isArray(itemsToMove) && itemsToMove.length > 0) {
+      const patterns = itemsToMove.map((p) => ({
+        raw: p,
+        re: parsePatternToRegex(p),
+      }));
+      filtered = candidates.filter((i) => {
+        for (const pat of patterns) {
+          try {
+            if (pat.re) {
+              if (pat.re.test(i.name)) return true;
+            } else if (String(pat.raw) === i.name) {
+              return true;
+            }
+          } catch (e) {}
+        }
+        return false;
+      });
+    }
+
+    if (!filtered || filtered.length === 0) {
+      const error = "No items matched itemsToMove filter.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      try {
+        if (typeof window !== "undefined" && typeof overwrite !== "undefined") {
+          window.__FM_PENDING_OVERWRITE__ = overwrite;
+        }
+      } catch (e) {}
+
+      const sourcePanelPath = state.panels[state.activePanel].path;
+      const otherPanelId = methods.getOtherPanelSide();
+      const destinationPath = state.panels[otherPanelId].path;
+
+      const sep = sourcePanelPath.includes("\\") ? "\\" : "/";
+      const base = sourcePanelPath.endsWith(sep)
+        ? sourcePanelPath
+        : sourcePanelPath + sep;
+      const sources = filtered.map((i) => base + i.name);
+
+      if (typeof state.performCopy !== "function") {
+        const error = "Copy handler not available in app state.";
+        console.error(error);
+        return { success: false, error };
+      }
+
+      // Move = performCopy with isMove = true
+      const res = state.performCopy(sources, destinationPath, true);
+      if (res && typeof res.then === "function") await res;
+      return { success: true, message: "Move started to other panel." };
+    } catch (err) {
+      console.error("moveToOtherPanel error:", err);
       return {
         success: false,
         error: err && err.message ? err.message : String(err),

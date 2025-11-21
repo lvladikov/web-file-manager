@@ -16,6 +16,14 @@ import {
   findCoverInZip,
 } from "../lib/utils.js";
 
+// Reuse the shared FM wildcard helpers so server and client use identical logic
+import {
+  looksLikeWildcard,
+  looksLikeRegex,
+  globToRegExp,
+  parsePatternToRegex,
+} from "../../../misc/fm/utils.js";
+
 import { unregisterAllForJob } from "../lib/prompt-registry.js";
 
 export default function createZipRoutes(
@@ -416,6 +424,17 @@ export default function createZipRoutes(
             if (e.startsWith(folderHint)) {
               expanded.add(e);
             }
+          }
+
+          // If the hint represents a regex or wildcard pattern, expand matching entries
+          const re = parsePatternToRegex(hint);
+          if (re) {
+            for (const e of allEntries) {
+              if (re.test(e) || re.test(path.posix.basename(e))) {
+                expanded.add(e);
+              }
+            }
+            continue;
           }
 
           // Match by basename (e.g. user passed "file.txt" and entry is "some/path/file.txt")

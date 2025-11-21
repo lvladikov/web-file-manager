@@ -222,8 +222,12 @@ When running the Electron app, both client and server and the node binaries and 
   - `FM.toggleActivePanelSide()` — toggle between left and right panels
   - `FM.refreshBothPanels()` — reload directory contents for both panels
   - `FM.swapPanels()` — swap the directory paths of left and right panels
+  - `await FM.compressToOtherPanel(['*.jpg','file.txt'])` — compress selected items (or, if nothing is selected, apply the provided patterns against all items in the source panel) into a ZIP archive placed in the other panel. Patterns may be exact names, shell-style wildcards (e.g. '*.jpg'), or regex strings (e.g. '/^IMG_\\d+\\.JPG$/i'). Returns an error if no items match.
+  - `await FM.copyToActivePanel(['a.txt','b/c.jpg'], 'if_newer')` — copy selected items from the source panel into the active panel. If there is no selection in the source panel and you supply item patterns, they will be applied across the panel. The optional overwrite parameter accepts boolean or canonical tokens (for example 'if_newer') to control overwrite behavior and avoid interactive prompts.
 
     ![FM Modal Screenshot](packages/client/screenshots/fm.png)
+
+    (See `misc/fm/meta.json` and `misc/fm/methods.js` for full parameter syntax and behavior.)
 
 - **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions.
 

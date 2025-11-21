@@ -56,7 +56,7 @@ const useCompress = ({
   };
 
   const handleCompress = useCallback(
-    async (targetPanelId) => {
+    async (targetPanelId, sourcesArg = null) => {
       const sourcePanelId = activePanel;
       const sourcePath = panels[sourcePanelId].path;
 
@@ -64,20 +64,34 @@ const useCompress = ({
         ? filteredItems[sourcePanelId]
         : panels[sourcePanelId].items;
 
-      const itemsToCompress = [...selections[sourcePanelId]]
-        .map((itemName) =>
-          itemsToConsider.find((item) => item.name === itemName)
-        )
-        .filter(Boolean); // Filter out any nulls if item not found
+      let itemsToCompress = [];
+      if (Array.isArray(sourcesArg) && sourcesArg.length > 0) {
+        // If FM handler provided explicit full-path sources, use them.
+        itemsToCompress = sourcesArg;
+      } else {
+        itemsToCompress = [...selections[sourcePanelId]]
+          .map((itemName) =>
+            itemsToConsider.find((item) => item.name === itemName)
+          )
+          .filter(Boolean); // Filter out any nulls if item not found
+      }
 
-      if (itemsToCompress.length === 0) {
+      if (!itemsToCompress || itemsToCompress.length === 0) {
         setError("No items selected for compression.");
         return;
       }
-
-      const itemPaths = itemsToCompress.map((item) =>
-        buildFullPath(sourcePath, item.name)
-      );
+      let itemPaths;
+      if (
+        typeof itemsToCompress[0] === "string" &&
+        itemsToCompress[0].includes(sourcePath)
+      ) {
+        // Already full paths
+        itemPaths = itemsToCompress;
+      } else {
+        itemPaths = itemsToCompress.map((item) =>
+          buildFullPath(sourcePath, item.name)
+        );
+      }
       const destinationPath =
         targetPanelId === sourcePanelId
           ? sourcePath
@@ -259,14 +273,20 @@ const useCompress = ({
     ]
   );
 
-  const handleCompressInActivePanel = useCallback(() => {
-    handleCompress(activePanel);
-  }, [handleCompress, activePanel]);
+  const handleCompressInActivePanel = useCallback(
+    (sourcesArg = null) => {
+      handleCompress(activePanel, sourcesArg);
+    },
+    [handleCompress, activePanel]
+  );
 
-  const handleCompressToOtherPanel = useCallback(() => {
-    const otherPanelId = activePanel === "left" ? "right" : "left";
-    handleCompress(otherPanelId);
-  }, [handleCompress, activePanel]);
+  const handleCompressToOtherPanel = useCallback(
+    (sourcesArg = null) => {
+      const otherPanelId = activePanel === "left" ? "right" : "left";
+      handleCompress(otherPanelId, sourcesArg);
+    },
+    [handleCompress, activePanel]
+  );
 
   return {
     compressProgress,

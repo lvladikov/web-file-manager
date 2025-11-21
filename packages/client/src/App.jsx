@@ -219,7 +219,6 @@ export default function App() {
         handleQuickFilterFolders,
         handleQuickFilterZipFiles,
         handleResetQuickFilter,
-        // New file & folder handlers (exposed for FM console API)
         handleStartNewFile,
         handleConfirmNewFile,
         handleCancelNewFile,
@@ -233,6 +232,8 @@ export default function App() {
         handleDecompressInSubfolderInActivePanel,
         handleDecompressInSubfolderToOtherPanel,
         handleOverwriteDecision,
+        performCopy,
+        handleCancelCopy,
         handleTestArchive,
         startZipUpdate,
         connectZipUpdateWebSocket,
@@ -274,6 +275,8 @@ export default function App() {
     handleQuickFilterFolders,
     handleQuickFilterZipFiles,
     handleResetQuickFilter,
+    performCopy,
+    handleCancelCopy,
   ]);
 
   const showPreviewModalOverlay =

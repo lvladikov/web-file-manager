@@ -2,11 +2,16 @@ import express from "express";
 import fse from "fs-extra";
 import path from "path";
 import crypto from "crypto";
+import yauzl from "yauzl-promise";
+
 import {
   performCopyCancellation,
   matchZipPath,
   duplicateInZip,
 } from "../lib/utils.js";
+
+// Reuse FM parsing helpers (supports wildcard and /pattern/flags regex strings)
+import { parsePatternToRegex } from "../../../misc/fm/utils.js";
 
 export default function createCopyRoutes(
   activeCopyJobs,
@@ -17,7 +22,7 @@ export default function createCopyRoutes(
 
   // Endpoint to initiate copy
   router.post("/copy", async (req, res) => {
-    const { sources, destination, isMove } = req.body;
+    const { sources, destination, isMove, overwrite } = req.body;
     if (!sources || sources.length === 0 || !destination) {
       return res
         .status(400)
@@ -127,6 +132,94 @@ export default function createCopyRoutes(
         jobType = "zip-extract";
       }
 
+      // If the source is inside a zip and the caller provided itemsToCopy (patterns)
+      // expand those hints into explicit source entries inside the zip so websocket
+      // handling will operate on concrete entry paths.
+      if (
+        sourceZipPathMatch &&
+        Array.isArray(req.body.itemsToCopy) &&
+        req.body.itemsToCopy.length > 0
+      ) {
+        try {
+          const zipFilePath = sourceZipFilePath;
+          // Open zip and collect entries
+          const zipfileToScan = await yauzl.open(zipFilePath);
+          const allEntries = [];
+          for await (const entry of zipfileToScan) {
+            allEntries.push(entry.filename);
+          }
+          await zipfileToScan.close();
+
+          const entrySet = new Set(allEntries);
+          const expandedSources = [];
+
+          for (const raw of req.body.itemsToCopy) {
+            const hint = String(raw).replace(/\\/g, "/").replace(/^\//, "");
+
+            // Exact entry
+            if (entrySet.has(hint)) {
+              expandedSources.push(`${zipFilePath}/${hint}`);
+              continue;
+            }
+
+            // Folder hint (entries that start with it)
+            const folderHint = hint.endsWith("/") ? hint : `${hint}/`;
+            for (const e of allEntries) {
+              if (e.startsWith(folderHint)) {
+                expandedSources.push(`${zipFilePath}/${e}`);
+              }
+            }
+
+            // Regex or wildcard - use shared parser
+            const re = parsePatternToRegex(hint);
+            if (re) {
+              for (const e of allEntries) {
+                if (re.test(e) || re.test(path.posix.basename(e))) {
+                  expandedSources.push(`${zipFilePath}/${e}`);
+                }
+              }
+              continue;
+            }
+
+            // Match by basename
+            for (const e of allEntries) {
+              if (path.posix.basename(e) === hint || e.endsWith(`/${hint}`)) {
+                expandedSources.push(`${zipFilePath}/${e}`);
+              }
+            }
+          }
+
+          // Remove duplicates and use these as the request's sources for the job
+          req.body.sources = Array.from(new Set(expandedSources));
+        } catch (e) {
+          console.warn(
+            "Failed to expand itemsToCopy for zip source:",
+            e?.message || e
+          );
+        }
+      }
+
+      // Normalize client-provided overwrite hint.
+      // Accepts:
+      //  - boolean: true -> overwrite_all, false -> skip_all
+      //  - short strings: 'overwrite' | 'skip' (mapped to global _all tokens)
+      //  - canonical server tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel'
+      let initialOverwrite = "prompt";
+      if (typeof overwrite !== "undefined") {
+        if (typeof overwrite === "boolean") {
+          initialOverwrite = overwrite ? "overwrite_all" : "skip_all";
+        } else if (typeof overwrite === "string") {
+          const s = overwrite.trim().toLowerCase();
+          if (["overwrite", "true"].includes(s)) {
+            initialOverwrite = "overwrite_all";
+          } else if (["skip", "false"].includes(s)) {
+            initialOverwrite = "skip_all";
+          } else {
+            initialOverwrite = s;
+          }
+        }
+      }
+
       const job = {
         id: jobId,
         _traceId: crypto.randomUUID(),
@@ -136,7 +229,7 @@ export default function createCopyRoutes(
         destination,
         sources,
         isMove: isMove || false,
-        overwriteDecision: "prompt",
+        overwriteDecision: initialOverwrite,
         overwriteResolvers: [],
         jobType,
       };

@@ -898,7 +898,33 @@ const HelpModal = ({ isVisible, onClose }) => {
                 </code>{" "}
                 — swap the directory paths of left and right panels
               </li>
+
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  await FM.compressToOtherPanel(['*.jpg','file.txt'])
+                </code>{" "}
+                — compress selected items (or, if nothing is selected, apply the
+                supplied patterns across the source panel) into a ZIP archive
+                placed in the other panel. Patterns support exact names,
+                wildcard globs (e.g. '*.jpg') and regex-string selectors.
+              </li>
+              <li>
+                <code className="bg-gray-900 px-2 py-1 rounded">
+                  await FM.copyToActivePanel(['a.txt','b/c.jpg'], 'if_newer')
+                </code>{" "}
+                — copy selected items from the other (inactive) panel into the
+                active panel. If there's no selection in the source panel and
+                item patterns are supplied, those patterns are applied across
+                the entire panel. The optional overwrite parameter accepts
+                boolean values or canonical tokens such as 'if_newer' to control
+                overwrite behavior (and avoid interactive prompts).
+              </li>
             </ul>
+            <p className="mt-2 text-xs text-slate-400">
+              Full parameter details and behavior are defined in
+              <code className="ml-1">misc/fm/meta.json</code> and
+              <code className="ml-1">misc/fm/methods.js</code>.
+            </p>
             <img
               src={fmScreenshot}
               alt="FM Modal Screenshot"

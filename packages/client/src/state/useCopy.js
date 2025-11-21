@@ -145,10 +145,25 @@ export default function useCopy({
       }
 
       try {
+        // If a console-driven pending overwrite decision exists, consume it
+        // and pass it to the server so the server can avoid prompting.
+        let overwritePref = undefined;
+        try {
+          if (
+            typeof window !== "undefined" &&
+            window.__FM_PENDING_OVERWRITE__ !== undefined
+          ) {
+            overwritePref = window.__FM_PENDING_OVERWRITE__;
+            // consume
+            delete window.__FM_PENDING_OVERWRITE__;
+          }
+        } catch (e) {}
+
         const { jobId } = await startCopyItems(
           sources,
           destinationPath,
-          isMove
+          isMove,
+          overwritePref
         );
         const isZipAdd = !!matchZipPath(destinationPath);
         setCopyProgress({
@@ -327,6 +342,34 @@ export default function useCopy({
             },
             jobType: copyProgress.isMove ? "move" : "copy",
           });
+          // If a pending console-driven overwrite decision exists, apply it automatically.
+          try {
+            if (
+              typeof window !== "undefined" &&
+              window.__FM_PENDING_OVERWRITE__ !== undefined &&
+              window.__APP_STATE__ &&
+              typeof window.__APP_STATE__.handleOverwriteDecision === "function"
+            ) {
+              const pending = window.__FM_PENDING_OVERWRITE__;
+              // consume pending value to avoid reusing for subsequent prompts
+              delete window.__FM_PENDING_OVERWRITE__;
+              let decision = null;
+              // Map boolean values to server-friendly decisions
+              if (typeof pending === "boolean") {
+                decision = pending ? "overwrite" : "skip";
+              } else if (typeof pending === "string") {
+                decision = pending;
+              }
+              if (decision) {
+                window.__APP_STATE__.handleOverwriteDecision(
+                  decision,
+                  data.promptId
+                );
+              }
+            }
+          } catch (e) {
+            // swallow errors to avoid disrupting copy flow
+          }
           break;
         case "complete":
           if (copyProgress.isMove) {

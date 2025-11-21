@@ -219,6 +219,78 @@ function parseItemLine(text, section, state) {
 }
 
 /**
+ * Detect whether a string looks like a wildcard/glob pattern
+ * Supports * ? and character classes like [abc]
+ */
+function looksLikeWildcard(s) {
+  return typeof s === "string" && /[*?\[\]]/.test(s);
+}
+
+/**
+ * Detect whether a value looks like a regular expression.
+ * Accepts RegExp objects, or strings that use JS literal regex notation: /pattern/flags
+ */
+function looksLikeRegex(s) {
+  if (s instanceof RegExp) return true;
+  if (typeof s !== "string") return false;
+  // simple detection: starts and ends with / and contains at least one char between
+  return /^\/.*\/[gimsuy]*$/.test(s);
+}
+
+/**
+ * Parse a pattern into a RegExp instance.
+ * - If p is a RegExp, returns it.
+ * - If p is a string in /pattern/flags form, returns new RegExp(pattern, flags).
+ * - If p is a wildcard-like pattern, returns globToRegExp(p).
+ * - Otherwise returns null.
+ */
+function parsePatternToRegex(p) {
+  if (p instanceof RegExp) return p;
+  if (typeof p !== "string") return null;
+
+  // Check for /pattern/flags syntax
+  const match = p.match(/^\/(.*)\/([gimsuy]*)$/);
+  if (match) {
+    try {
+      return new RegExp(match[1], match[2] || "");
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // If it's a wildcard-style pattern, translate to RegExp
+  if (looksLikeWildcard(p)) return globToRegExp(p);
+
+  // Not a regex/wildcard
+  return null;
+}
+
+/**
+ * Convert a simple glob pattern (supports * and ? and basic character classes) into a RegExp
+ * Returns null if conversion failed.
+ */
+function globToRegExp(p) {
+  if (typeof p !== "string") return null;
+  const s = p.replace(/\\/g, "/");
+  // Escape regex special chars but leave glob tokens (*, ?, [ and ]) intact
+  // so they can be translated into proper regex equivalents below.
+  // We escape: . + ^ $ ( ) { } | \ / - and other meta chars except glob ones.
+  const escaped = s.replace(/([.+^$(){}|\\\\/\\-])/g, "\\$1");
+  // Convert glob stars and question marks to regex tokens
+  const reStr = "^" + escaped.replace(/\*/g, ".*").replace(/\?/g, ".") + "$";
+  try {
+    // Treat glob/wildcard patterns as case-insensitive by default. This
+    // mirrors typical filesystem behavior on case-insensitive platforms
+    // (e.g. macOS) and matches the behavior developers expect when they
+    // write patterns like '*.jpg'. If callers need case-sensitive matching
+    // they can pass a RegExp explicitly (e.g. /pattern/flags).
+    return new RegExp(reStr, "i");
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * Expand literal backtick template examples that include escaped newline sequences
  * so they print as multi-line examples. For example: `` `Line 1\nLine 2` `` -> multi-line text
  */
@@ -237,6 +309,10 @@ export {
   buildSelection,
   normalizeNameToPanel,
   parseItemLine,
+  looksLikeWildcard,
+  looksLikeRegex,
+  globToRegExp,
+  parsePatternToRegex,
   expandBacktickNewlines,
 };
 

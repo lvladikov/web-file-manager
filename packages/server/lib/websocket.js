@@ -1872,6 +1872,18 @@ export function initializeWebSocketServer(
               zipfile = await open(sourceToDecompress);
               job.zipfile = zipfile;
 
+              // Track whether the destination existed when the job started
+              // and keep a set of paths created during this job so we don't
+              // prompt on paths that the job itself just created (new subfolder).
+              try {
+                job._destinationExistedAtStart = await fse.pathExists(
+                  job.destination
+                );
+              } catch (e) {
+                job._destinationExistedAtStart = false;
+              }
+              job._createdPaths = new Set();
+
               let processedBytes = 0;
               let processedFiles = 0;
               let lastUpdateTime = Date.now();
@@ -2175,7 +2187,29 @@ export function initializeWebSocketServer(
 
                 const destPath = path.join(job.destination, entry.filename);
 
-                if (await fse.pathExists(destPath)) {
+                // Check whether a destination path exists. If it is under the
+                // job.destination and the destination folder did not exist at
+                // the start of the job, treat it as non-existent unless the
+                // path was created earlier by this same job (createdPaths).
+                let destPathExists = await fse.pathExists(destPath);
+                const destPathResolved = path.resolve(destPath);
+                const jobDestResolved = path.resolve(job.destination);
+                const destIsUnderJobDestination =
+                  destPathResolved === jobDestResolved ||
+                  destPathResolved.startsWith(jobDestResolved + path.sep);
+
+                if (
+                  destPathExists &&
+                  destIsUnderJobDestination &&
+                  !job._destinationExistedAtStart
+                ) {
+                  // The path exists but it was created by this job in a prior
+                  // step or otherwise (shouldn't happen) — do not prompt in
+                  // this case. Treat as not pre-existing.
+                  destPathExists = false;
+                }
+
+                if (destPathExists) {
                   let decision = job.overwriteDecision;
 
                   // Consult any folder-level decisions made during pre-scan.
@@ -2325,6 +2359,9 @@ export function initializeWebSocketServer(
 
                 if (entry.filename.endsWith("/")) {
                   await fse.mkdirp(destPath);
+                  try {
+                    job._createdPaths.add(path.resolve(destPath));
+                  } catch (e) {}
                   let mtime;
                   try {
                     mtime = entry.getLastMod();
@@ -2370,6 +2407,9 @@ export function initializeWebSocketServer(
                             );
                         });
                       }
+                      try {
+                        job._createdPaths.add(path.resolve(destPath));
+                      } catch (e) {}
                       resolve();
                     });
                     writeStream.on("error", reject);
