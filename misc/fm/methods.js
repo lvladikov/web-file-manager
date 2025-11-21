@@ -11,9 +11,6 @@ import {
   normalizeNameToPanel,
   waitForZipJobCompletion,
   matchZipPath,
-  looksLikeWildcard,
-  looksLikeRegex,
-  globToRegExp,
   parsePatternToRegex,
 } from "./utils.js";
 

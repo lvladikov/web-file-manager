@@ -75,6 +75,36 @@ if (fs.existsSync(serverDir)) {
     path.join(serverDir, "routes"),
     path.join(serverOutputDir, "routes")
   );
+  // After copying server/routes into the electron dist we need to fix
+  // relative imports that reference the repository root's misc/fm path.
+  // In the dist tree those imports should point to '../../misc/fm' (inside
+  // dist) so adjust the copied files here to avoid requiring a package-level
+  // duplicate under packages/electron/misc.
+  try {
+    const routesDistDir = path.join(serverOutputDir, "routes");
+    if (fs.existsSync(routesDistDir)) {
+      const files = await fs.readdir(routesDistDir);
+      const walk = async (dir) => {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        for (const e of entries) {
+          const p = path.join(dir, e.name);
+          if (e.isDirectory()) await walk(p);
+          else if (e.isFile() && p.endsWith('.js')) {
+            let content = await fs.readFile(p, 'utf8');
+            // Replace imports that point to the repo-root misc/fm path
+            // '../../../misc/fm' --> '../../misc/fm' (works for dist/server/routes)
+            if (content.includes("../../../misc/fm")) {
+              content = content.replace(/\.\.\/\.\.\/\.\.\/misc\/fm/g, "..\/..\/misc\/fm");
+              await fs.writeFile(p, content, 'utf8');
+            }
+          }
+        }
+      };
+      await walk(routesDistDir);
+    }
+  } catch (e) {
+    console.warn('Could not patch dist server route imports:', e && e.message);
+  }
   await fs.copy(path.join(serverDir, "lib"), path.join(serverOutputDir, "lib"));
   // Copy package.json and config if they exist
   if (fs.existsSync(path.join(serverDir, "package.json"))) {
@@ -92,6 +122,29 @@ if (fs.existsSync(serverDir)) {
 } else {
   console.error("Server package not found. Ensure packages/server exists.");
   process.exit(1);
+}
+
+// Ensure misc/fm (developer helpers) are copied into electron dist so the
+// packaged app can resolve imports like '../../../misc/fm/utils.js'. This is
+// required because server route files import helpers via relative paths that
+// expect misc/fm to be available next to the dist tree in packaged builds.
+try {
+  const repoRoot = path.resolve(path.join(packageDir, "..", ".."));
+  const miscFmSrc = path.join(repoRoot, "misc", "fm");
+  const miscFmDest = path.join(electronDistDir, "misc", "fm");
+  if (fs.existsSync(miscFmSrc)) {
+    console.log(`Copying misc/fm into electron dist -> ${miscFmDest}`);
+    await fs.ensureDir(path.dirname(miscFmDest));
+    await fs.copy(miscFmSrc, miscFmDest);
+  }
+  // Note: we intentionally DO NOT copy misc/fm into packages/electron/misc
+  // (package-level folder). We only copy it into the electron dist output
+  // (dist/misc). This avoids creating a duplicate source tree in
+  // packages/electron while still ensuring the packaged app has the
+  // required files in the dist tree.
+} catch (e) {
+  // Non-fatal — continue with build but warn so maintainer can investigate.
+  console.warn("Failed to copy misc/fm into electron dist:", e && e.message);
 }
 
 // Run the node-pty patcher early so the server copy inside electron dist is

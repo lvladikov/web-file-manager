@@ -17,12 +17,7 @@ import {
 } from "../lib/utils.js";
 
 // Reuse the shared FM wildcard helpers so server and client use identical logic
-import {
-  looksLikeWildcard,
-  looksLikeRegex,
-  globToRegExp,
-  parsePatternToRegex,
-} from "../../../misc/fm/utils.js";
+import { parsePatternToRegex } from "../../../misc/fm/utils.js";
 
 import { unregisterAllForJob } from "../lib/prompt-registry.js";
 

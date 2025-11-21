@@ -79,6 +79,7 @@
       "maintainer": "Lachezar Vladikov <lachezar@gmail.com>"
     },
     "files": [
+      "dist/misc/**/*",
       "dist/main.js",
       "dist/preload.js",
       "dist/client/**/*",
