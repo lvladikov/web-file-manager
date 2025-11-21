@@ -367,7 +367,8 @@ export default function createFileSystemRoutes(
           // zip file. This serializes rename/delete operations that modify
           // the same archive and helps avoid concurrent update races.
           const existingJob = Array.from(activeZipOperations.values()).find(
-            (j) => j && j.type === "delete-in-zip" && j.zipFilePath === containerPath
+            (j) =>
+              j && j.type === "delete-in-zip" && j.zipFilePath === containerPath
           );
           if (existingJob && existingJob.completionPromise) {
             try {
@@ -431,9 +432,13 @@ export default function createFileSystemRoutes(
       if (jobIds.length > 0) {
         // If we created one or more zip delete jobs return the list of ids.
         if (jobIds.length === 1) {
-          return res.status(202).json({ message: "Delete job started.", jobId: jobIds[0] });
+          return res
+            .status(202)
+            .json({ message: "Delete job started.", jobId: jobIds[0] });
         }
-        return res.status(202).json({ message: "Delete jobs started.", jobIds });
+        return res
+          .status(202)
+          .json({ message: "Delete jobs started.", jobIds });
       }
 
       // No zip jobs created and (presumably) filesystem deletes processed

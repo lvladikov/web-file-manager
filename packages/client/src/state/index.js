@@ -13,6 +13,7 @@ import {
   buildFullPath,
   matchZipPath,
   dirname,
+  applySelectionAnchorAndFocus,
 } from "../lib/utils";
 
 import useDelete from "./useDelete";
@@ -718,6 +719,13 @@ export default function appState() {
         ...prev,
         [panelId]: new Set(allSelectableItems),
       }));
+
+      // Ensure the focused item and selection anchor are set when selecting
+      // all via keyboard (CMD+A). Manual mouse-based multi-select sets these
+      // implicitly — make CMD+A behave the same so keyboard shortcuts like
+      // F5/F6 that depend on focusedItem work after select-all.
+      // Apply anchor/focus behavior using helper
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, allSelectableItems);
     },
     [panels, filter, sortedAndFilteredItems, setSelections]
   );
@@ -725,6 +733,8 @@ export default function appState() {
   const handleUnselectAll = useCallback(
     (panelId) => {
       setSelections((prev) => ({ ...prev, [panelId]: new Set() }));
+      // Clear focus/anchor when unselecting all
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, []);
     },
     [setSelections]
   );
@@ -746,6 +756,9 @@ export default function appState() {
       );
 
       setSelections((prev) => ({ ...prev, [panelId]: newSelection }));
+      // Update focus/anchor consistent with manual invert behaviour
+      const arr = Array.from(newSelection);
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, arr);
     },
     [panels, filter, sortedAndFilteredItems, selections, setSelections]
   );
@@ -826,6 +839,12 @@ export default function appState() {
       }
 
       setSelections((prev) => ({ ...prev, [activePanel]: currentSelection }));
+      // Set selection anchor and focused item for quick-select operations
+      (function () {
+        const arr = Array.from(currentSelection);
+        // Update anchor/focus for quick-select behavior using helper
+        applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, activePanel, arr);
+      })();
     },
     [
       activePanel,
@@ -861,6 +880,8 @@ export default function appState() {
         ...prev,
         [panelId]: new Set(fileItems),
       }));
+      // Set focus/anchor for programmatic file selection
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, fileItems);
     },
     [panels, filter, sortedAndFilteredItems, setSelections]
   );
@@ -878,6 +899,8 @@ export default function appState() {
         ...prev,
         [panelId]: new Set(folderItems),
       }));
+      // Make programmatic folder selection set focus/anchor
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, folderItems);
     },
     [panels, filter, sortedAndFilteredItems, setSelections]
   );
@@ -895,6 +918,8 @@ export default function appState() {
         ...prev,
         [panelId]: new Set(zipItems),
       }));
+      // Make programmatic zip selection set focus/anchor
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, zipItems);
     },
     [panels, filter, sortedAndFilteredItems, setSelections]
   );
@@ -916,6 +941,9 @@ export default function appState() {
         ...prev,
         [panelId]: newSelection,
       }));
+      // Adjust focus/anchor after programmatic unselect-files
+      const arrFiles = Array.from(newSelection);
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, arrFiles);
     },
     [panels, filter, sortedAndFilteredItems, selections, setSelections]
   );
@@ -937,6 +965,9 @@ export default function appState() {
         ...prev,
         [panelId]: newSelection,
       }));
+      // Adjust focus/anchor after programmatic unselect-folders
+      const arrFolders = Array.from(newSelection);
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, arrFolders);
     },
     [panels, filter, sortedAndFilteredItems, selections, setSelections]
   );
@@ -958,6 +989,9 @@ export default function appState() {
         ...prev,
         [panelId]: newSelection,
       }));
+      // Adjust focus/anchor after programmatic unselect-zip
+      const arrZip = Array.from(newSelection);
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, arrZip);
     },
     [panels, filter, sortedAndFilteredItems, selections, setSelections]
   );
@@ -1059,6 +1093,9 @@ export default function appState() {
       }
 
       setSelections((prev) => ({ ...prev, [panelId]: currentSelection }));
+      // Set selection anchor and focused item for programmatic quick-select
+      // Set selection anchor and focused item for programmatic quick-select
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, Array.from(currentSelection));
       return currentSelection.size;
     },
     [panels, filter, sortedAndFilteredItems, selections, setSelections]
@@ -1114,6 +1151,9 @@ export default function appState() {
       }
 
       setSelections((prev) => ({ ...prev, [panelId]: currentSelection }));
+      // Adjust focus/anchor after quick-unselect
+      // Adjust focus/anchor after quick-unselect
+      applySelectionAnchorAndFocus({ setSelectionAnchor, setFocusedItem }, panelId, Array.from(currentSelection));
       return currentSelection.size;
     },
     [panels, filter, sortedAndFilteredItems, selections, setSelections]

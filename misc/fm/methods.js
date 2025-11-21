@@ -9,6 +9,7 @@ import {
   getAppState,
   buildSelection,
   normalizeNameToPanel,
+  applySelectionAnchorAndFocus,
   waitForZipJobCompletion,
   matchZipPath,
   parsePatternToRegex,
@@ -1876,6 +1877,13 @@ function createFMMethods(FM) {
       }
     });
 
+    // Apply a consistent selection anchor/focus behavior for programmatic
+    // selection so it matches manual selection semantics (first -> anchor,
+    // last -> focused item) which is important for keyboard actions.
+    try {
+      applySelectionAnchorAndFocus(state, panelSide, selectedBasenames);
+    } catch (e) {}
+
     return { selected, notFound };
   };
 
@@ -2004,6 +2012,12 @@ function createFMMethods(FM) {
       }
     });
 
+    // Ensure focus/anchor for programmatic changes on the other panel match
+    // manual/active panel behavior.
+    try {
+      applySelectionAnchorAndFocus(state, panelSide, selectedBasenames);
+    } catch (e) {}
+
     return { selected, notFound };
   };
 
@@ -2014,6 +2028,10 @@ function createFMMethods(FM) {
     if (typeof state.handleUnselectAll === "function") {
       state.handleUnselectAll(state.activePanel);
     }
+    try {
+      // Clear anchor/focus using helper
+      applySelectionAnchorAndFocus(state, state.activePanel, []);
+    } catch (e) {}
   };
 
   // FM.resetOtherPanelSelection
@@ -2024,6 +2042,10 @@ function createFMMethods(FM) {
     if (typeof state.handleUnselectAll === "function") {
       state.handleUnselectAll(otherPanel);
     }
+    try {
+      // Clear anchor/focus using helper
+      applySelectionAnchorAndFocus(state, otherPanel, []);
+    } catch (e) {}
   };
 
   // FM.resetBothPanelsSelections
@@ -2034,6 +2056,11 @@ function createFMMethods(FM) {
       state.handleUnselectAll("left");
       state.handleUnselectAll("right");
     }
+    try {
+      // Clear anchor/focus for both sides via helper
+      applySelectionAnchorAndFocus(state, "left", []);
+      applySelectionAnchorAndFocus(state, "right", []);
+    } catch (e) {}
   };
 
   // FM.invertActivePanelSelection

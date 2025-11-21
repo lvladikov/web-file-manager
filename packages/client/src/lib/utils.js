@@ -353,6 +353,27 @@ const matchZipPath = (path) => {
 
 const isVerboseLogging = () => Boolean(window?.__VERBOSE_LOGGING__);
 
+/**
+ * Apply selection anchor and focused item for a given panel within the app state.
+ * - `panelId` is the string id of the panel (e.g. 'left' or 'right')
+ * - `selectedBasenames` is an array of basenames representing the selection order
+ * If `selectedBasenames` is empty, both anchor and focus are cleared.
+ */
+const applySelectionAnchorAndFocus = (state, panelId, selectedBasenames = []) => {
+  try {
+    const first = selectedBasenames.length > 0 ? selectedBasenames[0] : null;
+    const last = selectedBasenames.length > 0 ? selectedBasenames[selectedBasenames.length - 1] : null;
+    if (typeof state.setSelectionAnchor === 'function') {
+      state.setSelectionAnchor((prev) => ({ ...prev, [panelId]: first }));
+    }
+    if (typeof state.setFocusedItem === 'function') {
+      state.setFocusedItem((prev) => ({ ...prev, [panelId]: last }));
+    }
+  } catch (e) {
+    // Best-effort only
+  }
+};
+
 export {
   buildFullPath,
   formatBytes,
@@ -378,4 +399,5 @@ export {
   submenuTriggerClassName,
   matchZipPath,
   isVerboseLogging,
+  applySelectionAnchorAndFocus,
 };

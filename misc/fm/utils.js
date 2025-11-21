@@ -303,19 +303,6 @@ function expandBacktickNewlines(s) {
   });
 }
 
-export {
-  detectBuildType,
-  getAppState,
-  buildSelection,
-  normalizeNameToPanel,
-  parseItemLine,
-  looksLikeWildcard,
-  looksLikeRegex,
-  globToRegExp,
-  parsePatternToRegex,
-  expandBacktickNewlines,
-};
-
 /**
  * Detects whether a provided path refers to content inside a zip archive.
  * Mirrors the server side implementation in packages/server/lib/zip-utils.js
@@ -326,7 +313,37 @@ function matchZipPath(p) {
   if (!p) return null;
   return p.match(/^(.*?\.zip)(.*)$/);
 }
-export { matchZipPath };
+/**
+ * Apply selection anchor and focused item for a given panel in app state.
+ * Sets the panel's selectionAnchor to the first selected item and the
+ * focusedItem to the last selected item. If selectedBasenames is empty or
+ * not provided, both anchor and focus will be set to null.
+ *
+ * @param {Object} state - app state (getAppState() return)
+ * @param {string} panelSide - 'left' | 'right'
+ * @param {Array<string>} selectedBasenames - array of basenames currently selected
+ */
+function applySelectionAnchorAndFocus(
+  state,
+  panelSide,
+  selectedBasenames = []
+) {
+  try {
+    const first = selectedBasenames.length > 0 ? selectedBasenames[0] : null;
+    const last =
+      selectedBasenames.length > 0
+        ? selectedBasenames[selectedBasenames.length - 1]
+        : null;
+    if (typeof state.setSelectionAnchor === "function") {
+      state.setSelectionAnchor((prev) => ({ ...prev, [panelSide]: first }));
+    }
+    if (typeof state.setFocusedItem === "function") {
+      state.setFocusedItem((prev) => ({ ...prev, [panelSide]: last }));
+    }
+  } catch (e) {
+    // Best-effort only
+  }
+}
 
 /**
  * Waits for a zip job to complete by connecting to the server WebSocket for the jobId
@@ -484,4 +501,18 @@ function waitForZipJobCompletion(jobId, jobType, opts = {}) {
   });
 }
 
-export { waitForZipJobCompletion };
+export {
+  detectBuildType,
+  getAppState,
+  buildSelection,
+  normalizeNameToPanel,
+  parseItemLine,
+  looksLikeWildcard,
+  looksLikeRegex,
+  globToRegExp,
+  parsePatternToRegex,
+  expandBacktickNewlines,
+  matchZipPath,
+  waitForZipJobCompletion,
+  applySelectionAnchorAndFocus,
+};
