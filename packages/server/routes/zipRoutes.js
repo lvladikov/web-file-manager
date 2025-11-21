@@ -1,8 +1,11 @@
 import express from "express";
 import fse from "fs-extra";
 import path from "path";
+import os from "os";
 import crypto from "crypto";
 import archiver from "archiver";
+import yauzl from "yauzl-promise";
+
 import {
   getDirTotalSize,
   matchZipPath,
@@ -12,6 +15,7 @@ import {
   getMimeType,
   findCoverInZip,
 } from "../lib/utils.js";
+
 import { unregisterAllForJob } from "../lib/prompt-registry.js";
 
 export default function createZipRoutes(
@@ -245,8 +249,6 @@ export default function createZipRoutes(
       id: jobId,
       _traceId: crypto.randomUUID(),
       status: "pending",
-      ws: null,
-      controller: new AbortController(),
       sources,
       destination,
       sourceDirectory,
@@ -256,8 +258,10 @@ export default function createZipRoutes(
       totalBytes: totalSize,
       compressedBytes: 0,
       currentFile: "",
-      overwriteResolvers: [],
+      ws: null,
+      controller: new AbortController(),
     };
+
     activeCompressJobs.set(jobId, job);
 
     // Send jobId immediately so client can connect WebSocket
@@ -293,8 +297,8 @@ export default function createZipRoutes(
   });
 
   // Endpoint to decompress an archive
-  router.post("/zip/decompress", (req, res) => {
-    const { source, destination } = req.body;
+  router.post("/zip/decompress", async (req, res) => {
+    const { source, destination, itemsToExtract } = req.body;
     if (!source || !destination) {
       return res
         .status(400)
@@ -332,6 +336,136 @@ export default function createZipRoutes(
     }
 
     const jobId = crypto.randomUUID();
+
+    // If the client requested selective extraction, expand their hints into
+    // exact zip entry names by scanning the archive. This allows callers to
+    // pass basenames like "file.txt" or folder names and have the server
+    // resolve the actual entry paths inside the zip.
+    let filenamesToExtract = undefined;
+    let preserveBasePath = false;
+
+    if (Array.isArray(itemsToExtract) && itemsToExtract.length > 0) {
+      preserveBasePath = true;
+      // Determine a local file to scan: if this is a nested zip, extract the inner
+      // zip to a temp file first, otherwise scan the zip file directly.
+      let zipToScan = zipFilePath || sourcePath;
+      const tempDirs = [];
+      try {
+        if (isNestedZip && zipFilePath && filePathInZip) {
+          const tmpDir = fse.mkdtempSync(path.join(os.tmpdir(), "nested-zip-"));
+          tempDirs.push(tmpDir);
+          const tmpInnerZipPath = path.join(
+            tmpDir,
+            path.basename(filePathInZip)
+          );
+          const parentZip = await yauzl.open(zipFilePath);
+          try {
+            let entryFound = null;
+            for await (const entry of parentZip) {
+              if (entry.filename === filePathInZip) {
+                entryFound = entry;
+                break;
+              }
+            }
+            if (!entryFound) {
+              await parentZip.close();
+              throw new Error(`Nested zip not found: ${filePathInZip}`);
+            }
+            const rs = await parentZip.openReadStream(entryFound);
+            const ws = fse.createWriteStream(tmpInnerZipPath);
+            await new Promise((resolve, reject) => {
+              rs.pipe(ws);
+              rs.on("end", resolve);
+              rs.on("error", reject);
+              ws.on("error", reject);
+            });
+            await parentZip.close();
+            zipToScan = tmpInnerZipPath;
+          } catch (e) {
+            try {
+              await parentZip.close();
+            } catch (ee) {}
+            for (const d of tempDirs) await fse.remove(d).catch(() => {});
+            throw e;
+          }
+        }
+
+        // Open the zip and collect all entry names
+        const zipfileToScan = await yauzl.open(zipToScan);
+        const allEntries = [];
+        for await (const entry of zipfileToScan) {
+          allEntries.push(entry.filename);
+        }
+        await zipfileToScan.close();
+
+        const entrySet = new Set(allEntries);
+        const expanded = new Set();
+
+        for (const raw of itemsToExtract) {
+          const hint = String(raw).replace(/\\/g, "/").replace(/^\//, "");
+
+          // Exact entry match
+          if (entrySet.has(hint)) {
+            expanded.add(hint);
+            continue;
+          }
+
+          // If the hint looks like a folder, match entries that start with it
+          const folderHint = hint.endsWith("/") ? hint : `${hint}/`;
+          for (const e of allEntries) {
+            if (e.startsWith(folderHint)) {
+              expanded.add(e);
+            }
+          }
+
+          // Match by basename (e.g. user passed "file.txt" and entry is "some/path/file.txt")
+          for (const e of allEntries) {
+            if (path.posix.basename(e) === hint) {
+              expanded.add(e);
+            }
+            // Also support entries that end with '/'+hint (same as basename but safer)
+            if (e.endsWith(`/${hint}`)) {
+              expanded.add(e);
+            }
+          }
+        }
+
+        filenamesToExtract = Array.from(expanded);
+      } finally {
+        // cleanup any temp dirs created for nested zip extraction
+        try {
+          for (const d of tempDirs || []) await fse.remove(d).catch(() => {});
+        } catch (e) {}
+      }
+    }
+    // Normalize overwrite preference from client and attach to job so websocket
+    // handler can avoid prompting when an initial override is requested.
+    // Accepts:
+    //  - boolean: true -> overwrite_all, false -> skip_all
+    //  - short strings: 'overwrite' | 'skip' (mapped to internal _all tokens)
+    //  - server canonical tokens: 'if_newer', 'smaller_only', 'no_zero_length', 'size_differs', 'cancel'
+    // Any other string will be passed through as-is so custom tokens remain possible.
+    let initialOverwrite = undefined;
+    if (typeof req.body.overwrite !== "undefined") {
+      const ov = req.body.overwrite;
+      if (typeof ov === "boolean") {
+        initialOverwrite = ov ? "overwrite_all" : "skip_all";
+      } else if (typeof ov === "string") {
+        const s = ov.trim().toLowerCase();
+        // Only map the clear short shorthands to their internal global forms.
+        if (["overwrite", "true"].includes(s)) {
+          initialOverwrite = "overwrite_all";
+        } else if (["skip", "false"].includes(s)) {
+          initialOverwrite = "skip_all";
+        } else {
+          // Pass through canonical server tokens (if provided) or unknown strings
+          // The server's downstream logic already understands canonical names like
+          // 'if_newer', 'smaller_only', 'no_zero_length', 'size_differs', 'cancel'.
+          initialOverwrite = s;
+        }
+      }
+    }
+
     const job = {
       id: jobId,
       _traceId: crypto.randomUUID(),
@@ -347,6 +481,24 @@ export default function createZipRoutes(
       filePathInZip,
       // allow client to enable server-side verbose logging for debugging
       verboseLogging: !!req.body.verboseLogging,
+      filenamesToExtract:
+        Array.isArray(filenamesToExtract) && filenamesToExtract.length > 0
+          ? filenamesToExtract
+          : undefined,
+      // Also set `itemsToExtract` for compatibility with the websocket
+      // decompress handler which checks `job.itemsToExtract`.
+      itemsToExtract:
+        Array.isArray(filenamesToExtract) && filenamesToExtract.length > 0
+          ? filenamesToExtract
+          : undefined,
+      preserveBasePath:
+        Array.isArray(filenamesToExtract) && filenamesToExtract.length > 0
+          ? true
+          : false,
+      // If the client asked for an initial overwrite decision, store it here
+      // so the websocket flow can honor it and skip prompting when possible.
+      overwriteDecision:
+        initialOverwrite !== undefined ? initialOverwrite : undefined,
     };
     activeDecompressJobs.set(jobId, job);
     res.status(202).json({ jobId });

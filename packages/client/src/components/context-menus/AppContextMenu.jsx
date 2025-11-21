@@ -139,6 +139,13 @@ const AppContextMenu = ({
   const canDecompress = selectedArchiveCount > 0;
   const canTestArchive = selectedArchiveCount > 0;
 
+  // Adjust Archive submenu width based on available archive actions
+  const archiveSubWidthClass = canDecompress
+    ? "w-96"
+    : canCompress
+    ? "w-64"
+    : "w-40";
+
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
@@ -324,7 +331,7 @@ const AppContextMenu = ({
                     </ContextMenu.SubTrigger>
                     <ContextMenu.Portal>
                       <ContextMenu.SubContent
-                        className="z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden w-96"
+                        className={`z-50 bg-gray-700 border border-gray-500 rounded-md shadow-lg text-white font-mono text-sm overflow-hidden ${archiveSubWidthClass}`}
                         sideOffset={2}
                         alignOffset={-5}
                       >

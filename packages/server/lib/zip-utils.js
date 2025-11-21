@@ -1278,6 +1278,17 @@ const renameInZip = async (
 
 const addFilesToZip = async (zipFilePath, pathInZip, job) => {
   const { signal } = job.controller;
+
+  // If an interactive websocket is attached and the client didn't explicitly
+  // set an overwrite policy, default to prompting so users get overwrite prompts
+  // instead of files being silently overwritten.
+  if (
+    typeof job.overwriteDecision === "undefined" &&
+    job.ws &&
+    job.ws.readyState === 1
+  ) {
+    job.overwriteDecision = "prompt";
+  }
   // Normalize pathInZip
   pathInZip = (pathInZip || "").replace(/\\\\/g, "/");
   // Handle nested zip scenarios: if pathInZip contains another zip (e.g. inner.zip/some/path),
@@ -2430,6 +2441,111 @@ const extractFilesFromZip = async (job) => {
       await fse.utimes(destPath, modDate, modDate);
       job.copied += entry.uncompressedSize;
     } else {
+      // File-level conflict handling: if destination exists and we need to
+      // decide whether to overwrite/skip/prompt, evaluate according to
+      // job.overwriteDecision and possibly prompt the connected client.
+      let shouldSkipFile = false;
+
+      const destExists = await fse.pathExists(destPath);
+      if (destExists) {
+        let decision = job.overwriteDecision;
+        const needsPrompt = decision === "prompt";
+
+        if (needsPrompt && job.ws && job.ws.readyState === 1) {
+          const promptId = crypto.randomUUID();
+          if (!job.overwriteResolversMap) ensureInstrumentedResolversMap(job);
+          job.ws.send(
+            JSON.stringify({
+              type: "overwrite_prompt",
+              promptId,
+              file: path.basename(destPath),
+              itemType: "file",
+            })
+          );
+          try {
+            decision = await new Promise((resolve) => {
+              job.overwriteResolversMap.set(promptId, (d) => {
+                try {
+                  job.overwriteDecision = d;
+                  job.overwriteResolversMap.delete(promptId);
+                  unregisterPromptResolver(promptId);
+                } catch (e) {}
+                resolve(d);
+              });
+
+              // per-prompt timeout to auto-skip
+              if (!job._promptTimers) job._promptTimers = new Map();
+              const t = setTimeout(() => {
+                try {
+                  if (
+                    job.overwriteResolversMap &&
+                    job.overwriteResolversMap.has(promptId)
+                  ) {
+                    const r = job.overwriteResolversMap.get(promptId);
+                    job.overwriteDecision = "skip";
+                    try {
+                      if (typeof r === "function") r("skip");
+                    } catch (e) {}
+                    job.overwriteResolversMap.delete(promptId);
+                    unregisterPromptResolver(promptId);
+                  }
+                } finally {
+                  if (job._promptTimers) job._promptTimers.delete(promptId);
+                }
+              }, 30000);
+              job._promptTimers.set(promptId, t);
+            });
+          } catch (err) {
+            // If prompt resolution fails, default to skipping to avoid accidental overwrites
+            decision = "skip";
+          }
+        }
+
+        // Evaluate decision semantics (some decisions are conditional checks)
+        const evaluateDecision = () => {
+          switch (decision) {
+            case "skip":
+            case "skip_all":
+              return true; // skip write
+            case "size_differs": {
+              try {
+                const destStats = fse.statSync(destPath);
+                // if sizes differ, then we proceed with writing only when sizes are same
+                return destStats.size === job.currentFileTotalSize;
+              } catch (e) {
+                return false;
+              }
+            }
+            case "smaller_only": {
+              try {
+                const destStats = fse.statSync(destPath);
+                return destStats.size >= job.currentFileTotalSize;
+              } catch (e) {
+                return false;
+              }
+            }
+            case "no_zero_length":
+              return job.currentFileTotalSize === 0;
+            default:
+              return false; // default: overwrite
+          }
+        };
+
+        // For one-off decisions (overwrite / skip) revert to prompting afterwards
+        if (decision === "overwrite" || decision === "skip") {
+          job.overwriteDecision = "prompt";
+        } else {
+          job.overwriteDecision = decision;
+        }
+
+        shouldSkipFile = evaluateDecision();
+      }
+
+      if (shouldSkipFile) {
+        // Skip copying this file — but still update progress counters to reflect any size or metadata behavior
+        job.copied += entry.uncompressedSize;
+        continue; // move to next entry
+      }
       await fse.mkdirp(path.dirname(destPath));
       const readStream = await entry.openReadStream();
       const writeStream = fse.createWriteStream(destPath);

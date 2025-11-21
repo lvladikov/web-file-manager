@@ -736,6 +736,417 @@ function createFMMethods(FM) {
     state.handleRefreshAllPanels();
   };
 
+  // FM.decompressToActivePanel
+  // Starts decompression of selected archive(s) into the active panel.
+  // Optional `itemsToExtract` can be provided (array of paths inside the archive).
+  // `overwrite` may be:
+  // - boolean: true -> overwrite / false -> skip
+  // - string: either the short shorthands 'overwrite'|'skip' (no prompts),
+  //   or one of the server canonical policy tokens:
+  //   'if_newer', 'smaller_only', 'no_zero_length', 'size_differs', 'cancel'
+  methods.decompressToActivePanel = async function (
+    itemsToExtract = null,
+    overwrite = undefined
+  ) {
+    const state = getAppState();
+    const panelSide = state.activePanel;
+    const selection = buildSelection(panelSide, true) || [];
+    if (!selection || selection.length === 0) {
+      const error = "No selection made in active panel.";
+      console.error(error);
+      return { success: false, error };
+    }
+    const panelItems =
+      (state.panels[panelSide] && state.panels[panelSide].items) || [];
+    const archives = panelItems.filter(
+      (i) => selection.includes(i.name) && i.type === "archive"
+    );
+    if (!archives || archives.length === 0) {
+      const error = "No archive files selected for decompression.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleDecompressInActivePanel !== "function") {
+      const error = "Decompress handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      // If caller provided an overwrite preference, set a short-lived global
+      // pending value that the client will consume when the server emits an
+      // `overwrite_prompt`. The value may be a boolean or a server-decision
+      // string. It's intentionally lightweight and removed once consumed.
+      try {
+        if (typeof window !== "undefined" && typeof overwrite !== "undefined") {
+          window.__FM_PENDING_OVERWRITE__ = overwrite;
+        }
+      } catch (e) {}
+
+      // Handler may not return a promise; call it and return that the job started.
+      const res = state.handleDecompressInActivePanel(itemsToExtract);
+      // If it returned a promise, await it so callers can await startup completion
+      if (res && typeof res.then === "function") await res;
+      return { success: true, message: "Decompression started." };
+    } catch (err) {
+      console.error("decompressToActivePanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.decompressToOtherPanel
+  // Starts decompression of selected archive(s) into the other (inactive) panel.
+  // `overwrite` works same as in `decompressToActivePanel`.
+  methods.decompressToOtherPanel = async function (
+    itemsToExtract = null,
+    overwrite = undefined
+  ) {
+    const state = getAppState();
+    const panelSide = methods.getOtherPanelSide();
+    const selection = buildSelection(state.activePanel, true) || [];
+    if (!selection || selection.length === 0) {
+      const error = "No selection made in active panel.";
+      console.error(error);
+      return { success: false, error };
+    }
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    const archives = panelItems.filter(
+      (i) => selection.includes(i.name) && i.type === "archive"
+    );
+    if (!archives || archives.length === 0) {
+      const error = "No archive files selected for decompression.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleDecompressToOtherPanel !== "function") {
+      const error = "Decompress handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      try {
+        if (typeof window !== "undefined" && typeof overwrite !== "undefined") {
+          window.__FM_PENDING_OVERWRITE__ = overwrite;
+        }
+      } catch (e) {}
+
+      const res = state.handleDecompressToOtherPanel(itemsToExtract);
+      if (res && typeof res.then === "function") await res;
+      return {
+        success: true,
+        message: "Decompression started to other panel.",
+      };
+    } catch (err) {
+      console.error("decompressToOtherPanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.decompressInSubfolderToActivePanel
+  // Starts decompression of selected archive(s) into archive-named subfolder(s) in the active panel.
+  methods.decompressInSubfolderToActivePanel = async function (
+    itemsToExtract = null
+  ) {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    if (!selection || selection.length === 0) {
+      const error = "No selection made in active panel.";
+      console.error(error);
+      return { success: false, error };
+    }
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    const archives = panelItems.filter(
+      (i) => selection.includes(i.name) && i.type === "archive"
+    );
+    if (!archives || archives.length === 0) {
+      const error = "No archive files selected for decompression.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleDecompressInSubfolderInActivePanel !== "function") {
+      const error =
+        "Decompress (subfolder) handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      const res =
+        state.handleDecompressInSubfolderInActivePanel(itemsToExtract);
+      if (res && typeof res.then === "function") await res;
+      return {
+        success: true,
+        message: "Decompression (in subfolder) started.",
+      };
+    } catch (err) {
+      console.error("decompressInSubfolderToActivePanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.decompressInSubfolderToOtherPanel
+  // Starts decompression of selected archive(s) into archive-named subfolder(s) in the other panel.
+  methods.decompressInSubfolderToOtherPanel = async function (
+    itemsToExtract = null
+  ) {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    if (!selection || selection.length === 0) {
+      const error = "No selection made in active panel.";
+      console.error(error);
+      return { success: false, error };
+    }
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    const archives = panelItems.filter(
+      (i) => selection.includes(i.name) && i.type === "archive"
+    );
+    if (!archives || archives.length === 0) {
+      const error = "No archive files selected for decompression.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleDecompressInSubfolderToOtherPanel !== "function") {
+      const error =
+        "Decompress (subfolder) handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      const res = state.handleDecompressInSubfolderToOtherPanel(itemsToExtract);
+      if (res && typeof res.then === "function") await res;
+      return {
+        success: true,
+        message: "Decompression (in subfolder) started to other panel.",
+      };
+    } catch (err) {
+      console.error("decompressInSubfolderToOtherPanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.testArchive
+  // Runs archive integrity test on selected archive(s) and prints detailed progress to the console.
+  // Returns an aggregated report array describing results for each archive.
+  methods.testArchive = async function () {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    if (!selection || selection.length === 0) {
+      const error = "No selection made in active panel.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    const panelItems =
+      (state.panels[state.activePanel] &&
+        state.panels[state.activePanel].items) ||
+      [];
+    const archives = panelItems.filter(
+      (i) => selection.includes(i.name) && i.type === "archive"
+    );
+    if (!archives || archives.length === 0) {
+      const error = "No archive files selected for testing.";
+      console.error(error);
+      return { success: false, error };
+    }
+
+    const reports = [];
+
+    for (let idx = 0; idx < archives.length; idx++) {
+      const archive = archives[idx];
+      const source = {
+        path: state.panels[state.activePanel].path,
+        name: archive.name,
+      };
+      console.log(
+        `📦 [FM.testArchive] Starting test for archive: ${archive.name} (${
+          idx + 1
+        }/${archives.length})`
+      );
+
+      try {
+        // Start archive-test job on the server
+        const resp = await fetch("/api/zip/archive-test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source }),
+        });
+
+        if (!resp.ok && resp.status !== 202) {
+          const errData = await resp.json().catch(() => ({}));
+          const msg = errData.message || `HTTP ${resp.status}`;
+          console.error(
+            `[FM.testArchive] Failed to start test for ${archive.name}: ${msg}`
+          );
+          reports.push({ name: archive.name, success: false, error: msg });
+          continue;
+        }
+
+        const data = await resp.json();
+        const jobId = data && data.jobId;
+        if (!jobId) {
+          console.error(
+            `[FM.testArchive] Server did not return jobId for ${archive.name}`
+          );
+          reports.push({
+            name: archive.name,
+            success: false,
+            error: "No jobId returned",
+          });
+          continue;
+        }
+
+        console.log(
+          `🔎 [FM.testArchive:${jobId}] Job started for ${archive.name}. Listening for progress...`
+        );
+
+        // Use existing utility to wait for job completion; attach onProgress to print per-file details
+        try {
+          const result = await waitForZipJobCompletion(jobId, "archive-test", {
+            showModal: false,
+            triggeredFromConsole: true,
+            onProgress: (d) => {
+              try {
+                // `d` may include currentFile, testedFiles, totalFiles or custom fields depending on server
+                const current = d.currentFile || d.file || "";
+                const tested =
+                  typeof d.testedFiles !== "undefined"
+                    ? d.testedFiles
+                    : d.processed;
+                const total =
+                  typeof d.totalFiles !== "undefined" ? d.totalFiles : d.total;
+                if (current) {
+                  console.log(
+                    `🔁 [FM.testArchive:${jobId}] Testing: ${current} (${
+                      tested || "?"
+                    }/${total || "?"})`
+                  );
+                } else if (typeof tested !== "undefined") {
+                  console.log(
+                    `🔁 [FM.testArchive:${jobId}] Progress: ${tested}/${
+                      total || "?"
+                    }`
+                  );
+                } else {
+                  console.log(`🔁 [FM.testArchive:${jobId}] progress:`, d);
+                }
+              } catch (e) {
+                console.warn(
+                  `[FM.testArchive:${jobId}] progress handler error: ${
+                    e && e.message
+                  }`
+                );
+              }
+            },
+          });
+
+          // `result` should contain the server 'complete' payload (report)
+          console.log(
+            `✅ [FM.testArchive:${jobId}] Complete for ${archive.name}`
+          );
+          console.log(`📋 [FM.testArchive:${jobId}] Full report:`, result);
+          reports.push({ name: archive.name, success: true, report: result });
+        } catch (e) {
+          console.error(
+            `❌ [FM.testArchive] Job ${jobId} for ${archive.name} failed:`,
+            e && e.message ? e.message : e
+          );
+          reports.push({
+            name: archive.name,
+            success: false,
+            error: e && e.message ? e.message : String(e),
+          });
+        }
+      } catch (err) {
+        console.error(
+          `[FM.testArchive] Unexpected error while testing ${archive.name}:`,
+          err
+        );
+        reports.push({
+          name: archive.name,
+          success: false,
+          error: err && err.message ? err.message : String(err),
+        });
+      }
+    }
+
+    return { success: true, reports };
+  };
+
+  // FM.compressToActivePanel
+  // Compresses the current selection into the active panel
+  methods.compressToActivePanel = async function () {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    if (!selection || selection.length === 0) {
+      const error = "No selection made in active panel to compress.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleCompressInActivePanel !== "function") {
+      const error = "Compress handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      const res = state.handleCompressInActivePanel();
+      if (res && typeof res.then === "function") await res;
+      return { success: true, message: "Compression started in active panel." };
+    } catch (err) {
+      console.error("compressToActivePanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
+  // FM.compressToOtherPanel
+  // Compresses the current selection into the other panel
+  methods.compressToOtherPanel = async function () {
+    const state = getAppState();
+    const selection = buildSelection(state.activePanel, true) || [];
+    if (!selection || selection.length === 0) {
+      const error = "No selection made in active panel to compress.";
+      console.error(error);
+      return { success: false, error };
+    }
+    if (typeof state.handleCompressToOtherPanel !== "function") {
+      const error = "Compress (to other) handler not available in app state.";
+      console.error(error);
+      return { success: false, error };
+    }
+    try {
+      const res = state.handleCompressToOtherPanel();
+      if (res && typeof res.then === "function") await res;
+      return { success: true, message: "Compression started to other panel." };
+    } catch (err) {
+      console.error("compressToOtherPanel error:", err);
+      return {
+        success: false,
+        error: err && err.message ? err.message : String(err),
+      };
+    }
+  };
+
   // FM.setActivePanelPath
   // Sets the path of the active panel
   // @param {string} path - The absolute path to navigate to

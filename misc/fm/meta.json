@@ -508,6 +508,101 @@
         "await FM.startOtherPanelTerminal(null, 'pwd') // if you just want to run a command in the other panel path",
         "await FM.startOtherPanelTerminal('/path/that/does/not/exist', 'ls -la') // falls back to other panel if path not found"
       ]
+    },
+    "decompressToActivePanel": {
+      "desc": "Decompress selected ZIP archive(s) into the active panel (async). If `itemsToExtract` array is provided it will extract only those entries from the first selected archive.",
+      "params": [
+        "itemsToExtract? (array - optional list of paths inside the archive to extract)",
+        "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
+      ],
+      "examples": [
+        "await FM.decompressToActivePanel()",
+        "await FM.decompressToActivePanel(['folder/file.txt'])",
+        "// Overwrite parameter: pass a boolean or one of the server decision tokens below.",
+        "// - boolean: true -> overwrite (no prompts), false -> skip (no prompts)",
+        "// - string tokens: 'overwrite' | 'skip' (no prompts), or server policy tokens:",
+        "//   'if_newer'     - copy only if destination is missing or older",
+        "//   'smaller_only' - replace destination if it's smaller",
+        "//   'no_zero_length' - skip when source entry is empty",
+        "//   'size_differs' - overwrite when sizes differ",
+        "//   'cancel'       - cancel the extraction",
+        "await FM.decompressToActivePanel(null, true) // overwrite (no prompts)",
+        "await FM.decompressToActivePanel(null, 'overwrite') // overwrite (no prompts)",
+        "await FM.decompressToActivePanel(null, false) // skip (no prompts)",
+        "await FM.decompressToActivePanel(null, 'skip') // skip (no prompts)",
+        "await FM.decompressToActivePanel(null, 'if_newer') // copy only if dest missing or older",
+        "await FM.decompressToActivePanel(null, 'smaller_only') // replace dest if smaller",
+        "await FM.decompressToActivePanel(null, 'no_zero_length') // skip when source entry is empty",
+        "await FM.decompressToActivePanel(null, 'size_differs') // overwrite when sizes differ",
+        "await FM.decompressToActivePanel(null, 'cancel') // cancel the whole extraction",
+        "// combine itemsToExtract with an explicit decision:",
+        "await FM.decompressToActivePanel(['a.txt','b/c.jpg'], 'if_newer')"
+      ]
+    },
+    "decompressToOtherPanel": {
+      "desc": "Decompress selected ZIP archive(s) into the other (inactive) panel (async). Optional `itemsToExtract` applies to the first selected archive. Optional `overwrite` controls conflict resolution (see examples).",
+      "params": [
+        "itemsToExtract? (array - optional list of paths inside the archive to extract)",
+        "overwrite? (boolean|string - optional; boolean true -> overwrite / false -> skip; or string: 'overwrite'|'skip' or server policy tokens: 'if_newer','smaller_only','no_zero_length','size_differs','cancel')"
+      ],
+      "examples": [
+        "await FM.decompressToOtherPanel()",
+        "await FM.decompressToOtherPanel(['folder/file.txt'])",
+        "// Overwrite parameter: pass a boolean or one of the server decision tokens below.",
+        "// - boolean: true -> overwrite (no prompts), false -> skip (no prompts)",
+        "// - string tokens: 'overwrite' | 'skip' (no prompts), or server policy tokens:",
+        "//   'if_newer'     - copy only if destination is missing or older",
+        "//   'smaller_only' - replace destination if it's smaller",
+        "//   'no_zero_length' - skip when source entry is empty",
+        "//   'size_differs' - overwrite when sizes differ",
+        "//   'cancel'       - cancel the extraction",
+        "await FM.decompressToOtherPanel(null, true) // overwrite (no prompts)",
+        "await FM.decompressToOtherPanel(null, 'overwrite') // overwrite (no prompts)",
+        "await FM.decompressToOtherPanel(null, false) // skip (no prompts)",
+        "await FM.decompressToOtherPanel(null, 'skip') // skip (no prompts)",
+        "await FM.decompressToOtherPanel(null, 'if_newer') // copy only if dest missing or older",
+        "await FM.decompressToOtherPanel(null, 'smaller_only') // replace dest if smaller",
+        "await FM.decompressToOtherPanel(null, 'no_zero_length') // skip when source entry is empty",
+        "await FM.decompressToOtherPanel(null, 'size_differs') // overwrite when sizes differ",
+        "await FM.decompressToOtherPanel(null, 'cancel') // cancel the whole extraction",
+        "// combine itemsToExtract with an explicit decision:",
+        "await FM.decompressToOtherPanel(['a.txt','b/c.jpg'], 'if_newer')"
+      ]
+    },
+    "decompressInSubfolderToActivePanel": {
+      "desc": "Decompress selected ZIP archive(s) into archive-named subfolder(s) inside the active panel (async). Automatically appends suffixes if folder names collide. Supports optional `itemsToExtract`.",
+      "params": [
+        "itemsToExtract? (array - optional list of paths inside the archive to extract)"
+      ],
+      "examples": [
+        "await FM.decompressInSubfolderToActivePanel()",
+        "await FM.decompressInSubfolderToActivePanel(['a/b.txt'])"
+      ]
+    },
+    "decompressInSubfolderToOtherPanel": {
+      "desc": "Decompress selected ZIP archive(s) into archive-named subfolder(s) inside the other panel (async). Automatically appends suffixes if folder names collide. Supports optional `itemsToExtract`.",
+      "params": [
+        "itemsToExtract? (array - optional list of paths inside the archive to extract)"
+      ],
+      "examples": [
+        "await FM.decompressInSubfolderToOtherPanel()",
+        "await FM.decompressInSubfolderToOtherPanel(['a/b.txt'])"
+      ]
+    },
+    "testArchive": {
+      "desc": "Runs an integrity test on selected archive file(s) (async). Returns error if no archives are selected.",
+      "params": [],
+      "examples": ["await FM.testArchive()"]
+    },
+    "compressToActivePanel": {
+      "desc": "Compress the current selection (files/folders) into a zip archive in the active panel (async). Returns error if no selection is made.",
+      "params": [],
+      "examples": ["await FM.compressToActivePanel()"]
+    },
+    "compressToOtherPanel": {
+      "desc": "Compress the current selection (files/folders) into a zip archive in the other panel (async). Returns error if no selection is made.",
+      "params": [],
+      "examples": ["await FM.compressToOtherPanel()"]
     }
   },
   "properties": {

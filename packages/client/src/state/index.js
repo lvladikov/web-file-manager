@@ -1426,7 +1426,7 @@ export default function appState() {
     pendingOverwriteActionRef.current = action;
   }
 
-  const handleOverwriteDecision = (decision) => {
+  const handleOverwriteDecision = (decision, promptId) => {
     // If there's a pending action (e.g. rename), call it instead of sending WS message.
     if (pendingOverwriteActionRef.current) {
       try {
@@ -1441,8 +1441,10 @@ export default function appState() {
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const payload = { type: "overwrite_response", decision };
-      // Include promptId if available in overwritePrompt state
-      if (
+      // Prefer an explicitly provided promptId (avoids race with state updates)
+      if (promptId) {
+        payload.promptId = promptId;
+      } else if (
         overwritePrompt &&
         overwritePrompt.item &&
         overwritePrompt.item.promptId

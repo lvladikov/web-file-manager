@@ -292,11 +292,12 @@ const decompressFiles = async (
   source,
   destination,
   itemsToExtract = null,
-  verboseLogging = false
+  verboseLogging = false,
+  overwrite = undefined
 ) => {
   const response = await post(
     "/api/zip/decompress",
-    { source, destination, itemsToExtract, verboseLogging },
+    { source, destination, itemsToExtract, verboseLogging, overwrite },
     "Failed to decompress archive."
   );
   return response.json();

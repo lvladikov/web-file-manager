@@ -100,6 +100,14 @@ const FileMenu = ({ ...props }) => {
 
   const shouldShowArchiveGroup = selectedItemsDetails.length > 0;
 
+  // Archive submenu width: wide for decompress, medium for compress-only, narrow otherwise
+  // Use standard Tailwind width classes so styling is reliable.
+  const archiveSubWidthClass = canDecompress
+    ? "w-96"
+    : canCompress
+    ? "w-64"
+    : "w-40";
+
   const NewGroup = () => (
     <div
       onMouseEnter={() => setIsNewSubmenuOpen(true)}
@@ -141,7 +149,9 @@ const FileMenu = ({ ...props }) => {
 
       {/* Submenu Content (Simulated popover) */}
       {isArchiveSubmenuOpen && (
-        <div className="absolute top-0 left-full mt-[-1px] w-96 bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50">
+        <div
+          className={`absolute top-0 left-full mt-[-1px] ${archiveSubWidthClass} bg-gray-800 border border-gray-600 rounded-md shadow-lg text-white font-mono text-sm z-50`}
+        >
           {canDecompress ? (
             <>
               <MenuItem

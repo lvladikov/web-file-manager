@@ -1063,6 +1063,36 @@ export function initializeWebSocketServer(
                 }
 
                 job.filenamesToExtract = Array.from(filenamesToExtract);
+                // If the user selected exactly one source and that source corresponds
+                // to a directory inside the zip, preserve the base path so the
+                // extracted data is placed into a new subfolder with that name.
+                // This matches user expectation when copying a folder from a zip
+                // into a non-zip destination.
+                try {
+                  if (sources && Array.isArray(sources) && sources.length === 1) {
+                    const singleSource = sources[0];
+                    const sourceMatch = matchZipPath(singleSource);
+                    if (sourceMatch) {
+                      // Path inside zip without leading slash
+                      const pathInZip = sourceMatch[2].startsWith("/")
+                        ? sourceMatch[2].substring(1)
+                        : sourceMatch[2];
+
+                      // If any extracted filename lives under this path, treat it as a folder
+                      const pathPrefix = pathInZip.endsWith("/")
+                        ? pathInZip
+                        : `${pathInZip}/`;
+                      if (
+                        job.filenamesToExtract.some((f) => f.startsWith(pathPrefix))
+                      ) {
+                        job.preserveBasePath = true;
+                      }
+                    }
+                  }
+                } catch (err) {
+                  // Don't fail the operation if detection fails; leave default behavior
+                  console.warn("[zip-extract] preserveBasePath detection failed:", err && err.message);
+                }
                 job.total = totalUncompressedSize;
                 job.copied = 0;
                 job.status = "copying";
@@ -1623,7 +1653,12 @@ export function initializeWebSocketServer(
             let tempNestedZipPath = null;
 
             try {
-              job.overwriteDecision = "prompt";
+              // Only set default prompt behavior if an initial overwriteDecision
+              // was not provided by the route handler. This preserves explicit
+              // client preferences such as 'skip_all' or 'overwrite_all'.
+              if (typeof job.overwriteDecision === "undefined") {
+                job.overwriteDecision = "prompt";
+              }
 
               // Show overwrite prompt for the destination FOLDER only on FULL extraction.
               if (

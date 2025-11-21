@@ -135,11 +135,26 @@ const useDecompress = ({
         );
 
       try {
+        // If a console-driven pending overwrite decision exists, consume it
+        // and send it to the server so the server can avoid prompting.
+        let overwritePref = undefined;
+        try {
+          if (
+            typeof window !== "undefined" &&
+            window.__FM_PENDING_OVERWRITE__ !== undefined
+          ) {
+            overwritePref = window.__FM_PENDING_OVERWRITE__;
+            // consume
+            delete window.__FM_PENDING_OVERWRITE__;
+          }
+        } catch (e) {}
+
         const { jobId } = await decompressFiles(
           source,
           destinationPath,
           itemsToExtract,
-          isVerboseLogging()
+          isVerboseLogging(),
+          overwritePref
         );
         setDecompressProgress((prev) => ({ ...prev, jobId }));
 
@@ -218,6 +233,37 @@ const useDecompress = ({
                   jobType: "decompress",
                   jobId,
                 });
+                // If a pending console-driven overwrite decision exists, apply it automatically.
+                try {
+                  if (
+                    typeof window !== "undefined" &&
+                    window.__FM_PENDING_OVERWRITE__ !== undefined &&
+                    window.__APP_STATE__ &&
+                    typeof window.__APP_STATE__.handleOverwriteDecision ===
+                      "function"
+                  ) {
+                    const pending = window.__FM_PENDING_OVERWRITE__;
+                    // consume pending value to avoid reusing for subsequent prompts
+                    delete window.__FM_PENDING_OVERWRITE__;
+                    let decision = null;
+                    // Map boolean values to server-friendly decisions
+                    if (typeof pending === "boolean") {
+                      decision = pending ? "overwrite" : "skip";
+                    } else if (typeof pending === "string") {
+                      decision = pending;
+                    }
+                    if (decision) {
+                      // Pass the server promptId so the server can match the resolver
+                      // immediately and avoid a race with state updates.
+                      window.__APP_STATE__.handleOverwriteDecision(
+                        decision,
+                        data.promptId
+                      );
+                    }
+                  }
+                } catch (e) {
+                  // swallow errors to avoid disrupting decompress flow
+                }
                 break;
               case "failed":
               case "error":
