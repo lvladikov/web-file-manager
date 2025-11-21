@@ -373,9 +373,13 @@ export default function useCopy({
           break;
         case "complete":
           if (copyProgress.isMove) {
-            Promise.all(
-              copyProgress.sources.map((source) => deleteItem(source))
-            ).catch((err) => {
+            // Send a single delete request with all source paths instead of
+            // multiple concurrent requests. When moving many files from the
+            // same archive this avoids race conditions where multiple
+            // delete-in-zip jobs run concurrently and conflict with each
+            // other. The server will group paths by container and process
+            // them appropriately.
+            deleteItem(copyProgress.sources).catch((err) => {
               setError(
                 `Failed to delete source files after move: ${err.message}`
               );

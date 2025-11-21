@@ -351,59 +351,93 @@ export default function createFileSystemRoutes(
         return acc;
       }, {});
 
-      // This logic assumes one operation at a time, which is what the client does.
-      const containerPath = Object.keys(groupedPaths)[0];
-      const group = groupedPaths[containerPath];
+      // The client may send multiple paths that span several containers
+      // (different zip files or filesystem). Handle each container group a
+      // bit more robustly: start delete jobs for each zip container and
+      // perform filesystem deletes synchronously. Also avoid starting a
+      // delete job against the same zip file while another delete-in-zip
+      // operation is already active — wait for the existing job to
+      // complete before starting a new one to avoid competing modifications.
+      const jobIds = [];
 
-      if (group.isZip) {
-        const jobId = crypto.randomUUID();
-        const abortController = new AbortController();
-        const job = {
-          id: jobId,
-          _traceId: crypto.randomUUID(),
-          status: "pending",
-          ws: null,
-          controller: abortController,
-          type: "delete-in-zip",
-          zipFilePath: containerPath,
-          pathsInZip: group.paths,
-          originalZipSize: 0,
-          totalBytes: 0,
-          processedBytes: 0,
-          currentFile: "",
-          currentFileTotalSize: 0,
-          currentFileBytesProcessed: 0,
-          overwriteResolvers: [],
-        };
-        activeZipOperations.set(jobId, job);
+      for (const [containerPath, group] of Object.entries(groupedPaths)) {
+        if (group.isZip) {
+          // If there's already an active delete job targeting the same zip,
+          // wait for it to finish before creating a new job for the same
+          // zip file. This serializes rename/delete operations that modify
+          // the same archive and helps avoid concurrent update races.
+          const existingJob = Array.from(activeZipOperations.values()).find(
+            (j) => j && j.type === "delete-in-zip" && j.zipFilePath === containerPath
+          );
+          if (existingJob && existingJob.completionPromise) {
+            try {
+              await existingJob.completionPromise;
+            } catch (e) {
+              // ignore failures on previous job — we still proceed to the next
+            }
+          }
 
-        let resolveCompletion;
-        let rejectCompletion;
-        const completionPromise = new Promise((resolve, reject) => {
-          resolveCompletion = resolve;
-          rejectCompletion = reject;
-        });
-        job.completionPromise = completionPromise;
-        job.resolveCompletion = resolveCompletion;
-        job.rejectCompletion = rejectCompletion;
+          const jobId = crypto.randomUUID();
+          const abortController = new AbortController();
+          const job = {
+            id: jobId,
+            _traceId: crypto.randomUUID(),
+            status: "pending",
+            ws: null,
+            controller: abortController,
+            type: "delete-in-zip",
+            zipFilePath: containerPath,
+            pathsInZip: group.paths,
+            originalZipSize: 0,
+            totalBytes: 0,
+            processedBytes: 0,
+            currentFile: "",
+            currentFileTotalSize: 0,
+            currentFileBytesProcessed: 0,
+            overwriteResolvers: [],
+          };
+          activeZipOperations.set(jobId, job);
 
-        job.originalZipSize = (await fse.pathExists(containerPath))
-          ? (await fse.stat(containerPath)).size
-          : 0;
+          let resolveCompletion;
+          let rejectCompletion;
+          const completionPromise = new Promise((resolve, reject) => {
+            resolveCompletion = resolve;
+            rejectCompletion = reject;
+          });
+          job.completionPromise = completionPromise;
+          job.resolveCompletion = resolveCompletion;
+          job.rejectCompletion = rejectCompletion;
 
-        deleteFromZip(containerPath, group.paths, job)
-          .then(() => job.resolveCompletion())
-          .catch((err) => job.rejectCompletion(err));
+          job.originalZipSize = (await fse.pathExists(containerPath))
+            ? (await fse.stat(containerPath)).size
+            : 0;
 
-        return res.status(202).json({ message: "Delete job started.", jobId });
-      } else {
-        for (const fsPath of group.paths) {
-          if (await fse.pathExists(fsPath)) {
-            await fse.remove(fsPath);
+          // Fire off deletion for this zip container (async) and keep the job registered
+          deleteFromZip(containerPath, group.paths, job)
+            .then(() => job.resolveCompletion())
+            .catch((err) => job.rejectCompletion(err));
+
+          jobIds.push(jobId);
+        } else {
+          // Filesystem paths — delete synchronously
+          for (const fsPath of group.paths) {
+            if (await fse.pathExists(fsPath)) {
+              await fse.remove(fsPath);
+            }
           }
         }
-        return res.status(200).json({ message: "Items deleted successfully." });
       }
+
+      if (jobIds.length > 0) {
+        // If we created one or more zip delete jobs return the list of ids.
+        if (jobIds.length === 1) {
+          return res.status(202).json({ message: "Delete job started.", jobId: jobIds[0] });
+        }
+        return res.status(202).json({ message: "Delete jobs started.", jobIds });
+      }
+
+      // No zip jobs created and (presumably) filesystem deletes processed
+      return res.status(200).json({ message: "Items deleted successfully." });
     } catch (error) {
       console.error("Error deleting items:", error);
       res
