@@ -1069,7 +1069,11 @@ export function initializeWebSocketServer(
                 // This matches user expectation when copying a folder from a zip
                 // into a non-zip destination.
                 try {
-                  if (sources && Array.isArray(sources) && sources.length === 1) {
+                  if (
+                    sources &&
+                    Array.isArray(sources) &&
+                    sources.length === 1
+                  ) {
                     const singleSource = sources[0];
                     const sourceMatch = matchZipPath(singleSource);
                     if (sourceMatch) {
@@ -1083,7 +1087,9 @@ export function initializeWebSocketServer(
                         ? pathInZip
                         : `${pathInZip}/`;
                       if (
-                        job.filenamesToExtract.some((f) => f.startsWith(pathPrefix))
+                        job.filenamesToExtract.some((f) =>
+                          f.startsWith(pathPrefix)
+                        )
                       ) {
                         job.preserveBasePath = true;
                       }
@@ -1091,7 +1097,10 @@ export function initializeWebSocketServer(
                   }
                 } catch (err) {
                   // Don't fail the operation if detection fails; leave default behavior
-                  console.warn("[zip-extract] preserveBasePath detection failed:", err && err.message);
+                  console.warn(
+                    "[zip-extract] preserveBasePath detection failed:",
+                    err && err.message
+                  );
                 }
                 job.total = totalUncompressedSize;
                 job.copied = 0;
