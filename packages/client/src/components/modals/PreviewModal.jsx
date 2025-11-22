@@ -25,6 +25,7 @@ import {
   metaKey,
   isModKey,
   matchZipPath,
+  normalizeKey,
   isVerboseLogging,
 } from "../../lib/utils";
 
@@ -361,6 +362,8 @@ const PreviewModal = ({
   useEffect(() => {
     if (!isVisible) return;
     const handleKeyDown = (e) => {
+      const _key = e.key;
+      const normalizedKey = normalizeKey(_key);
       if (unsavedChangesModalVisible) {
         if (e.key === "Escape") {
           e.preventDefault();
@@ -376,12 +379,12 @@ const PreviewModal = ({
         return;
       }
 
-      if (isModKey(e) && e.key === "s" && isEditing) {
+      if (isModKey(e) && normalizedKey === "s" && isEditing) {
         e.preventDefault();
         handleSave();
       }
 
-      if (isModKey(e) && e.key === "f") {
+      if (isModKey(e) && normalizedKey === "f") {
         if (previewType === "text" || previewType === "zipText") {
           e.preventDefault();
           if (isEditing) {

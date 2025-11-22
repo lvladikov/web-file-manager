@@ -354,19 +354,34 @@ const matchZipPath = (path) => {
 const isVerboseLogging = () => Boolean(window?.__VERBOSE_LOGGING__);
 
 /**
+ * Normalize a keyboard key value for comparisons.
+ * - Single-letter keys are converted to lower-case so comparisons are CapsLock-insensitive.
+ * - Named and multi-character keys are returned unchanged (e.g., 'Escape', 'Tab', 'ArrowUp').
+ */
+const normalizeKey = (key) =>
+  typeof key === "string" && key.length === 1 ? key.toLowerCase() : key;
+
+/**
  * Apply selection anchor and focused item for a given panel within the app state.
  * - `panelId` is the string id of the panel (e.g. 'left' or 'right')
  * - `selectedBasenames` is an array of basenames representing the selection order
  * If `selectedBasenames` is empty, both anchor and focus are cleared.
  */
-const applySelectionAnchorAndFocus = (state, panelId, selectedBasenames = []) => {
+const applySelectionAnchorAndFocus = (
+  state,
+  panelId,
+  selectedBasenames = []
+) => {
   try {
     const first = selectedBasenames.length > 0 ? selectedBasenames[0] : null;
-    const last = selectedBasenames.length > 0 ? selectedBasenames[selectedBasenames.length - 1] : null;
-    if (typeof state.setSelectionAnchor === 'function') {
+    const last =
+      selectedBasenames.length > 0
+        ? selectedBasenames[selectedBasenames.length - 1]
+        : null;
+    if (typeof state.setSelectionAnchor === "function") {
       state.setSelectionAnchor((prev) => ({ ...prev, [panelId]: first }));
     }
-    if (typeof state.setFocusedItem === 'function') {
+    if (typeof state.setFocusedItem === "function") {
       state.setFocusedItem((prev) => ({ ...prev, [panelId]: last }));
     }
   } catch (e) {
@@ -399,5 +414,6 @@ export {
   submenuTriggerClassName,
   matchZipPath,
   isVerboseLogging,
+  normalizeKey,
   applySelectionAnchorAndFocus,
 };

@@ -11,7 +11,7 @@ import { HardDrive, LoaderCircle } from "lucide-react";
 import Icon from "../../components/ui/Icon.jsx";
 import TruncatedText from "../ui/TruncatedText.jsx";
 
-import { isModKey } from "../../lib/utils";
+import { isModKey, normalizeKey } from "../../lib/utils";
 import { fetchDirectory } from "../../lib/api";
 
 const BrowserModal = forwardRef(
@@ -173,7 +173,9 @@ const BrowserModal = forwardRef(
       if (!isVisible) return;
 
       const handleKeyDown = (e) => {
-        if (isModKey(e) && e.key === "a") {
+        const _key = e.key;
+        const normalizedKey = normalizeKey(_key);
+        if (isModKey(e) && normalizedKey === "a") {
           e.preventDefault();
           const allSelectable = items
             .filter((i) => filterItem(i))
@@ -182,7 +184,7 @@ const BrowserModal = forwardRef(
           return;
         }
 
-        if (isModKey(e) && e.key === "d") {
+        if (isModKey(e) && normalizedKey === "d") {
           e.preventDefault();
           return;
         }

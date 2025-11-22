@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
-import { isModKey, isPreviewableText, isVerboseLogging } from "../lib/utils";
+import {
+  isModKey,
+  isPreviewableText,
+  normalizeKey,
+  isVerboseLogging,
+} from "../lib/utils";
 import { exitApp } from "../lib/api";
 
 export default function useKeyboardShortcuts(props) {
@@ -71,6 +76,10 @@ export default function useKeyboardShortcuts(props) {
       }
 
       const panelItems = sortedAndFilteredItems[activePanel];
+
+      // common normalized forms for key comparisons (preserve exact for named keys)
+      const _key = e.key;
+      const normalizedKey = normalizeKey(_key);
 
       // Handle modals that should trap all keyboard input first.
       if (previewModal.isVisible) {
@@ -282,8 +291,8 @@ export default function useKeyboardShortcuts(props) {
           return;
         }
 
-        const isSelectAll = isModKey(e) && e.key === "a";
-        const isUnselectAll = isModKey(e) && e.key === "d";
+        const isSelectAll = isModKey(e) && normalizedKey === "a";
+        const isUnselectAll = isModKey(e) && normalizedKey === "d";
         const isInvertSelection = e.key === "*";
         const isQuickSelect = e.key === "+";
         const isQuickUnselect = e.key === "-";
@@ -378,32 +387,32 @@ export default function useKeyboardShortcuts(props) {
         return;
       }
 
-      if (isModKey(e) && e.key === "a") {
+      if (isModKey(e) && normalizedKey === "a") {
         e.preventDefault();
         handleSelectAll(activePanel);
         return;
       }
-      if (isModKey(e) && e.key === "d") {
+      if (isModKey(e) && normalizedKey === "d") {
         e.preventDefault();
         setSelections((prev) => ({ ...prev, [activePanel]: new Set() }));
         return;
       }
-      if (isModKey(e) && e.key === "u") {
+      if (isModKey(e) && normalizedKey === "u") {
         e.preventDefault();
         handleSwapPanels();
         return;
       }
-      if (isModKey(e) && e.key === "c") {
+      if (isModKey(e) && normalizedKey === "c") {
         e.preventDefault();
         handleCopyToClipboard();
         return;
       }
-      if (isModKey(e) && e.key === "x") {
+      if (isModKey(e) && normalizedKey === "x") {
         e.preventDefault();
         handleCutToClipboard();
         return;
       }
-      if (isModKey(e) && e.key === "v") {
+      if (isModKey(e) && normalizedKey === "v") {
         e.preventDefault();
         handlePasteFromClipboard();
         return;
@@ -428,7 +437,7 @@ export default function useKeyboardShortcuts(props) {
         latestProps.current.handleStartFilter();
         return;
       }
-      if (isModKey(e) && e.key.toLowerCase() === "f") {
+      if (isModKey(e) && normalizedKey === "f") {
         e.preventDefault();
         const targetPanelId = activePanel;
         const targetPath = panels[targetPanelId]?.path || "";
