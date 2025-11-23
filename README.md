@@ -59,7 +59,7 @@ This project is inspired by applications like Midnight Commander and Double Comm
 
 
 
-[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+[Back to Table of Contents](#table-of-contents)
 
 ## General Project Structure
 
@@ -122,7 +122,7 @@ This project is inspired by applications like Midnight Commander and Double Comm
 
 
 
-[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+[Back to Table of Contents](#table-of-contents)
 
 ## Prerequisites
 
@@ -138,7 +138,7 @@ This project is inspired by applications like Midnight Commander and Double Comm
 
 
 
-[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+[Back to Table of Contents](#table-of-contents)
 
 ## Getting Started
 
@@ -189,7 +189,7 @@ This project is inspired by applications like Midnight Commander and Double Comm
 
 
 
-[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+[Back to Table of Contents](#table-of-contents)
 
 ## How It Works
 
@@ -204,7 +204,7 @@ When running the Electron app, both client and server and the node binaries and 
 
 
 
-[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+[Back to Table of Contents](#table-of-contents)
 
 ## Features
 
@@ -499,7 +499,7 @@ When copying/moving, if an item exists in the target, a confirmation dialog appe
 
 
 
-[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+[Back to Table of Contents](#table-of-contents)
 
 ## Electron Desktop Application
 
@@ -543,5 +543,5 @@ packages/electron/dist
 
 
 
-[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+[Back to Table of Contents](#table-of-contents)
 
