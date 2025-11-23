@@ -121,6 +121,16 @@ const HelpModal = ({ isVisible, onClose }) => {
 
           <HelpSection id="general-purpose" title="General Purpose">
             <p>
+              ❗️ Safety note — please back up important files! <br />
+              This project is a file manager and performs file operations (copy,
+              move, delete, compress, etc.). Every effort has been made to make
+              operations safe — confirmations, conflict handling and progress
+              dialogs are included — but no tool can remove all risk. We
+              strongly recommend you keep backups of important data before
+              running bulk operations or destructive actions. Use the app
+              responsibly and at your own risk.
+            </p>
+            <p>
               This is a dual-panel file manager designed for efficient file
               operations. The two independent panels allow you to browse two
               different locations simultaneously, making it easy to move, copy,
@@ -155,11 +165,21 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <strong>FFmpeg</strong>: required for video preview transcoding
                 features. Install and ensure it's available on your PATH:
                 <ul className="list-disc list-inside pl-6 mt-2">
-                  <li>macOS (Homebrew): <code>brew install ffmpeg</code></li>
-                  <li>Ubuntu/Debian: <code>sudo apt install ffmpeg</code></li>
                   <li>
-                    Windows: download from <a className="text-sky-400 hover:underline" href="https://ffmpeg.org/download.html">ffmpeg.org</a> and add
-                    the <code>bin</code> directory to your PATH
+                    macOS (Homebrew): <code>brew install ffmpeg</code>
+                  </li>
+                  <li>
+                    Ubuntu/Debian: <code>sudo apt install ffmpeg</code>
+                  </li>
+                  <li>
+                    Windows: download from{" "}
+                    <a
+                      className="text-sky-400 hover:underline"
+                      href="https://ffmpeg.org/download.html"
+                    >
+                      ffmpeg.org
+                    </a>{" "}
+                    and add the <code>bin</code> directory to your PATH
                   </li>
                 </ul>
               </li>
@@ -168,35 +188,42 @@ const HelpModal = ({ isVisible, onClose }) => {
 
           <HelpSection id="getting-started" title="Getting Started">
             <p>
-              Basic steps to get the repository running locally (recommended
-              for development):
+              Basic steps to get the repository running locally (recommended for
+              development):
             </p>
             <ol className="list-decimal list-inside pl-4 space-y-2">
               <li>
-                <strong>Install dependencies</strong> — from the repository
-                root run <code>npm install</code>. The project's postinstall
-                helpers will attempt to prepare optional native bits such as
+                <strong>Install dependencies</strong> — from the repository root
+                run <code>npm install</code>. The project's postinstall helpers
+                will attempt to prepare optional native bits such as
                 <code>node-pty</code> when required.
               </li>
               <li>
                 <strong>Starter script</strong> — use the interactive
                 <code>misc/starter.js</code> for common developer tasks. The
-                supplied start scripts (<code>./start.sh</code>, <code>start.bat</code>,
-                <code>start.ps1</code>) will run the starter and perform
-                environment checks.
+                supplied start scripts (<code>./start.sh</code>,{" "}
+                <code>start.bat</code>,<code>start.ps1</code>) will run the
+                starter and perform environment checks.
               </li>
               <li>
                 <strong>Run the app</strong> — common commands:
                 <ul className="list-disc list-inside pl-6 mt-2">
-                  <li><code>npm run dev</code> — start web (server + client) in dev</li>
-                  <li><code>npm run electron:dev</code> — build client and launch Electron for development</li>
+                  <li>
+                    <code>npm run dev</code> — start web (server + client) in
+                    dev
+                  </li>
+                  <li>
+                    <code>npm run electron:dev</code> — build client and launch
+                    Electron for development
+                  </li>
                 </ul>
               </li>
             </ol>
             <p className="mt-2 text-sm text-slate-400">
               Optional helpers: <code>misc/prebuild-node-pty.js</code>,
-              <code>misc/patch-node-pty-helperpath.js</code> assist with preparing
-              or repairing the native <code>node-pty</code> binary. They are conservative and never fail <code>npm install</code>.
+              <code>misc/patch-node-pty-helperpath.js</code> assist with
+              preparing or repairing the native <code>node-pty</code> binary.
+              They are conservative and never fail <code>npm install</code>.
             </p>
           </HelpSection>
 
@@ -207,16 +234,20 @@ const HelpModal = ({ isVisible, onClose }) => {
             </p>
             <ul className="list-disc list-inside pl-4 space-y-2">
               <li>
-                <strong>packages/client</strong> — React frontend (UI, components, screenshots)
+                <strong>packages/client</strong> — React frontend (UI,
+                components, screenshots)
               </li>
               <li>
-                <strong>packages/server</strong> — Express backend powering API routes and filesystem operations
+                <strong>packages/server</strong> — Express backend powering API
+                routes and filesystem operations
               </li>
               <li>
-                <strong>packages/electron</strong> — Electron main/process startup and packaging tooling
+                <strong>packages/electron</strong> — Electron main/process
+                startup and packaging tooling
               </li>
               <li>
-                <strong>misc/</strong> — Developer utilities & helper scripts (node-pty helpers, starter, dev console helpers)
+                <strong>misc/</strong> — Developer utilities & helper scripts
+                (node-pty helpers, starter, dev console helpers)
               </li>
             </ul>
             <p className="mt-2">
@@ -1129,15 +1160,18 @@ const HelpModal = ({ isVisible, onClose }) => {
             </ul>
           </HelpSection>
 
-          <HelpSection id="rename-and-multi-rename" title="Rename & Multi Rename">
+          <HelpSection
+            id="rename-and-multi-rename"
+            title="Rename & Multi Rename"
+          >
             <p>
               The rename functionality adapts based on the number of selected
               items. For a single item, you can rename it directly in the panel
               by pressing <kbd>F2</kbd> or selecting "Rename" from the context
-              menu. When multiple items are selected, the application offers
-              the Multi Rename modal with a set of targeted rename tools and
-              a live preview so you can compose safe, multi-step rename
-              operations before applying them.
+              menu. When multiple items are selected, the application offers the
+              Multi Rename modal with a set of targeted rename tools and a live
+              preview so you can compose safe, multi-step rename operations
+              before applying them.
             </p>
 
             <ul className="list-disc list-inside space-y-2 pl-4">
@@ -1146,8 +1180,8 @@ const HelpModal = ({ isVisible, onClose }) => {
                 specific position in names.
               </li>
               <li>
-                <strong>Remove Characters</strong> — Delete a specific number
-                of characters from names.
+                <strong>Remove Characters</strong> — Delete a specific number of
+                characters from names.
               </li>
               <li>
                 <strong>Find &amp; Replace</strong> — Find and replace text or

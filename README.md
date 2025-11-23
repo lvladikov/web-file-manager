@@ -1,12 +1,65 @@
-# Dual-Panel File Manager Monorepo + Electron app [ACTIVE WORK IN PROGRESS - DO NOT USE YET]
+# Dual-Panel File Manager Monorepo + Electron app [ACTIVE WORK IN PROGRESS]
+
+A compact developer & user guide for the app — use the Table of Contents
+below to jump to details or scroll through the features and dev notes.
+
+> ❗️ **Safety note — please back up important files**
+>
+> This project is a file manager and performs file operations (copy, move, delete,
+> compress, etc.). Every effort has been made to make operations safe — confirmations,
+> conflict handling and progress dialogs are included — but no tool can remove all
+> risk. We strongly recommend you keep backups of important data before running bulk
+> operations or destructive actions. Use the app responsibly and at your own risk.
+
+
+
+## Table of Contents
+
+- [General Look and Feel](#general-look-and-feel)
+- [General Project Structure](#general-project-structure)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [How It Works](#how-it-works)
+- [Features](#features)
+  - [Dual-Panel Layout](#dual-panel-layout)
+  - [File and Folder Listing](#file-and-folder-listing)
+  - [Column Sorting](#column-sorting)
+  - [Panel Usage and Information](#panel-usage-and-information)
+  - [Real-time Folder Monitoring](#real-time-folder-monitoring)
+  - [Navigation and Selection](#navigation-and-selection)
+    - [Selection Actions](#selection)
+    - [Quick Select / Quick Unselect](#quick-select-quick-unselect)
+    - [Quick Filter & Quick Filter by Type](#quick-filter)
+  - [File Preview / Previewing Files](#file-preview)
+  - [Calculate Folder Size](#calculate-folder-size)
+  - [Favourites](#favourites)
+  - [Operations via Console](#operations-via-console)
+  - [Context Menus](#context-menus)
+  - [Progress Modals](#progress-modals)
+  - [Path Bar & Breadcrumbs](#path-bar-and-breadcrumbs)
+  - [Top Menus](#top-menus)
+  - [Function Key Actions](#function-key-actions)
+  - [Copy/Move Operation and Conflict Modes](#copymove-operation-and-conflict-modes)
+  - [Archive / Zip Operations](#archive-zip-operations)
+  - [Rename & Multi Rename](#rename-and-multi-rename)
+  - [Terminal](#terminal)
+  - [Search](#search)
+- [Electron Desktop Application](#electron-desktop-application)
+
+---
+
+## General Look and Feel
 
 This is a dual-panel file manager designed for efficient file operations. The two independent panels allow you to browse two different locations simultaneously, making it easy to move, copy, and compare files and folders between them.
 
 This project is inspired by applications like Midnight Commander and Double Commander, built with a React frontend and a Node.js (Express) backend. The project is structured as a monorepo using npm workspaces.
 
-## General Look and Feel
-
 ![Dual Panel File Manager Screenshot](packages/client/screenshots/dual-panels.png)
+
+
+
+
+[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
 
 ## General Project Structure
 
@@ -66,6 +119,11 @@ This project is inspired by applications like Midnight Commander and Double Comm
 
 ```
 
+
+
+
+[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+
 ## Prerequisites
 
 - **Node.js** (v20.19.0 or later recommended)
@@ -76,6 +134,11 @@ This project is inspired by applications like Midnight Commander and Double Comm
   - **macOS (with Homebrew):** `brew install ffmpeg`
   - **Ubuntu/Debian:** `sudo apt install ffmpeg`
   - **Windows:** Download from the [official FFmpeg website](https://ffmpeg.org/download.html) and add the `bin` directory to your system's PATH.
+
+
+
+
+[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
 
 ## Getting Started
 
@@ -123,6 +186,11 @@ This project is inspired by applications like Midnight Commander and Double Comm
   These helpers are conservative and opt-out-friendly — they aim to make fresh-clone setup faster while avoiding risky global changes.
   You may need to change the execution policy to run the script.
 
+
+
+
+[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+
 ## How It Works
 
 The React client makes API calls to the Node.js server to get directory listings.
@@ -133,28 +201,52 @@ A proxy is configured in the Vite settings (packages/client/vite.config.js) to f
 
 When running the Electron app, both client and server and the node binaries and dependancies are all bundled in the app.
 
+
+
+
+[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+
 ## Features
 
-- **Dual-Panel Layout**: A dual-panel file manager designed for efficient file operations. The two independent panels allow you to browse two different locations simultaneously, making it easy to move, copy, and compare files and folders between them.
 
-- **File & Folder Listing**: Each panel lists files and folders. Long names are dynamically truncated. Icons next to each name (folder icon for folders, text file icon for text files, image icon for images, etc.) help identify the type.
 
-  - **Column Sorting:** You can sort the list by clicking on the column headers (Name, Size, Modified). Clicking the same column cycles through ascending (up arrow) and descending (down arrow) order. The selected files will remain selected even after sorting.
+### Dual-Panel Layout
+A dual-panel file manager designed for efficient file operations. The two independent panels allow you to browse two different locations simultaneously, making it easy to move, copy, and compare files and folders between them.
+
+
+
+### File and Folder Listing
+Each panel lists files and folders. Long names are dynamically truncated. Icons next to each name (folder icon for folders, text file icon for text files, image icon for images, etc.) help identify the type.
 
   ![Folder Truncation Screenshot](packages/client/screenshots/folder-truncation.png)
   ![File Truncation Screenshot](packages/client/screenshots/file-truncation.png)
 
-- **Panel Usage and Information**: At the bottom of each panel, useful information is displayed. This includes the total disk space and available free space for the current drive/partition, a summary of selected items, and the ability to swap panels. The free space percentage is color-coded to provide a quick visual cue: 🟢 green for more than 25% free, 🟡 yellow for 10-25% free, and 🔴 red for less than 10% free. Hovering over the selected items text reveals a tooltip with a detailed breakdown of selected files and folders, their combined size, and a hint on how to calculate full folder sizes if applicable. You can quickly swap the content of the two panels using <kbd>Cmd/Ctrl + U</kbd>.
+
+
+### Column Sorting
+You can sort the list by clicking on the column headers (Name, Size, Modified). Clicking the same column cycles through ascending (up arrow) and descending (down arrow) order. The selected files will remain selected even after sorting.
+
+
+
+### Panel Usage and Information
+At the bottom of each panel, useful information is displayed. This includes the total disk space and available free space for the current drive/partition, a summary of selected items, and the ability to swap panels. The free space percentage is color-coded to provide a quick visual cue: 🟢 green for more than 25% free, 🟡 yellow for 10-25% free, and 🔴 red for less than 10% free. Hovering over the selected items text reveals a tooltip with a detailed breakdown of selected files and folders, their combined size, and a hint on how to calculate full folder sizes if applicable. You can quickly swap the content of the two panels using <kbd>Cmd/Ctrl + U</kbd>.
 
   ![Panel Info Screenshot](packages/client/screenshots/panel-info.png)
 
-- **Real-time Folder Monitoring**: The application automatically monitors the directories shown in both panels for any changes made outside of the app. If you create, delete, or rename a file or folder in one of the visible directories using another program (like your operating system's file explorer), the panel will automatically refresh to reflect these changes in real-time.
 
-- **Navigation & Selection**: Navigate using mouse (double-click to enter folder/open file) or keyboard (<kbd>ArrowUp</kbd>/<kbd>Down</kbd>, <kbd>Enter</kbd>, <kbd>Backspace</kbd>, <kbd>Home</kbd>, <kbd>End</kbd>, <kbd>PageUp</kbd>/<kbd>PageDown</kbd>). Use the ".." entry to go up to the parent directory.
+
+### Real-time Folder Monitoring
+The application automatically monitors the directories shown in both panels for any changes made outside of the app. If you create, delete, or rename a file or folder in one of the visible directories using another program (like your operating system's file explorer), the panel will automatically refresh to reflect these changes in real-time.
+
+
+
+### Navigation and Selection
+Navigate using mouse (double-click to enter folder/open file) or keyboard (<kbd>ArrowUp</kbd>/<kbd>Down</kbd>, <kbd>Enter</kbd>, <kbd>Backspace</kbd>, <kbd>Home</kbd>, <kbd>End</kbd>, <kbd>PageUp</kbd>/<kbd>PageDown</kbd>). Use the ".." entry to go up to the parent directory.
 
   ![Folder Up Screenshot](packages/client/screenshots/folder-up.png)
 
-  - **Selection**: Click an item to select it. <kbd>Cmd/Ctrl + click</kbd> to add/remove. <kbd>Shift + click</kbd> to select a range.
+#### Selection
+  Click an item to select it. <kbd>Cmd/Ctrl + click</kbd> to add/remove. <kbd>Shift + click</kbd> to select a range.
 
     ![Items Selection Screenshot](packages/client/screenshots/items-selection.png)
 
@@ -164,9 +256,10 @@ When running the Electron app, both client and server and the node binaries and 
 
   - **Invert Selection** (<kbd>\*</kbd>)
 
-  - **Quick Select** (<kbd>+</kbd>): Opens a dialog to select files and folders that match a specific pattern (wildcards or regex).
+#### Quick Select / Quick Unselect
+  Quick Select (<kbd>+</kbd>): Opens a dialog to select files and folders that match a specific pattern (wildcards or regex).
 
-  - **Quick Unselect** (<kbd>-</kbd>): Opens a dialog to unselect items based on a pattern.
+  Quick Unselect (<kbd>-</kbd>): Opens a dialog to unselect items based on a pattern.
 
   - **Select/Unselect by Type**: The application supports selecting or unselecting by type from the `Select & Filter` menu or from the Additional Commands submenu in any context menu:
     - **Select Files only** — selects only file items in the panel (menu label: `Select Files only`).
@@ -176,7 +269,8 @@ When running the Electron app, both client and server and the node binaries and 
     - **Unselect Folders only** — unselects folder items in the panel (menu label: `Unselect Folders only`).
     - **Unselect Zip Files only** — unselects zip items in the panel (menu label: `Unselect Zip Files only`).
 
-  - **Quick Filter** (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy, Copy Path, Calculate folder size, Archive operations and Delete will only apply to the filtered items.
+#### Quick Filter
+  Quick Filter (<kbd>.</kbd>): Opens an input at the bottom of the panel to filter visible items in real-time. File operations like Copy, Copy Path, Calculate folder size, Archive operations and Delete will only apply to the filtered items.
 
   - **Quick Filter by Type**: In addition to a general quick filter (pattern), the app provides quick filters for specific types (available from `Select & Filter` and context menus):
     - **Quick Filter Files only** — filters the panel to show only files (menu label: `Quick Filter Files only`).
@@ -186,7 +280,10 @@ When running the Electron app, both client and server and the node binaries and 
 
     ![Quick Filter Screenshot](packages/client/screenshots/quick-filter.png)
 
-- **File Preview**: Preview images, videos, PDFs, text files, and zip archives by focusing an item and pressing <kbd>Spacebar</kbd>. Supported formats include:
+
+
+### File Preview
+Preview images, videos, PDFs, text files, and zip archives by focusing an item and pressing <kbd>Spacebar</kbd>. Supported formats include:
 
   - **Images:** JPG, PNG, GIF, BMP, TIFF, WebP
   - **Documents:** PDF
@@ -196,7 +293,12 @@ When running the Electron app, both client and server and the node binaries and 
   - **Archives:** ZIP
 
 
-- **Rename & Multi Rename**: The rename functionality adapts based on the number of selected items. For a single item, you can rename it directly in the panel by pressing <kbd>F2</kbd> or selecting "Rename" from the context menu. When multiple items are selected, the application offers a special Multi Rename feature, accessible via the "Multi Rename" option in the context menu or top menus.
+
+
+
+### Rename and Multi Rename
+
+The rename functionality adapts based on the number of selected items. For a single item, you can rename it directly in the panel by pressing <kbd>F2</kbd> or selecting "Rename" from the context menu. When multiple items are selected, the application offers the Multi Rename modal with a set of targeted rename tools and a live preview so you can compose safe, multi-step rename operations before applying them.
 
   The Multi Rename modal contains a variety of tools for transforming file and folder names. Each tool includes helpful options and previews so you can apply complex renames safely. The available operations include:
 
@@ -211,22 +313,34 @@ When running the Electron app, both client and server and the node binaries and 
 
   Each operation runs against a live preview so you can safely experiment and build multi-step rename chains before applying them to your files.
 
+
   ![Multi Rename Screenshot](packages/client/screenshots/multi-rename.png)
 
-- **Terminal**: You can open a built-in terminal directly within the application, either in the current panel's path or in the other panel's path. This allows you to execute shell commands without leaving the file manager.
+
+
+### Terminal
+
+You can open a built-in terminal directly within the application, either in the current panel's path or in the other panel's path. This allows you to execute shell commands without leaving the file manager.
 
   - **Clear Terminal**: Clears the current terminal screen.
-  - **Clear Scrollback**: Clears the terminal\'s scrollback history.
+  - **Clear Scrollback**: Clears the terminal's scrollback history.
 
   ![Terminal Screenshot](packages/client/screenshots/built-in-terminal.png)
 
-- **Search**: Launches a modal from the top `Commands` menu or the Additional Commands submenu of any context menu to search either panel. The dialog starts in the active panel but lets you switch to the other panel's path or pick any folder without closing the modal.
+
+
+### Search
+
+Launches a modal from the top `Commands` menu or the Additional Commands submenu of any context menu to search either panel. The dialog starts in the active panel but lets you switch to the other panel's path or pick any folder without closing the modal.
 
   The modal searches by name (wildcards/regex supported) through subfolders and can include hidden items when requested. Enabling **content search** lets you search inside files with options for match case, regex patterns, whole-word matches, ignoring non-text files, and stopping at the first matching file for faster results.
 
   ![Search Modal Screenshot](packages/client/screenshots/search.png)
 
-- **Run and Automate operations via console**: This project exposes a small, developer-friendly global named `FM` in the page context (via `window.FM`) to make debugging and interactive exploration easier when running in dev or Electron contexts. Once the app is loaded, open your browser's developer console and run `FM.help()` to see a complete list of all available methods with their descriptions.
+
+
+### Operations via Console
+This project exposes a small, developer-friendly global named `FM` in the page context (via `window.FM`) to make debugging and interactive exploration easier when running in dev or Electron contexts. Once the app is loaded, open your browser's developer console and run `FM.help()` to see a complete list of all available methods with their descriptions.
 
   The `FM` global provides convenient methods for programmatically navigating panels, inspecting application state, triggering operations, and automating tasks during development.
 
@@ -247,7 +361,10 @@ When running the Electron app, both client and server and the node binaries and 
 
     (See `misc/fm/meta.json` and `misc/fm/methods.js` for full parameter syntax and behavior.)
 
-- **Context Menus**: Right-clicking on an item or empty area opens a context menu with relevant actions.
+
+
+### Context Menus
+Right-clicking on an item or empty area opens a context menu with relevant actions.
 
   - **New _Submenu_**: You can create a new folder or a new empty text file directly from the application.
 
@@ -275,10 +392,7 @@ When running the Electron app, both client and server and the node binaries and 
       - <kbd>Move to...</kbd>: Opens a modal to select a specific destination directory for the move operation.
       - <kbd>Paste from clipboard</kbd> | <kbd>Cmd/Ctrl+V</kbd>: Pastes the currently copied (or cut) items from the app clipboard, and into the active panel (path). Feel free to change paths and active panels after you did a Copy/Cut, thus allowing you to paste your items in a completly different place and at your convinience (time wise). If the operation previously selected was Move (Cut), then upon successful copying of the items, the source items would be deleted. If it was Copy, then the original items would persist at their location.
 
-    - **Archive _Submenu_:**
-      - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
-      - <kbd>Decompress</kbd>: Decompress one or more selected ZIP archives into the active or other panel. You can extract files directly into the destination folder or choose to extract each archive into its own archive-named subfolder (with automatic collision suffixing). A progress dialog displays extraction progress and handles overwrite prompts.
-      - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, including multiple selected ZIP archives, reporting any corrupt files or general issues.
+    - **Archive _Submenu_:** See [Archive / Zip Operations](#archive-zip-operations).
 
   - **Organization:** Rename and Delete the item.
   - **Folder Tools:** For folders, you can also Calculate Size or set the folder's path in the opposite panel.
@@ -287,33 +401,69 @@ When running the Electron app, both client and server and the node binaries and 
 
     ![Context Menu Screenshot](packages/client/screenshots/context-menu.png)
 
-- **Calculate Folder Size**: Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing <kbd>Spacebar</kbd> on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed.
+
+
+### Archive / Zip Operations
+
+  - <kbd>Compress</kbd>: Compresses the selected items into a zip archive in the active panel or transfers it to the other panel.
+  - <kbd>Decompress</kbd>: Decompress one or more selected ZIP archives into the active or other panel. You can extract files directly into the destination folder or choose to extract each archive into its own archive-named subfolder (with automatic collision suffixing). A progress dialog displays extraction progress and handles overwrite prompts.
+  - <kbd>Test Archive</kbd>: Verifies the integrity of a selected ZIP archive, including multiple selected ZIP archives, reporting any corrupt files or general issues.
+
+
+
+### Calculate Folder Size
+Calculate the size of a folder (including all its subfolders and and files) from the context menu or by pressing <kbd>Spacebar</kbd> on a focused folder. A progress modal shows the current file being processed, the "Size so far", and the instantaneous transfer speed.
 
   ![Calculate Folder Size Screenshot](packages/client/screenshots/calc-folder-size.png)
 
-- **Progress Modals**: During any long-running operation (like calculating folder size, copying, compressing, decompressing, testing archives, or gathering paths), a progress dialog will appear, often displaying the instantaneous speed of transfer. If you need to see the panels behind the dialog, you can click and hold on the animated icon (e.g., spinning circle or pulsing search icon) in the dialog's header. This will make the dialog semi-transparent (20% opacity). Releasing the mouse button will restore its full visibility.
+
+
+### Progress Modals
+During any long-running operation (like calculating folder size, copying, compressing, decompressing, testing archives, or gathering paths), a progress dialog will appear, often displaying the instantaneous speed of transfer. If you need to see the panels behind the dialog, you can click and hold on the animated icon (e.g., spinning circle or pulsing search icon) in the dialog's header. This will make the dialog semi-transparent (20% opacity). Releasing the mouse button will restore its full visibility.
 
   ![Copy Progress Screenshot](packages/client/screenshots/copy-progress.png)
 
-- **Path Bar & Breadcrumbs**: Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Select a folder..." option, which opens a folder selection dialog.
+
+
+### Path Bar and Breadcrumbs
+Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Select a folder..." option, which opens a folder selection dialog.
 
   ![Path Breadcrumbs Screenshot](packages/client/screenshots/path-breadcrumbs.png)
 
-- **Favourites**: The star icon next to the path bar allows you to manage your favourite paths. Add the current path or select a previously saved favourite path. Favourites are remembered across sessions. There is also a submenu there with recently visited paths, these are session based.
+
+
+### Favourites
+The star icon next to the path bar allows you to manage your favourite paths. Add the current path or select a previously saved favourite path. Favourites are remembered across sessions. There is also a submenu there with recently visited paths, these are session based.
 
   ![Favourites Menu Screenshot](packages/client/screenshots/favourites-menu.png)
 
--- **Top Menus**: "File", "Select & Filter", and "Commands" menu provide access to comprehensive file management, selection, filter and addtional tools including searching for files and folders.
 
-- **File Menu:** Contains actions related to file operations such as **New (in a submenu)**, **Copy & Move (in a submenu)**, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
 
-- **Select & Filter Menu:** Offers various ways to manage selections, including Select All, Unselect All, Invert Selection, Quick Select, Quick Unselect, and Quick Filter.
+### Top Menus
+"File", "Select & Filter", and "Commands" menu provide access to comprehensive file management, selection, filter and addtional tools including searching for files and folders.  
 
-- **Commands Menu:** Contains Search, Copy Paths to Clipboard, Copy Paths and Download, Terminal, Refresh and Swap panels.
+  ![File Menu Screenshot](packages/client/screenshots/file-menu.png)
 
-- ![File Menu Screenshot](packages/client/screenshots/file-menu.png)
 
-- **Function Key Actions**: The bar at the bottom of the screen shows primary actions mapped to F1-F8 keys for common operations.
+
+### File Menu
+Contains actions related to file operations such as **New (in a submenu)**, **Copy & Move (in a submenu)**, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
+
+
+
+### Select and Filter Menu
+Offers various ways to manage selections, including Select All, Unselect All, Invert Selection, Quick Select, Quick Unselect, and Quick Filter.
+
+
+
+### Commands Menu
+Contains Search, Copy Paths to Clipboard, Copy Paths and Download, Terminal, Refresh and Swap panels.
+
+
+
+### Function Key Actions
+
+  The bar at the bottom of the screen shows primary actions mapped to F1-F8 keys for common operations.
 
   - <kbd>F1</kbd>: Open Help dialog.
 
@@ -339,9 +489,17 @@ When running the Electron app, both client and server and the node binaries and 
 
     ![Action Bar Screenshot](packages/client/screenshots/action-bar.png)
 
-- **Copy/Move Operation & Conflict Modes**: When copying/moving, if an item exists in the target, a confirmation dialog appears with choices for handling conflicts (e.g., "Yes to All", "Copy/Move if New", "No to All", "Skip if Source is Empty", "Overwrite if Size Differs", "Replace if Smaller").
+
+
+### Copy/Move Operation and Conflict Modes
+When copying/moving, if an item exists in the target, a confirmation dialog appears with choices for handling conflicts (e.g., "Yes to All", "Copy/Move if New", "No to All", "Skip if Source is Empty", "Overwrite if Size Differs", "Replace if Smaller").
 
   ![Overwrite Modal Screenshot](packages/client/screenshots/overwrite-modal.png)
+
+
+
+
+[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
 
 ## Electron Desktop Application
 
@@ -349,14 +507,18 @@ The project includes a desktop application built with Electron that bundles the 
 
 ![Standalone Electron App Screenshot](packages/client/screenshots/electron.png)
 
-### Features
+
+
+### Electron Features
 
 - **Self-Contained**: No external Node.js installation required
 - **Zero-Duplication Architecture**: Electron uses dynamic imports from workspace packages
 - **Multi-Platform**: Builds available for macOS (DMG/ZIP), Windows (NSIS/ZIP), and Linux (AppImage/deb/tar.gz)
 - **All Features Included**: Full file management capabilities in a desktop app
 
-### Quick Commands
+
+
+### Electron Quick Commands
 
 **Development:**
 
@@ -378,3 +540,8 @@ The result Electron apps would be output in the following folder:
 ```
 packages/electron/dist
 ```
+
+
+
+[<div style="text-align: right;"><small>Back to Table of Contents</small></div>](#table-of-contents)
+
