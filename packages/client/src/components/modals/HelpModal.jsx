@@ -23,6 +23,7 @@ import builtInTerminalScreenshot from "../../../screenshots/built-in-terminal.pn
 import electronScreenshot from "../../../screenshots/electron.png";
 import searchScreenshot from "../../../screenshots/search.png";
 import fmScreenshot from "../../../screenshots/fm.png";
+import multiRenameScreenshot from "../../../screenshots/multi-rename.png";
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -38,6 +39,9 @@ const HelpModal = ({ isVisible, onClose }) => {
 
   const sections = [
     "General Purpose",
+    "Prerequisites",
+    "Getting Started",
+    "Project Structure",
     "File & Folder Listing",
     "Panel Usage and Information",
     "Real-time Folder Monitoring",
@@ -55,6 +59,7 @@ const HelpModal = ({ isVisible, onClose }) => {
     "Operations via Console",
     "Function Key Actions",
     "Copy/Move Operation & Conflict Modes",
+    "Rename & Multi Rename",
     "Terminal",
     "Electron App",
   ];
@@ -132,6 +137,94 @@ const HelpModal = ({ isVisible, onClose }) => {
               alt="Dual Panel Screenshot"
               className="w-full rounded-lg shadow-lg"
             />
+          </HelpSection>
+
+          <HelpSection id="prerequisites" title="Prerequisites">
+            <p>
+              Before running the project, make sure you have the following
+              installed on your system:
+            </p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>Node.js</strong> (v20.19.0 or later recommended)
+              </li>
+              <li>
+                <strong>npm</strong> (v10.8.2 or later recommended)
+              </li>
+              <li>
+                <strong>FFmpeg</strong>: required for video preview transcoding
+                features. Install and ensure it's available on your PATH:
+                <ul className="list-disc list-inside pl-6 mt-2">
+                  <li>macOS (Homebrew): <code>brew install ffmpeg</code></li>
+                  <li>Ubuntu/Debian: <code>sudo apt install ffmpeg</code></li>
+                  <li>
+                    Windows: download from <a className="text-sky-400 hover:underline" href="https://ffmpeg.org/download.html">ffmpeg.org</a> and add
+                    the <code>bin</code> directory to your PATH
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </HelpSection>
+
+          <HelpSection id="getting-started" title="Getting Started">
+            <p>
+              Basic steps to get the repository running locally (recommended
+              for development):
+            </p>
+            <ol className="list-decimal list-inside pl-4 space-y-2">
+              <li>
+                <strong>Install dependencies</strong> — from the repository
+                root run <code>npm install</code>. The project's postinstall
+                helpers will attempt to prepare optional native bits such as
+                <code>node-pty</code> when required.
+              </li>
+              <li>
+                <strong>Starter script</strong> — use the interactive
+                <code>misc/starter.js</code> for common developer tasks. The
+                supplied start scripts (<code>./start.sh</code>, <code>start.bat</code>,
+                <code>start.ps1</code>) will run the starter and perform
+                environment checks.
+              </li>
+              <li>
+                <strong>Run the app</strong> — common commands:
+                <ul className="list-disc list-inside pl-6 mt-2">
+                  <li><code>npm run dev</code> — start web (server + client) in dev</li>
+                  <li><code>npm run electron:dev</code> — build client and launch Electron for development</li>
+                </ul>
+              </li>
+            </ol>
+            <p className="mt-2 text-sm text-slate-400">
+              Optional helpers: <code>misc/prebuild-node-pty.js</code>,
+              <code>misc/patch-node-pty-helperpath.js</code> assist with preparing
+              or repairing the native <code>node-pty</code> binary. They are conservative and never fail <code>npm install</code>.
+            </p>
+          </HelpSection>
+
+          <HelpSection id="project-structure" title="Project Structure">
+            <p>
+              This repository is a monorepo arranged around three primary app
+              packages and supporting helpers. Key folders include:
+            </p>
+            <ul className="list-disc list-inside pl-4 space-y-2">
+              <li>
+                <strong>packages/client</strong> — React frontend (UI, components, screenshots)
+              </li>
+              <li>
+                <strong>packages/server</strong> — Express backend powering API routes and filesystem operations
+              </li>
+              <li>
+                <strong>packages/electron</strong> — Electron main/process startup and packaging tooling
+              </li>
+              <li>
+                <strong>misc/</strong> — Developer utilities & helper scripts (node-pty helpers, starter, dev console helpers)
+              </li>
+            </ul>
+            <p className="mt-2">
+              A small proxy in the Vite client forwards <code>/api</code> to the
+              backend during development so the client can talk to the server
+              without CORS issues. When building Electron distributions, the
+              client and server are bundled together.
+            </p>
           </HelpSection>
 
           <HelpSection
@@ -943,7 +1036,15 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <kbd>F1</kbd>: Open this Help dialog.
               </li>
               <li>
-                <kbd>F2</kbd>: Rename the currently focused item.
+                <kbd>F2</kbd>: Rename the currently selected item(s). For
+                multi-rename see{" "}
+                <a
+                  href="#rename-and-multi-rename"
+                  onClick={(e) => handleLinkClick(e, "Rename & Multi Rename")}
+                  className="text-sky-400 hover:underline"
+                >
+                  [Rename & Multi Rename].
+                </a>
               </li>
               <li>
                 <kbd>F3 (View)</kbd>: Previews a file if it's a supported format
@@ -1026,6 +1127,66 @@ const HelpModal = ({ isVisible, onClose }) => {
                 overwrites).
               </li>
             </ul>
+          </HelpSection>
+
+          <HelpSection id="rename-and-multi-rename" title="Rename & Multi Rename">
+            <p>
+              The rename functionality adapts based on the number of selected
+              items. For a single item, you can rename it directly in the panel
+              by pressing <kbd>F2</kbd> or selecting "Rename" from the context
+              menu. When multiple items are selected, the application offers
+              the Multi Rename modal with a set of targeted rename tools and
+              a live preview so you can compose safe, multi-step rename
+              operations before applying them.
+            </p>
+
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>
+                <strong>Add Text</strong> — Insert text at the start, end, or a
+                specific position in names.
+              </li>
+              <li>
+                <strong>Remove Characters</strong> — Delete a specific number
+                of characters from names.
+              </li>
+              <li>
+                <strong>Find &amp; Replace</strong> — Find and replace text or
+                patterns in names.
+              </li>
+              <li>
+                <strong>Case Change</strong> — Change the case of names
+                (uppercase, lowercase, title case, etc.).
+              </li>
+              <li>
+                <strong>Swap / Rearrange</strong> — Swap or rearrange parts of
+                names separated by a delimiter.
+              </li>
+              <li>
+                <strong>Sequence</strong> — Add sequential numbers to names
+                (configure start, step and formatting).
+              </li>
+              <li>
+                <strong>Date &amp; Time</strong> — Add the current or the
+                file/folder modification date/time to names using selectable
+                formats.
+              </li>
+              <li>
+                <strong>Trim</strong> — Remove whitespace from the start, end,
+                or both sides of names.
+              </li>
+            </ul>
+
+            <p>
+              Use combinations of these operations to build powerful, repeatable
+              renames — the preview updates live so you can confirm the result
+              before applying it.
+            </p>
+
+            <img
+              src={multiRenameScreenshot}
+              alt="Multi Rename Screenshot"
+              className="w-full max-w-4xl mx-auto rounded-lg shadow-lg mt-4"
+            />
           </HelpSection>
 
           <HelpSection id="terminal" title="Terminal">

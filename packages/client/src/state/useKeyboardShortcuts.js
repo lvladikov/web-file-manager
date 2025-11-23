@@ -34,6 +34,8 @@ export default function useKeyboardShortcuts(props) {
         destinationBrowserModal,
         setDestinationBrowserModal,
         sizeCalcModal,
+        multiRenameModal,
+        setMultiRenameModal,
         helpModal,
         setHelpModal,
         searchModal,
@@ -356,6 +358,7 @@ export default function useKeyboardShortcuts(props) {
         appBrowserModal.isVisible ||
         destinationBrowserModal.isVisible ||
         sizeCalcModal.isVisible ||
+        multiRenameModal.isVisible ||
         helpModal.isVisible ||
         error
       ) {
@@ -374,6 +377,8 @@ export default function useKeyboardShortcuts(props) {
             setAppBrowserModal((s) => ({ ...s, isVisible: false }));
           if (destinationBrowserModal.isVisible)
             setDestinationBrowserModal({ isVisible: false });
+          if (multiRenameModal.isVisible)
+            setMultiRenameModal({ isVisible: false, panelId: null, items: [] });
           if (helpModal.isVisible) setHelpModal({ isVisible: false });
           if (error) setError(null);
         }

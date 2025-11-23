@@ -59,7 +59,8 @@ router.delete("/favourites", async (req, res) => {
     return res.status(400).json({ message: "Path is required." });
   const config = await readConfig();
   config.favourites = config.favourites.filter((p) => p !== pathToRemove);
-  await writeConfig(config);
+  // Bypass protection to allow intentional removal of all favourites
+  await writeConfig(config, { bypassProtection: true });
   res.json(config.favourites);
 });
 
@@ -82,6 +83,67 @@ router.post("/config/auto-load-lyrics", async (req, res) => {
     res.status(200).json({ message: "Setting saved." });
   } catch (error) {
     res.status(500).json({ message: "Failed to save setting." });
+  }
+});
+
+// Multi-rename combos
+router.get("/config/multi-rename-combos", async (req, res) => {
+  const config = await readConfig();
+  res.json(config.multiRenameCombos || []);
+});
+
+router.post("/config/multi-rename-combos", async (req, res) => {
+  const { name, operations } = req.body;
+  if (!name || !Array.isArray(operations)) {
+    return res
+      .status(400)
+      .json({ message: "Both 'name' and 'operations' array are required." });
+  }
+  try {
+    const config = await readConfig();
+    config.multiRenameCombos = config.multiRenameCombos || [];
+
+    // If a combo with the same name exists, replace it; otherwise append
+    const existingIndex = config.multiRenameCombos.findIndex(
+      (c) => c.name === name
+    );
+    const newCombo = { name, operations };
+    if (existingIndex !== -1) {
+      config.multiRenameCombos[existingIndex] = newCombo;
+    } else {
+      config.multiRenameCombos.push(newCombo);
+    }
+
+    await writeConfig(config);
+    res
+      .status(200)
+      .json({
+        message: "Saved multi-rename combo.",
+        combos: config.multiRenameCombos,
+      });
+  } catch (error) {
+    console.error("[config] Failed to save multi-rename combo:", error);
+    res.status(500).json({ message: "Failed to save combo." });
+  }
+});
+
+router.delete("/config/multi-rename-combos", async (req, res) => {
+  // Expect { name } in body to remove a saved combo
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ message: "Name is required." });
+
+  try {
+    const config = await readConfig();
+    config.multiRenameCombos = (config.multiRenameCombos || []).filter(
+      (c) => c.name !== name
+    );
+    await writeConfig(config, { bypassProtection: true });
+    res
+      .status(200)
+      .json({ message: "Removed combo.", combos: config.multiRenameCombos });
+  } catch (err) {
+    console.error("[config] Failed to remove multi-rename combo:", err);
+    res.status(500).json({ message: "Failed to remove combo." });
   }
 });
 

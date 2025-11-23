@@ -326,7 +326,7 @@ const FileMenu = ({ ...props }) => {
         <div className={separatorClassName} />
 
         <MenuItem
-          label="Rename"
+          label={activePanelSelections.size > 1 ? "Multi-Rename" : "Rename"}
           shortcut="F2"
           onClick={() => handleItemClick(onRename)}
           disabled={!canRename}
@@ -748,9 +748,10 @@ const AppMenu = (props) => {
   const canCopyToOtherPanel = activePanelSelections.size > 0;
   const canMoveToOtherPanel = activePanelSelections.size > 0;
   const canRename =
-    singleItemSelected &&
-    firstSelectedItemDetails &&
-    firstSelectedItemDetails.name !== "..";
+    (singleItemSelected &&
+      firstSelectedItemDetails &&
+      firstSelectedItemDetails.name !== "..") ||
+    activePanelSelections.size > 1;
   const canEdit = singleItemSelected && isEditable(firstSelectedItemDetails);
   const canDelete = activePanelSelections.size > 0;
   const canCalculateSize = folderCount > 0;

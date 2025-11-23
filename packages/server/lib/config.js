@@ -17,6 +17,8 @@ const readConfig = async () => {
       right: { size: 96, modified: 160 },
     },
     autoLoadLyrics: false,
+    // Saved multi-rename operation combos
+    multiRenameCombos: [],
   };
   try {
     await fse.access(configPath);
@@ -34,7 +36,39 @@ const readConfig = async () => {
   }
 };
 
-const writeConfig = async (config) => {
+const writeConfig = async (config, options = {}) => {
+  const { bypassProtection = false } = options;
+
+  // Safety check: prevent overwriting existing config with empty/default values
+  // unless explicitly bypassed (e.g., when intentionally removing all favourites)
+  if (!bypassProtection) {
+    try {
+      await fse.access(configPath);
+      const existingData = await fse.readFile(configPath, "utf-8");
+      const existingConfig = JSON.parse(existingData);
+
+      // If existing config has favourites but new config doesn't, warn and prevent overwrite
+      if (
+        existingConfig.favourites &&
+        existingConfig.favourites.length > 0 &&
+        (!config.favourites || config.favourites.length === 0)
+      ) {
+        console.warn(
+          "[Config] Prevented overwriting existing favourites with empty array"
+        );
+        console.warn(
+          "[Config] Existing favourites count:",
+          existingConfig.favourites.length
+        );
+        console.warn("[Config] Merging favourites from existing config");
+        // Preserve existing favourites
+        config.favourites = existingConfig.favourites;
+      }
+    } catch (error) {
+      // File doesn't exist yet, safe to write
+    }
+  }
+
   await fse.writeFile(configPath, JSON.stringify(config, null, 2));
 };
 

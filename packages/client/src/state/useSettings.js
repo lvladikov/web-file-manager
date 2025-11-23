@@ -101,6 +101,37 @@ export default function useSettings({ setError }) {
     }
   };
 
+  const handleImportFavourites = async (importedFavourites) => {
+    try {
+      // Replace existing favourites with imported ones
+      setFavourites(importedFavourites);
+      
+      // Save to server by removing all existing and adding all imported
+      // First, remove all existing favourites
+      for (const fav of favourites) {
+        await removeFavourite(fav);
+      }
+      
+      // Then add all imported favourites
+      for (const fav of importedFavourites) {
+        await addFavourite(fav);
+      }
+      
+      // Fetch updated favourites from server to ensure sync
+      const updatedFavourites = await fetchFavourites();
+      setFavourites(updatedFavourites);
+    } catch (err) {
+      setError(`Failed to import favourites: ${err.message}`);
+      // Reload favourites from server to restore state
+      try {
+        const currentFavourites = await fetchFavourites();
+        setFavourites(currentFavourites);
+      } catch (reloadErr) {
+        console.error("Failed to reload favourites:", reloadErr);
+      }
+    }
+  };
+
   return {
     favourites,
     columnWidths,
@@ -112,5 +143,6 @@ export default function useSettings({ setError }) {
     setAutoLoadLyrics,
     handleToggleFavourite,
     handleToggleAutoLoadLyrics,
+    handleImportFavourites,
   };
 }

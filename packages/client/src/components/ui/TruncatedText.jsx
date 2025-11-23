@@ -64,9 +64,10 @@ const TruncatedText = ({ text, className, onClick, title }) => {
         className={`${className || ""} block whitespace-nowrap overflow-hidden`}
         onClick={onClick}
         title={title || text}
-      >
-        {displayedText}
-      </span>
+        dangerouslySetInnerHTML={{
+          __html: displayedText.replace(/ /g, "&nbsp;"),
+        }}
+      />
     </div>
   );
 };

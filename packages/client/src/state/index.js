@@ -1345,6 +1345,29 @@ export default function appState() {
     }
   }, [activePanel, focusedItem, panels, modals, panelOps]);
 
+  const handleStartRenameWrapper = (panelId, name) => {
+    const activeSelection = selections[panelId];
+    
+    // If multiple items are selected, we prioritize the selection over the specific target name
+    if (activeSelection.size > 1) {
+      const items = sortedAndFilteredItems[panelId].filter((item) =>
+        activeSelection.has(item.name)
+      );
+      
+      if (items.length > 0) {
+        modals.setMultiRenameModal({
+          isVisible: true,
+          panelId,
+          items,
+        });
+        return;
+      }
+    }
+    
+    // Fallback to single rename if selection is empty or single item
+    rename.handleStartRename(panelId, name);
+  };
+
   const actionBarButtons = useMemo(
     () => [
       {
@@ -1358,7 +1381,7 @@ export default function appState() {
         action: () => {
           const name = focusedItem[activePanel];
           if (name && name !== "..") {
-            rename.handleStartRename(activePanel, name);
+            handleStartRenameWrapper(activePanel, name);
           }
         },
         disabled:
@@ -1518,6 +1541,8 @@ export default function appState() {
     destinationBrowserModal: modals.destinationBrowserModal,
     setDestinationBrowserModal: modals.setDestinationBrowserModal,
     sizeCalcModal: sizeCalculation.sizeCalcModal,
+    multiRenameModal: modals.multiRenameModal,
+    setMultiRenameModal: modals.setMultiRenameModal,
     helpModal: modals.helpModal,
     setHelpModal: modals.setHelpModal,
     searchModal: modals.searchModal,
@@ -1536,7 +1561,7 @@ export default function appState() {
     setSelectionAnchor,
     handleNavigate: panelOps.handleNavigate,
     handleOpenFile: panelOps.handleOpenFile,
-    handleStartRename: rename.handleStartRename,
+    handleStartRename: handleStartRenameWrapper,
     handleCopyAction: copy.handleCopyAction,
     handleStartNewFolder: newFolder.handleStartNewFolder,
     handleDeleteItem: del.handleDeleteItem,
@@ -1736,5 +1761,7 @@ export default function appState() {
     handleTerminalOtherPanel,
     // UI Composition
     actionBarButtons,
+    // Override handleStartRename from ...rename spread to use wrapper for multi-rename support
+    handleStartRename: handleStartRenameWrapper,
   };
 }

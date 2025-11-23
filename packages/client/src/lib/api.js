@@ -285,6 +285,35 @@ const saveAutoLoadLyrics = async (autoLoadLyrics) => {
   );
 };
 
+const fetchMultiRenameCombos = async () => {
+  const response = await fetch("/api/config/multi-rename-combos");
+  if (!response.ok) throw new Error("Could not fetch multi-rename combos.");
+  return response.json();
+};
+
+const saveMultiRenameCombo = async (name, operations) => {
+  const response = await post(
+    "/api/config/multi-rename-combos",
+    { name, operations },
+    "Could not save multi-rename combo."
+  );
+  return response.json();
+};
+
+const removeMultiRenameCombo = async (name) => {
+  // Use DELETE to remove by name
+  const delResp = await fetch("/api/config/multi-rename-combos", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!delResp.ok) {
+    const err = await delResp.json().catch(() => ({}));
+    throw new Error(err.message || "Could not delete multi-rename combo.");
+  }
+  return delResp.json();
+};
+
 const compressFiles = async (sources, destination, sourceDirectory) => {
   const response = await post(
     "/api/zip/compress",
@@ -439,6 +468,9 @@ export {
   saveLayout,
   fetchAutoLoadLyrics,
   saveAutoLoadLyrics,
+  fetchMultiRenameCombos,
+  saveMultiRenameCombo,
+  removeMultiRenameCombo,
   compressFiles,
   decompressFiles,
   cancelDecompress,

@@ -195,6 +195,24 @@ When running the Electron app, both client and server and the node binaries and 
   - **Text & Code:** A wide variety of text and code files are supported, including Text (`txt`), Markdown (`md`), JavaScript (`js`, `jsx`), TypeScript (`ts`, `tsx`), JSON (`json`), CSS (`css`), HTML (`html`), YAML (`yml`, `yaml`), Python (`py`), Shell Scripts (`sh`), XML (`xml`), and more.
   - **Archives:** ZIP
 
+
+- **Rename & Multi Rename**: The rename functionality adapts based on the number of selected items. For a single item, you can rename it directly in the panel by pressing <kbd>F2</kbd> or selecting "Rename" from the context menu. When multiple items are selected, the application offers a special Multi Rename feature, accessible via the "Multi Rename" option in the context menu or top menus.
+
+  The Multi Rename modal contains a variety of tools for transforming file and folder names. Each tool includes helpful options and previews so you can apply complex renames safely. The available operations include:
+
+  - **Add Text** — Insert text at the start, end, or a specific position in names.
+  - **Remove Characters** — Delete a specific number of characters from names.
+  - **Find & Replace** — Find and replace text or patterns in names.
+  - **Case Change** — Change the case of names (uppercase, lowercase, title case, etc.).
+  - **Swap / Rearrange** — Swap or rearrange parts of names separated by a delimiter.
+  - **Sequence** — Add sequential numbers to names (custom start/step/format available).
+  - **Date & Time** — Add the current date/time or file modification date/time to names using configurable formats.
+  - **Trim** — Remove whitespace from the start, end, or both sides of names.
+
+  Each operation runs against a live preview so you can safely experiment and build multi-step rename chains before applying them to your files.
+
+  ![Multi Rename Screenshot](packages/client/screenshots/multi-rename.png)
+
 - **Terminal**: You can open a built-in terminal directly within the application, either in the current panel's path or in the other panel's path. This allows you to execute shell commands without leaving the file manager.
 
   - **Clear Terminal**: Clears the current terminal screen.
@@ -299,7 +317,7 @@ When running the Electron app, both client and server and the node binaries and 
 
   - <kbd>F1</kbd>: Open Help dialog.
 
-  - <kbd>F2</kbd>: Rename the currently focused item.
+  - <kbd>F2</kbd>: Rename the currently selected item(s). For multi-rename see [Rename & Multi Rename](#rename-and-multi-rename)
 
   - <kbd>F3 (View)</kbd>: Previews a file if it's a supported format (image, video, PDF, text, archive); otherwise, it opens the file with the default system application. This key does nothing for folders.
 

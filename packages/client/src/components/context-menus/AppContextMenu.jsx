@@ -299,12 +299,10 @@ const AppContextMenu = ({
 
               <div className={separatorClassName}></div>
 
-              {!isMultiSelect && (
-                <ContextMenu.Item onSelect={onRename} className={itemClassName}>
-                  <span>Rename</span>
-                  <span className="text-gray-400">F2</span>
-                </ContextMenu.Item>
-              )}
+              <ContextMenu.Item onSelect={onRename} className={itemClassName}>
+                <span>{isMultiSelect ? "Multi-Rename" : "Rename"}</span>
+                <span className="text-gray-400">F2</span>
+              </ContextMenu.Item>
               {!isMultiSelect &&
                 firstItem.type !== "folder" &&
                 firstItem.type !== "parent" && (

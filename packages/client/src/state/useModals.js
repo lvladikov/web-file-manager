@@ -59,6 +59,12 @@ export default function useModals() {
     commandId: null,
   });
 
+  const [multiRenameModal, setMultiRenameModal] = useState({
+    isVisible: false,
+    panelId: null,
+    items: [],
+  });
+
   return {
     previewModal,
     setPreviewModal,
@@ -78,5 +84,7 @@ export default function useModals() {
     setTerminalModal,
     searchModal,
     setSearchModal,
+    multiRenameModal,
+    setMultiRenameModal,
   };
 }

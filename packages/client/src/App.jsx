@@ -2,12 +2,13 @@ import { useRef, useEffect } from "react";
 
 import appState from "./state";
 
-import { cancelSizeCalculation, post } from "./lib/api";
+import { cancelSizeCalculation, renameItem } from "./lib/api";
 import {
   isItemPreviewable,
   buildFullPath,
   isPreviewableText,
   isEditable,
+  isVerboseLogging,
 } from "./lib/utils";
 
 // Components
@@ -32,6 +33,7 @@ import CopyPathsProgressModal from "./components/modals/CopyPathsProgressModal";
 import ZipUpdateProgressModal from "./components/modals/ZipUpdateProgressModal";
 import SearchModal from "./components/modals/SearchModal";
 import TerminalModal from "./components/modals/TerminalModal";
+import MultiRenameModal from "./components/modals/MultiRenameModal";
 
 export default function App() {
   const {
@@ -109,6 +111,7 @@ export default function App() {
     openFolderBrowserForSearch,
     handlePathInputSubmit,
     handleToggleFavourite,
+    handleImportFavourites,
     handleToggleAutoLoadLyrics,
     handleOverwriteDecision,
     handleStartSizeCalculation,
@@ -184,6 +187,8 @@ export default function App() {
     setAllowContextMenu,
     handleTerminal,
     handleTerminalOtherPanel,
+    multiRenameModal,
+    setMultiRenameModal,
   } = appState();
   const mainRef = useRef(null);
 
@@ -401,11 +406,16 @@ export default function App() {
           onCutToClipboard={handleCutToClipboard}
           onPasteFromClipboard={handlePasteFromClipboard}
           onRename={() => {
-            if (selections[activePanel].size === 1) {
-              const name = [...selections[activePanel]][0];
-              if (name !== "..") {
-                handleStartRename(activePanel, name);
-              }
+            // handleStartRename wrapper will handle single vs multi-rename
+            let name = focusedItem[activePanel];
+            
+            // If no focused item or it's not in selection, use first selected item
+            if (selections[activePanel].size > 0 && (!name || !selections[activePanel].has(name))) {
+                name = [...selections[activePanel]][0];
+            }
+
+            if (name && name !== "..") {
+               handleStartRename(activePanel, name);
             }
           }}
           onEdit={handleEdit}
@@ -711,6 +721,56 @@ export default function App() {
         setAllowContextMenu={setAllowContextMenu}
       />
 
+      <MultiRenameModal
+        isVisible={multiRenameModal.isVisible}
+        items={multiRenameModal.items}
+        onClose={() =>
+          setMultiRenameModal({ isVisible: false, panelId: null, items: [] })
+        }
+        onApply={async (previewItems) => {
+          const panelId = multiRenameModal.panelId;
+          const panel = panels[panelId];
+          
+          // Close modal first
+          setMultiRenameModal({ isVisible: false, panelId: null, items: [] });
+
+          let successCount = 0;
+          let failureCount = 0;
+          const errors = [];
+
+          for (const item of previewItems) {
+             if (!item.changed) continue;
+             
+             try {
+                 const oldPath = buildFullPath(panel.path, item.original);
+                 if (isVerboseLogging()) {
+                   console.log("[Multi-Rename] Renaming:", oldPath, "->", item.newName);
+                 }
+                 await renameItem(oldPath, item.newName);
+                 successCount++;
+             } catch (e) {
+                 console.error("[Multi-Rename] Failed to rename", item.original, "to", item.newName, "Error:", e);
+                 failureCount++;
+                 errors.push(`${item.original}: ${e.message}`);
+             }
+          }
+          
+          // Refresh panel after all done
+          try {
+            await handleRefreshPanel(panelId);
+          } catch (e) {
+            console.error("[Multi-Rename] Failed to refresh panel:", e);
+          }
+          
+          // Show summary
+          if (failureCount > 0) {
+            const errorDetails = errors.slice(0, 3).join(", ");
+            const moreErrors = errors.length > 3 ? ` (and ${errors.length - 3} more)` : "";
+            setError(`Renamed ${successCount} items successfully, ${failureCount} failed. ${errorDetails}${moreErrors}`);
+          }
+        }}
+      />
+
       <SearchModal
         isVisible={searchModal.isVisible}
         panelId={searchModal.panelId}
@@ -798,6 +858,7 @@ export default function App() {
               }
               isFavourite={favourites.includes(panels[panelId].path)}
               onToggleFavourite={handleToggleFavourite}
+              onImportFavourites={handleImportFavourites}
               favourites={favourites}
               recentPaths={recentPaths}
               columnWidths={columnWidths[panelId]}
@@ -892,7 +953,8 @@ export default function App() {
               onPasteFromClipboard={handlePasteFromClipboard}
               onDuplicate={handleDuplicate}
               onRename={() => {
-                if (selections[panelId].size === 1) {
+                // handleStartRename wrapper will handle single vs multi-rename
+                if (selections[panelId].size > 0) {
                   const name = [...selections[panelId]][0];
                   if (name !== "..") {
                     handleStartRename(panelId, name);
