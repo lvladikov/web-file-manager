@@ -24,6 +24,8 @@ import electronScreenshot from "../../../screenshots/electron.png";
 import searchScreenshot from "../../../screenshots/search.png";
 import fmScreenshot from "../../../screenshots/fm.png";
 import multiRenameScreenshot from "../../../screenshots/multi-rename.png";
+import selectMenuScreenshot from "../../../screenshots/select-menu.png";
+import commandsMenuScreenshot from "../../../screenshots/commands-menu.png";
 
 const HelpSection = ({ title, id, children }) => (
   <section id={id} className="mb-8">
@@ -856,6 +858,19 @@ const HelpModal = ({ isVisible, onClose }) => {
               remembered across sessions. There is also a submenu there with
               recently visited paths, these are session based.
             </p>
+            <ul className="list-disc list-inside space-y-2 pl-4 mt-2">
+              <li>
+                <strong>Export Favourites:</strong> Export your list of
+                favourite paths to a JSON file for backup or sharing. The file
+                is automatically named with a timestamp (e.g.,{" "}
+                <code>20250124-103000-favourites-backup.json</code>).
+              </li>
+              <li>
+                <strong>Import Favourites:</strong> Import a previously exported
+                favourites list from a JSON file. This replaces your current
+                favourites with the imported ones.
+              </li>
+            </ul>
             <img
               src={favouritesMenuScreenshot}
               alt="Favourites Menu Screenshot"
@@ -876,24 +891,59 @@ const HelpModal = ({ isVisible, onClose }) => {
                 <strong>Copy & Move (in a submenu)</strong>,{" "}
                 <strong>Copy Paths to clipboard (in a submenu)</strong>,{" "}
                 <strong>Copy Paths and download (in a submenu)</strong>, Rename,
-                Delete, Calculate Size, and Refresh. Many of these actions have
-                corresponding function key shortcuts.
+                Delete, Calculate Size, and Export/Import Settings. Many of
+                these actions have corresponding function key shortcuts.
+                <ul className="list-disc list-inside space-y-2 pl-4">
+                  <li>
+                    <strong>Export Settings:</strong> Backs up all application
+                    settings to a JSON file, including:
+                    <ul className="list-disc list-inside space-y-1 pl-6 mt-1">
+                      <li>List of Favourites</li>
+                      <li>Current Left and Right Panel Paths</li>
+                      <li>Column Widths in Both Panels</li>
+                      <li>Auto Load Lyrics preference</li>
+                      <li>All Multi-Rename saved Combinations</li>
+                    </ul>
+                    The file is automatically named with a timestamp (e.g.,{" "}
+                    <code>20250124-103000-settings-backup.json</code>).
+                  </li>
+                  <li>
+                    <strong>Import Settings:</strong> Restores all application
+                    settings from a previously exported settings file. The
+                    application will reload after import to apply all settings.
+                  </li>
+                </ul>
+                <img
+                  src={fileMenuScreenshot}
+                  alt="File Menu Screenshot"
+                  className="w-3/4 mx-auto rounded-lg shadow-lg"
+                />
               </li>
               <li>
-                <strong>Select Menu:</strong> Offers various ways to manage
-                selections, including Select All, Unselect All, Invert
+                <strong>Select & Filter Menu:</strong> Offers various ways to
+                manage selections, including Select All, Unselect All, Invert
                 Selection, Quick Select, Quick Unselect, Quick Filter, and
                 several targeted commands such as Select Files only / Select
                 Folders only / Select Zip Files only, and their corresponding
                 Unselect variants. The menu also provides Quick Filter variants
                 for files/folders/zip files and a Reset Quick Filter action.
+                <img
+                  src={selectMenuScreenshot}
+                  alt="Select Menu Screenshot"
+                  className="w-3/4 mx-auto rounded-lg shadow-lg"
+                />
+              </li>
+              <li>
+                <strong>Commands Menu:</strong> Contains Search, Copy Paths to
+                Clipboard, Copy Paths and Download, Terminal, Refresh and Swap
+                panels.
+                <img
+                  src={commandsMenuScreenshot}
+                  alt="Commands Menu Screenshot"
+                  className="w-3/4 mx-auto rounded-lg shadow-lg"
+                />
               </li>
             </ul>
-            <img
-              src={fileMenuScreenshot}
-              alt="File Menu Screenshot"
-              className="w-3/4 mx-auto rounded-lg shadow-lg"
-            />
           </HelpSection>
 
           <HelpSection id="search" title="Search">

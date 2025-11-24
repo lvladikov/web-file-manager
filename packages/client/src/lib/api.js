@@ -424,6 +424,21 @@ const cancelZipOperation = async (jobId) => {
   return response.json();
 };
 
+const exportSettings = async () => {
+  const response = await fetch("/api/config/export");
+  if (!response.ok) throw new Error("Could not export settings.");
+  return response.json();
+};
+
+const importSettings = async (config) => {
+  const response = await post(
+    "/api/config/import",
+    config,
+    "Could not import settings."
+  );
+  return response.json();
+};
+
 const startDuplicateItems = async (items, isZipDuplicate = false) => {
   const response = await post(
     "/api/duplicate",
@@ -485,4 +500,6 @@ export {
   fetchFileInfo,
   cancelZipOperation,
   exitApp,
+  exportSettings,
+  importSettings,
 };

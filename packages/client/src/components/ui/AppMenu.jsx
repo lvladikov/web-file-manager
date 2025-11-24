@@ -43,8 +43,6 @@ const FileMenu = ({ ...props }) => {
     canDuplicate,
     onCalculateSize,
     onSetOtherPanelPath,
-    onRefreshPanel,
-    onRefreshBothPanels,
     onCompressInActivePanel,
     onCompressToOtherPanel,
     onDecompressInActivePanel,
@@ -52,7 +50,6 @@ const FileMenu = ({ ...props }) => {
     onDecompressInSubfolderInActivePanel,
     onDecompressInSubfolderToOtherPanel,
     onTestArchive,
-    onSwapPanels,
     canCopyToOtherPanel,
     canMoveToOtherPanel,
     canRename,
@@ -75,9 +72,9 @@ const FileMenu = ({ ...props }) => {
     onNewFolder,
     onNewFile,
     activePanel,
-    copyAbsolutePaths,
-    copyRelativePaths,
     selectedItemsDetails,
+    onExportSettings,
+    onImportSettings,
   } = props;
 
   const [isCopyMoveSubmenuOpen, setIsCopyMoveSubmenuOpen] = useState(false);
@@ -368,6 +365,23 @@ const FileMenu = ({ ...props }) => {
             />
           </>
         )}
+        <div className={separatorClassName} />
+        <div
+          title="Export the list of Favourites, Current Left and Right Panel Paths, Column Widths in Both Panels, Auto Load Lyrics preference, and all Multi-Rename saved Combinations"
+        >
+          <MenuItem
+            label="Export Settings"
+            onClick={() => handleItemClick(onExportSettings)}
+          />
+        </div>
+        <div
+          title="Import and restore the list of Favourites, Current Left and Right Panel Paths, Column Widths in Both Panels, Auto Load Lyrics preference, and all Multi-Rename saved Combinations"
+        >
+          <MenuItem
+            label="Import Settings"
+            onClick={() => handleItemClick(onImportSettings)}
+          />
+        </div>
         <div className={separatorClassName} />
         <MenuItem
           label="Exit"

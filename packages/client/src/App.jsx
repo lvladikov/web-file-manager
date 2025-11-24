@@ -353,6 +353,70 @@ export default function App() {
 
   const handleMenuRefreshOtherPanel = () => handleRefreshPanel(otherPanelId);
 
+  const handleExportSettings = async () => {
+    try {
+      const { exportSettings } = await import("./lib/api");
+      const config = await exportSettings();
+      
+      // Create filename with timestamp
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      
+      const filename = `${year}${month}${day}-${hours}${minutes}${seconds}-settings-backup.json`;
+      
+      // Create and download the file
+      const dataStr = JSON.stringify(config, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setError(`Failed to export settings: ${error.message}`);
+    }
+  };
+
+  const handleImportSettings = async () => {
+    try {
+      // Create a file input element
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.json';
+      
+      fileInput.onchange = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const importedConfig = JSON.parse(text);
+          
+          const { importSettings } = await import("./lib/api");
+          await importSettings(importedConfig);
+          
+          // Reload the page to apply all imported settings
+          window.location.reload();
+        } catch (error) {
+          setError(`Failed to import settings: ${error.message}`);
+        }
+      };
+      
+      fileInput.click();
+    } catch (error) {
+      setError(`Failed to import settings: ${error.message}`);
+    }
+  };
+
   // Create a closure for the top menu's Quick Filter using the activePanel ID.
   const handleMenuQuickFilter = () => handleStartFilter(activePanel);
 
@@ -516,6 +580,8 @@ export default function App() {
           onNewFile={handleStartNewFile}
           copyAbsolutePaths={copyAbsolutePaths}
           copyRelativePaths={copyRelativePaths}
+          onExportSettings={handleExportSettings}
+          onImportSettings={handleImportSettings}
         />
       </header>
       <ErrorModal message={error} onClose={() => setError(null)} />

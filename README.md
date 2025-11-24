@@ -435,31 +435,43 @@ Displays the current directory path with clickable "breadcrumbs" for easy naviga
 ### Favourites
 The star icon next to the path bar allows you to manage your favourite paths. Add the current path or select a previously saved favourite path. Favourites are remembered across sessions. There is also a submenu there with recently visited paths, these are session based.
 
-  ![Favourites Menu Screenshot](packages/client/screenshots/favourites-menu.png)
+  - **Export Favourites**: Export your list of favourite paths to a JSON file for backup or sharing. The file is automatically named with a timestamp (e.g., `20250124-103000-favourites-backup.json`).
+  
+  - **Import Favourites**: Import a previously exported favourites list from a JSON file. This replaces your current favourites with the imported ones.
 
+  ![Favourites Menu Screenshot](packages/client/screenshots/favourites-menu.png)
 
 
 ### Top Menus
 "File", "Select & Filter", and "Commands" menu provide access to comprehensive file management, selection, filter and addtional tools including searching for files and folders.  
 
-  ![File Menu Screenshot](packages/client/screenshots/file-menu.png)
-
-
 
 ### File Menu
-Contains actions related to file operations such as **New (in a submenu)**, **Copy & Move (in a submenu)**, Rename, Delete, Compress, Calculate Size, and Refresh. Many of these actions have corresponding function key shortcuts.
+Contains actions related to file operations such as **New (in a submenu)**, **Copy & Move (in a submenu)**, Rename, Delete, Compress, Calculate Size, and Export/Import Settings. Many of these actions have corresponding function key shortcuts.
+
+- **Export Settings**: Backs up all application settings to a JSON file, including:
+    - List of Favourites
+    - Current Left and Right Panel Paths
+    - Column Widths in Both Panels
+    - Auto Load Lyrics preference
+    - All Multi-Rename saved Combinations
+    
+    The file is automatically named with a timestamp (e.g., `20250124-103000-settings-backup.json`).
+  
+  - **Import Settings**: Restores all application settings from a previously exported settings file. The application will reload after import to apply all settings.
 
 
+![File Menu Screenshot](packages/client/screenshots/file-menu.png)
 
 ### Select and Filter Menu
 Offers various ways to manage selections, including Select All, Unselect All, Invert Selection, Quick Select, Quick Unselect, and Quick Filter.
 
-
+  ![Select and Filter Menu Screenshot](packages/client/screenshots/select-menu.png)
 
 ### Commands Menu
 Contains Search, Copy Paths to Clipboard, Copy Paths and Download, Terminal, Refresh and Swap panels.
 
-
+  ![Commands Menu Screenshot](packages/client/screenshots/commands-menu.png)
 
 ### Function Key Actions
 
