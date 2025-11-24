@@ -702,12 +702,12 @@ export function initializeWebSocketServer(
               if (job.status !== "cancelled") job.status = "failed";
               if (job.ws && job.ws.readyState === 1) {
                 const type = job.status === "cancelled" ? "cancelled" : "error";
-                job.ws.send(
-                  JSON.stringify({
-                    type,
-                    message: error.message || "Zip operation failed.",
-                  })
-                );
+                const payload = { type };
+                // Only include error message for actual errors, not cancellations
+                if (type === "error") {
+                  payload.message = error.message || "Zip operation failed.";
+                }
+                job.ws.send(JSON.stringify(payload));
                 console.log(
                   `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
                 );
@@ -901,7 +901,11 @@ export function initializeWebSocketServer(
                 if (ws.readyState === 1) {
                   const type =
                     job.status === "cancelled" ? "cancelled" : "error";
-                  ws.send(JSON.stringify({ type, message: error.message }));
+                  const payload = { type };
+                  if (type === "error") {
+                    payload.message = error.message;
+                  }
+                  ws.send(JSON.stringify(payload));
                   console.log(
                     `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
                   );
@@ -1167,7 +1171,11 @@ export function initializeWebSocketServer(
                 if (ws.readyState === 1) {
                   const type =
                     job.status === "cancelled" ? "cancelled" : "error";
-                  ws.send(JSON.stringify({ type, message: error.message }));
+                  const payload = { type };
+                  if (type === "error") {
+                    payload.message = error.message;
+                  }
+                  ws.send(JSON.stringify(payload));
                   console.log(
                     `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
                   );
@@ -1413,7 +1421,11 @@ export function initializeWebSocketServer(
                 if (ws.readyState === 1) {
                   const type =
                     job.status === "cancelled" ? "cancelled" : "error";
-                  ws.send(JSON.stringify({ type, message: error.message }));
+                  const payload = { type };
+                  if (type === "error") {
+                    payload.message = error.message;
+                  }
+                  ws.send(JSON.stringify(payload));
                   console.log(
                     `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
                   );
@@ -1482,7 +1494,11 @@ export function initializeWebSocketServer(
               console.error(`Size job ${jobId} failed:`, error.message);
               if (ws.readyState === 1) {
                 const type = job.status === "cancelled" ? "cancelled" : "error";
-                ws.send(JSON.stringify({ type, message: error.message }));
+                const payload = { type };
+                if (type === "error") {
+                  payload.message = error.message;
+                }
+                ws.send(JSON.stringify(payload));
                 console.log(
                   `[ws] Closing ws for job ${jobId} with code=1000 reason='Job finished with status: ${type}'`
                 );
@@ -1637,7 +1653,11 @@ export function initializeWebSocketServer(
               if (job.status !== "cancelled") job.status = "failed";
               if (job.ws && job.ws.readyState === 1) {
                 const type = job.status === "cancelled" ? "cancelled" : "error";
-                job.ws.send(JSON.stringify({ type, message: error.message }));
+                const payload = { type };
+                if (type === "error") {
+                  payload.message = error.message;
+                }
+                job.ws.send(JSON.stringify(payload));
                 await safeCloseJobWs(
                   job,
                   1000,

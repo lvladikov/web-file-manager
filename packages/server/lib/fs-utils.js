@@ -513,12 +513,24 @@ const getAllFilesAndDirsRecursive = async (dirPath, basePath = dirPath) => {
 const performCopyCancellation = async (job) => {
   try {
     if (!job) return;
+    
+    // Abort the controller signal to stop the copy operation
+    if (job.controller && !job.controller.signal.aborted) {
+      job.controller.abort();
+      console.log(
+        `[performCopyCancellation] job ${job?.id} trace=${
+          job?._traceId ?? "n/a"
+        } controller aborted`
+      );
+    }
+    
     // Mark the job as cancelled
+    job.status = "cancelled";
     job.overwriteDecision = "cancel";
     console.log(
       `[performCopyCancellation] job ${job?.id} trace=${
         job?._traceId ?? "n/a"
-      } overwriteDecision set to 'cancel'`
+      } status and overwriteDecision set to 'cancelled' and 'cancel'`
     );
 
     // If using legacy array-based resolvers, invoke them
