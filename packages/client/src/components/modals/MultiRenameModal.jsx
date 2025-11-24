@@ -13,6 +13,7 @@ import {
   ListOrdered,
   Calendar,
   Lightbulb,
+  ChevronDown,
 } from "lucide-react";
 import { applyRenameOperations, generateDiff } from "../../lib/renameUtils";
 import {
@@ -42,11 +43,13 @@ export default function MultiRenameModal({
   const [operations, setOperations] = useState([]);
   const [previewItems, setPreviewItems] = useState([]);
   const [savedCombos, setSavedCombos] = useState([]);
-  const [selectedCombo, setSelectedCombo] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const [showLoadDropdown, setShowLoadDropdown] = useState(false);
+  const [showRemoveDropdown, setShowRemoveDropdown] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef(null);
+  const loadDropdownRef = useRef(null);
+  const removeDropdownRef = useRef(null);
 
   // Reset when opening
   useEffect(() => {
@@ -191,6 +194,85 @@ export default function MultiRenameModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isVisible]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        loadDropdownRef.current &&
+        !loadDropdownRef.current.contains(event.target)
+      ) {
+        setShowLoadDropdown(false);
+      }
+      if (
+        removeDropdownRef.current &&
+        !removeDropdownRef.current.contains(event.target)
+      ) {
+        setShowRemoveDropdown(false);
+      }
+    };
+
+    if (isVisible) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isVisible]);
+
+  const handleSave = async () => {
+    if (!saveName.trim()) {
+      alert("Please enter a name for this rename combination.");
+      return;
+    }
+    if (operations.length === 0) {
+      alert("Please add at least one operation before saving.");
+      return;
+    }
+
+    try {
+      // Prepare operations for saving (strip id to avoid persistent ids)
+      const toSave = operations.map(({ id, ...rest }) => rest);
+      await saveMultiRenameCombo(saveName, toSave);
+      // refresh saved combos
+      const combos = await fetchMultiRenameCombos();
+      setSavedCombos(Array.isArray(combos) ? combos : []);
+      // Don't clear saveName, so user sees what they saved
+    } catch (err) {
+      console.error("[MultiRename] failed to save rename combination", err);
+      alert("Failed to save: " + err.message);
+    }
+  };
+
+  const handleLoad = (comboName) => {
+    const combo = savedCombos.find((c) => c.name === comboName);
+    if (combo && Array.isArray(combo.operations)) {
+      const restored = combo.operations.map((op, idx) => ({
+        ...op,
+        id: `${Date.now()}-${idx}`,
+      }));
+      setOperations(restored);
+      setSaveName(comboName); // Update input to match loaded combo
+    }
+    setShowLoadDropdown(false);
+  };
+
+  const handleRemove = async (comboName) => {
+    const confirmed = window.confirm(
+      `Remove saved rename combination "${comboName}"?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const data = await removeMultiRenameCombo(comboName);
+      setSavedCombos(Array.isArray(data.combos) ? data.combos : []);
+      if (saveName === comboName) {
+        setSaveName("");
+      }
+    } catch (err) {
+      console.error("[MultiRename] failed to remove rename combination", err);
+      alert("Failed to remove: " + err.message);
+    }
+    setShowRemoveDropdown(false);
+  };
 
   if (!isVisible) return null;
 
@@ -371,128 +453,77 @@ export default function MultiRenameModal({
           )}
 
           <div className="flex justify-between gap-3 items-center">
-            {/* Left: saved combos / save control */}
-            <div className="flex items-center gap-3">
-              {savedCombos && savedCombos.length > 0 && (
-                <select
-                  value={selectedCombo || ""}
-                  onChange={(e) => {
-                    const name = e.target.value;
-                    setSelectedCombo(name);
-                  }}
-                  className="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm text-white focus:border-sky-500 outline-none"
-                >
-                  <option value="">Please select</option>
-                  {savedCombos.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              <div className="flex items-center gap-2">
-                {/* Load / Remove controls - only active when a saved combo is selected */}
-                {selectedCombo ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        const combo = savedCombos.find(
-                          (c) => c.name === selectedCombo
-                        );
-                        if (combo && Array.isArray(combo.operations)) {
-                          const restored = combo.operations.map((op, idx) => ({
-                            ...op,
-                            id: `${Date.now()}-${idx}`,
-                          }));
-                          setOperations(restored);
-                        }
-                      }}
-                      className="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-sm transition-colors"
-                      title="Load selected rename combination"
-                    >
-                      Load
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const confirmed = window.confirm(
-                          `Remove saved rename combination "${selectedCombo}"?`
-                        );
-                        if (!confirmed) return;
-                        try {
-                          const data = await removeMultiRenameCombo(
-                            selectedCombo
-                          );
-                          // server returns updated combos
-                          setSavedCombos(
-                            Array.isArray(data.combos) ? data.combos : []
-                          );
-                          setSelectedCombo("");
-                        } catch (err) {
-                          console.error(
-                            "[MultiRename] failed to remove rename combination",
-                            err
-                          );
-                        }
-                      }}
-                      className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-sm transition-colors"
-                      title="Remove selected rename combination"
-                    >
-                      Remove
-                    </button>
-                  </>
-                ) : null}
-                {isSaving ? (
-                  <>
-                    <input
-                      value={saveName}
-                      onChange={(e) => setSaveName(e.target.value)}
-                      placeholder="Rename combination name"
-                      className="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm text-white focus:border-sky-500 outline-none"
-                    />
-                    <button
-                      onClick={async () => {
-                        if (!saveName || operations.length === 0) return;
-                        try {
-                          // Prepare operations for saving (strip id to avoid persistent ids)
-                          const toSave = operations.map(
-                            ({ id, ...rest }) => rest
-                          );
-                          await saveMultiRenameCombo(saveName, toSave);
-                          // refresh saved combos
-                          const combos = await fetchMultiRenameCombos();
-                          setSavedCombos(Array.isArray(combos) ? combos : []);
-                          setSelectedCombo(saveName);
-                          setIsSaving(false);
-                          setSaveName("");
-                        } catch (err) {
-                          console.error(
-                            "[MultiRename] failed to save rename combination",
-                            err
-                          );
-                        }
-                      }}
-                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-sm transition-colors"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsSaving(false);
-                        setSaveName("");
-                      }}
-                      className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
+            {/* Left: Save/Load/Remove controls */}
+            <div className="flex items-center gap-2">
+              {operations.length > 0 && (
+                <>
+                  <input
+                    type="text"
+                    value={saveName}
+                    onChange={(e) => setSaveName(e.target.value)}
+                    placeholder="Combo Name"
+                    className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:border-sky-500 outline-none w-48"
+                  />
                   <button
-                    onClick={() => setIsSaving(true)}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                    onClick={handleSave}
+                    className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded transition-colors text-sm"
                   >
                     Save
                   </button>
+                </>
+              )}
+
+              {/* Load Dropdown */}
+              <div className="relative" ref={loadDropdownRef}>
+                <button
+                  onClick={() => {
+                    setShowLoadDropdown(!showLoadDropdown);
+                    setShowRemoveDropdown(false);
+                  }}
+                  disabled={savedCombos.length === 0}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                >
+                  Load <ChevronDown size={16} />
+                </button>
+                {showLoadDropdown && savedCombos.length > 0 && (
+                  <div className="absolute bottom-full mb-1 left-0 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto z-10 min-w-[200px]">
+                    {savedCombos.map((c) => (
+                      <button
+                        key={c.name}
+                        onClick={() => handleLoad(c.name)}
+                        className="w-full text-left px-4 py-2 hover:bg-sky-600 text-white transition-colors text-sm"
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Remove Dropdown */}
+              <div className="relative" ref={removeDropdownRef}>
+                <button
+                  onClick={() => {
+                    setShowRemoveDropdown(!showRemoveDropdown);
+                    setShowLoadDropdown(false);
+                  }}
+                  disabled={savedCombos.length === 0}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                >
+                  Remove <ChevronDown size={16} />
+                </button>
+                {showRemoveDropdown && savedCombos.length > 0 && (
+                  <div className="absolute bottom-full mb-1 left-0 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto z-10 min-w-[200px]">
+                    {savedCombos.map((c) => (
+                      <button
+                        key={c.name}
+                        onClick={() => handleRemove(c.name)}
+                        className="w-full text-left px-4 py-2 hover:bg-red-600 text-white transition-colors text-sm"
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -501,13 +532,13 @@ export default function MultiRenameModal({
             <div className="flex justify-end gap-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={() => onApply(previewItems)}
-                className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded transition-colors"
+                className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded transition-colors text-sm"
               >
                 Rename All
               </button>
