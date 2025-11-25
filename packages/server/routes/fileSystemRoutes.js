@@ -817,20 +817,52 @@ export default function createFileSystemRoutes(
         return res.status(202).json({ message: "Rename job started.", jobId });
       } else {
         const newPath = path.join(path.dirname(oldPath), newName);
-        if ((await fse.pathExists(newPath)) && !overwrite) {
+
+        // Detect case-only rename (names differ only by case)
+        const isCaseOnlyRename =
+          path.basename(oldPath).toLowerCase() === newName.toLowerCase() &&
+          path.basename(oldPath) !== newName;
+
+        if (
+          (await fse.pathExists(newPath)) &&
+          !overwrite &&
+          !isCaseOnlyRename
+        ) {
           return res
             .status(409)
             .json({ message: "A file with that name already exists." });
         }
-        if ((await fse.pathExists(newPath)) && overwrite) {
+        if ((await fse.pathExists(newPath)) && overwrite && !isCaseOnlyRename) {
           // Remove existing entry before rename
           await fse.remove(newPath);
         }
+
         if (serverVerbose())
           console.log(
-            `[rename] Attempting rename: ${oldPath} -> ${newPath} overwrite=${overwrite}`
+            `[rename] Attempting rename: ${oldPath} -> ${newPath} overwrite=${overwrite} caseOnly=${isCaseOnlyRename}`
           );
-        await fse.rename(oldPath, newPath);
+
+        // For case-only renames on case-insensitive filesystems, use two-step process
+        if (isCaseOnlyRename) {
+          // Step 1: Rename to temporary name
+          const tempPath = `${oldPath}.tmp_rename_${Date.now()}`;
+          await fse.rename(oldPath, tempPath);
+          if (serverVerbose())
+            console.log(
+              `[rename] Case-only rename step 1: ${oldPath} -> ${tempPath}`
+            );
+
+          // Step 2: Rename temp to final name
+          await fse.rename(tempPath, newPath);
+          if (serverVerbose())
+            console.log(
+              `[rename] Case-only rename step 2: ${tempPath} -> ${newPath}`
+            );
+        } else {
+          // Normal rename (single step)
+          await fse.rename(oldPath, newPath);
+        }
+
         if (serverVerbose())
           console.log(`[rename] Rename succeeded: ${oldPath} -> ${newPath}`);
         res.status(200).json({ message: "Item renamed successfully." });

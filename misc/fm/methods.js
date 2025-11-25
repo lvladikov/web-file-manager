@@ -13,6 +13,8 @@ import {
   waitForZipJobCompletion,
   matchZipPath,
   parsePatternToRegex,
+  performMultiRename,
+  performSingleRename,
 } from "./utils.js";
 
 /**
@@ -2734,6 +2736,74 @@ function createFMMethods(FM) {
       }
       return { success: false, error };
     }
+  };
+
+  // FM.multiRenameInActivePanel
+  // Applies multiple rename operations to items in the active panel
+  // @param {Array} items - Optional array of item names/patterns to filter selection
+  // @param {Array} renameActions - Array of rename operation objects (order matters)
+  // @param {boolean} previewMode - If true, shows colored console output; if false, performs actual rename
+  methods.multiRenameInActivePanel = async function (
+    items = null,
+    renameActions = [],
+    previewMode = false
+  ) {
+    const state = getAppState();
+    const panelId = state.activePanel;
+    return await performMultiRename(
+      state,
+      panelId,
+      items,
+      renameActions,
+      previewMode
+    );
+  };
+
+  // FM.multiRenameInOtherPanel
+  // Applies multiple rename operations to items in the other panel
+  // @param {Array} items - Optional array of item names/patterns to filter selection
+  // @param {Array} renameActions - Array of rename operation objects (order matters)
+  // @param {boolean} previewMode - If true, shows colored console output; if false, performs actual rename
+  methods.multiRenameInOtherPanel = async function (
+    items = null,
+    renameActions = [],
+    previewMode = false
+  ) {
+    const state = getAppState();
+    const panelId = methods.getOtherPanelSide();
+    return await performMultiRename(
+      state,
+      panelId,
+      items,
+      renameActions,
+      previewMode
+    );
+  };
+
+  // FM.singleRenameInActivePanel
+  // Renames a single selected item in the active panel
+  // @param {string} newValue - The new name for the item
+  // @param {boolean} previewMode - If true, shows colored console output; if false, performs actual rename
+  methods.singleRenameInActivePanel = async function (
+    newValue,
+    previewMode = false
+  ) {
+    const state = getAppState();
+    const panelId = state.activePanel;
+    return await performSingleRename(state, panelId, newValue, previewMode);
+  };
+
+  // FM.singleRenameInOtherPanel
+  // Renames a single selected item in the other panel
+  // @param {string} newValue - The new name for the item
+  // @param {boolean} previewMode - If true, shows colored console output; if false, performs actual rename
+  methods.singleRenameInOtherPanel = async function (
+    newValue,
+    previewMode = false
+  ) {
+    const state = getAppState();
+    const panelId = methods.getOtherPanelSide();
+    return await performSingleRename(state, panelId, newValue, previewMode);
   };
 
   return methods;

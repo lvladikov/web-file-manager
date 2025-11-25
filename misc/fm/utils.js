@@ -498,7 +498,522 @@ function waitForZipJobCompletion(jobId, jobType, opts = {}) {
     } catch (e) {
       return reject(e);
     }
+  });}
+
+/**
+ * Helper function to perform multi-rename operations
+ * @param {Object} state - App state
+ * @param {string} panelId - Panel ID ('left' or 'right')
+ * @param {Array|string|null} items - Items filter (string, array of strings, or null)
+ * @param {Array} renameActions - Array of rename action objects 
+ * @param {boolean} previewMode - If true, shows preview; if false, performs rename
+ * @returns {Promise<Object>} Result object with success status and message
+ */
+async function performMultiRename(
+  state,
+  panelId,
+  items,
+  renameActions,
+  previewMode
+) {
+  // Validate renameActions
+  if (!Array.isArray(renameActions) || renameActions.length === 0) {
+    const error = "renameActions must be a non-empty array";
+    console.error(error);
+    return { success: false, error };
+  }
+
+  // Get panel items and selection
+  const panel = state.panels[panelId];
+  if (!panel) {
+    const error = `Panel ${panelId} not found`;
+    console.error(error);
+    return { success: false, error };
+  }
+
+  const selection = buildSelection(panelId, true) || [];
+  const panelItems = panel.items || [];
+
+  // Normalize items to array (accept string or array)
+  let itemsFilter = null;
+  if (items !== null && items !== undefined) {
+    itemsFilter = Array.isArray(items) ? items : [items];
+  }
+
+  // Determine candidates based on selection and items filter
+  let candidates;
+  if (!selection || selection.length === 0) {
+    if (itemsFilter && itemsFilter.length > 0) {
+      // No selection made, but caller provided a filter: treat all panel items as candidates
+      // This matches the behavior of moveToActivePanel
+      candidates = panelItems;
+    } else {
+      const error = "No selection made and no items filter provided";
+      console.error(error);
+      return { success: false, error };
+    }
+  } else {
+    // Filter candidate items by the current selection
+    candidates = panelItems.filter((i) => selection.includes(i.name));
+  }
+
+  // Apply items filter if provided (supports names, wildcards, or regex)
+  let filtered = candidates;
+  if (itemsFilter && itemsFilter.length > 0) {
+    const patterns = itemsFilter.map((p) => ({
+      raw: p,
+      re: parsePatternToRegex(p),
+    }));
+    filtered = candidates.filter((i) => {
+      for (const pat of patterns) {
+        try {
+          if (pat.re) {
+            if (pat.re.test(i.name)) return true;
+          } else if (String(pat.raw) === i.name) {
+            return true;
+          }
+        } catch (e) {}
+      }
+      return false;
+    });
+  }
+
+  if (!filtered || filtered.length === 0) {
+    const error = "No items matched the filter";
+    console.error(error);
+    return { success: false, error };
+  }
+
+  // Dynamic import required: renameUtils.js contains browser-only code (uses navigator, etc.)
+  // This file (utils.js) is loaded by both server and client. Static imports would execute
+  // immediately at module load time, causing the server to crash trying to access browser APIs.
+  // Dynamic imports only execute when this function is called (runtime, in browser context).
+  let applyRenameOperations, generateDiff;
+  try {
+    const renameUtilsModule = await import(
+      "../../packages/client/src/lib/renameUtils.js"
+    );
+    applyRenameOperations = renameUtilsModule.applyRenameOperations;
+    generateDiff = renameUtilsModule.generateDiff;
+  } catch (err) {
+    const error = "Failed to load rename utilities: " + err.message;
+    console.error(error);
+    return { success: false, error };
+  }
+
+  // Normalize renameActions to have id and active properties
+  const operations = renameActions.map((action, idx) => ({
+    id: `${Date.now()}-${idx}`,
+    active: action.active !== false, // default to true if not specified
+    type: action.type,
+    params: action.params || {},
+  }));
+
+  // Apply rename operations to generate preview
+  const previewItems = filtered.map((item, index) => {
+    const newName = applyRenameOperations(
+      item.name,
+      operations,
+      index,
+      item // Pass full item as stats
+    );
+    const diff = generateDiff(item.name, newName);
+    return {
+      original: item.name,
+      newName: newName,
+      changed: item.name !== newName,
+      diff,
+    };
   });
+
+  // Preview mode: show colored console output
+  if (previewMode) {
+    displayRenamePreview(previewItems);
+    return {
+      success: true,
+      preview: previewItems,
+      message: `Preview: ${previewItems.filter((p) => p.changed).length} of ${previewItems.length} items would be renamed`,
+    };
+  }
+
+  // Actual rename mode
+  const itemsToChange = previewItems.filter((i) => i.changed);
+  if (itemsToChange.length === 0) {
+    return {
+      success: true,
+      message: "No items to rename (no changes detected)",
+    };
+  }
+
+
+  let successCount = 0;
+  let failureCount = 0;
+  const errors = [];
+
+  // Dynamic import required: api.js contains browser-only code (uses navigator, etc.)
+  // This file (utils.js) is loaded by both server and client. Static imports would execute
+  // immediately at module load time, causing the server to crash trying to access browser APIs.
+  // Dynamic imports only execute when this function is called (runtime, in browser context).
+  let renameItem;
+  try {
+    const apiModule = await import("../../packages/client/src/lib/api.js");
+    renameItem = apiModule.renameItem;
+  } catch (err) {
+    const error = "Failed to load API utilities: " + err.message;
+    console.error(error);
+    return { success: false, error };
+  }
+
+  // Helper to build full path
+  const sep = panel.path.includes("\\") ? "\\" : "/";
+  const base = panel.path.endsWith(sep) ? panel.path : panel.path + sep;
+
+  // Helper to format diff segments with ANSI colors
+  const formatDiff = (segments, isNew) => {
+    return segments
+      .map((seg) => {
+        if (seg.type === "removed" && !isNew) {
+          return `\x1b[31m\x1b[9m${seg.text}\x1b[0m`;
+        } else if (seg.type === "added" && isNew) {
+          return `\x1b[32m${seg.text}\x1b[0m`;
+        } else if (seg.type === "unchanged") {
+          return `\x1b[90m${seg.text}\x1b[0m`;
+        }
+        return seg.text;
+      })
+      .join("");
+  };
+
+  console.log(
+    `\n\x1b[1m--- Renaming ${itemsToChange.length} items ---\x1b[0m\n`
+  );
+
+  for (let idx = 0; idx < itemsToChange.length; idx++) {
+    const item = itemsToChange[idx];
+
+    try {
+      const oldPath = base + item.original;
+      const response = await renameItem(oldPath, item.newName);
+
+      // Handle zip-internal rename flows which return a jobId
+      const zipMatch =
+        oldPath &&
+        typeof oldPath === "string" &&
+        oldPath.match(/^(.*\.zip)(\/.*)?$/i);
+      const isInnerZipPath =
+        !!zipMatch && zipMatch[2] && zipMatch[2] !== "/";
+
+      if (isInnerZipPath && response && response.jobId) {
+        const zipFilePath = zipMatch[1];
+        const oldFileInZip = zipMatch[2].startsWith("/")
+          ? zipMatch[2].substring(1)
+          : zipMatch[2];
+        const lastSlash = oldFileInZip.lastIndexOf("/");
+        const dir =
+          lastSlash === -1 ? "" : oldFileInZip.substring(0, lastSlash);
+        const newFileInZip = dir ? `${dir}/${item.newName}` : item.newName;
+
+        if (typeof state.startZipUpdate === "function") {
+          state.startZipUpdate({
+            jobId: response.jobId,
+            zipFilePath,
+            filePathInZip: newFileInZip,
+            originalZipSize: 0,
+            itemType:
+              (panelItems.find((i) => i.name === item.original)?.type ===
+              "folder"
+                ? "folder"
+                : "file") || "file",
+            title: "Renaming item in zip...",
+          });
+        }
+
+        if (typeof state.connectZipUpdateWebSocket === "function") {
+          await new Promise((resolve) => {
+            state.connectZipUpdateWebSocket(response.jobId, "rename-in-zip", {
+              onComplete: () => resolve(),
+              onError: () => resolve(),
+              onCancel: () => resolve(),
+            });
+          });
+        }
+      }
+
+      successCount++;
+
+      // Log success with colored diff
+      const originalFormatted = formatDiff(item.diff.original, false);
+      const newFormatted = formatDiff(item.diff.new, true);
+      console.log(
+        `\x1b[36m${idx + 1}/${itemsToChange.length}\x1b[0m \x1b[32m✓\x1b[0m Renamed`
+      );
+      console.log(`  Old: ${originalFormatted}`);
+      console.log(`  New: ${newFormatted}`);
+      if (idx < itemsToChange.length - 1) {
+        console.log(""); // blank line between items
+      }
+    } catch (e) {
+      console.error(
+        `\x1b[36m${idx + 1}/${itemsToChange.length}\x1b[0m \x1b[31m✗\x1b[0m Failed:`
+      );
+      console.error(`  \x1b[90m${item.original}\x1b[0m → \x1b[90m${item.newName}\x1b[0m`);
+      console.error(`  \x1b[31mError: ${e.message}\x1b[0m`);
+      failureCount++;
+      errors.push(`${item.original} → ${item.newName}: ${e.message}`);
+    }
+  }
+
+  // Refresh panel
+  try {
+    if (typeof state.handleRefreshPanel === "function") {
+      await state.handleRefreshPanel(panelId);
+    }
+  } catch (e) {
+    console.error("[FM.multiRename] Failed to refresh panel:", e);
+  }
+
+  console.log(
+    `\n\x1b[1m--- Complete: ${successCount} succeeded, ${failureCount} failed ---\x1b[0m\n`
+  );
+
+  return {
+    success: failureCount === 0,
+    successCount,
+    failureCount,
+    errors: failureCount > 0 ? errors : undefined,
+    message: `Renamed ${successCount} of ${itemsToChange.length} items${failureCount > 0 ? ` (${failureCount} failed)` : ""}`,
+  };
+}
+
+/**
+ * Helper function to perform single-rename operations
+ * @param {Object} state - App state
+ * @param {string} panelId - Panel ID ('left' or 'right')
+ * @param {string} newValue - New name for the item
+ * @param {boolean} previewMode - If true, shows preview; if false, performs rename
+ * @returns {Promise<Object>} Result object with success status and message
+ */
+async function performSingleRename(state, panelId, newValue, previewMode) {
+  if (!newValue || typeof newValue !== "string") {
+    const error = "newValue must be a non-empty string";
+    console.error(error);
+    return { success: false, error };
+  }
+
+  // Get panel and selection
+  const panel = state.panels[panelId];
+  if (!panel) {
+    const error = `Panel ${panelId} not found`;
+    console.error(error);
+    return { success: false, error };
+  }
+
+  const selection = buildSelection(panelId, true) || [];
+  if (selection.length === 0) {
+    const error = "No item selected in the panel";
+    console.error(error);
+    return { success: false, error };
+  }
+
+  if (selection.length > 1) {
+    const error = `Multiple items selected (${selection.length}). Please select only one item for single rename.`;
+    console.error(error);
+    return { success: false, error };
+  }
+
+  const itemName = selection[0];
+  const item = panel.items.find((i) => i.name === itemName);
+  if (!item) {
+    const error = `Selected item "${itemName}" not found in panel`;
+    console.error(error);
+    return { success: false, error };
+  }
+
+  // Preview mode: show colored console output
+  if (previewMode) {
+    // Dynamic import required: renameUtils.js contains browser-only code (uses navigator, etc.)
+    // This file (utils.js) is loaded by both server and client. Static imports would execute
+    // immediately at module load time, causing the server to crash trying to access browser APIs.
+    // Dynamic imports only execute when this function is called (runtime, in browser context).
+    let generateDiff;
+    try {
+      const renameUtilsModule = await import(
+        "../../packages/client/src/lib/renameUtils.js"
+      );
+      generateDiff = renameUtilsModule.generateDiff;
+    } catch (err) {
+      const error = "Failed to load rename utilities: " + err.message;
+      console.error(error);
+      return { success: false, error };
+    }
+
+    const diff = generateDiff(itemName, newValue);
+    const previewItem = {
+      original: itemName,
+      newName: newValue,
+      changed: itemName !== newValue,
+      diff,
+    };
+
+    displayRenamePreview([previewItem]);
+
+    return {
+      success: true,
+      preview: previewItem,
+      message:
+        itemName !== newValue
+          ? `Preview: "${itemName}" would be renamed to "${newValue}"`
+          : "No change (same name)",
+    };
+  }
+
+  // Actual rename mode
+  if (itemName === newValue) {
+    return {
+      success: true,
+      message: "No change (item already has this name)",
+    };
+  }
+
+
+  // Dynamic import required: api.js contains browser-only code (uses navigator, etc.)
+  // This file (utils.js) is loaded by both server and client. Static imports would execute
+  // immediately at module load time, causing the server to crash trying to access browser APIs.
+  // Dynamic imports only execute when this function is called (runtime, in browser context).
+  let renameItem;
+  try {
+    const apiModule = await import("../../packages/client/src/lib/api.js");
+    renameItem = apiModule.renameItem;
+  } catch (err) {
+    const error = "Failed to load API utilities: " + err.message;
+    console.error(error);
+    return { success: false, error };
+  }
+
+  try {
+    const sep = panel.path.includes("\\") ? "\\" : "/";
+    const base = panel.path.endsWith(sep) ? panel.path : panel.path + sep;
+    const oldPath = base + itemName;
+
+    const response = await renameItem(oldPath, newValue);
+
+    // Handle zip-internal rename flows
+    const zipMatch =
+      oldPath &&
+      typeof oldPath === "string" &&
+      oldPath.match(/^(.*\.zip)(\/.*)?$/i);
+    const isInnerZipPath =
+      !!zipMatch && zipMatch[2] && zipMatch[2] !== "/";
+
+    if (isInnerZipPath && response && response.jobId) {
+      const zipFilePath = zipMatch[1];
+      const oldFileInZip = zipMatch[2].startsWith("/")
+        ? zipMatch[2].substring(1)
+        : zipMatch[2];
+      const lastSlash = oldFileInZip.lastIndexOf("/");
+      const dir = lastSlash === -1 ? "" : oldFileInZip.substring(0, lastSlash);
+      const newFileInZip = dir ? `${dir}/${newValue}` : newValue;
+
+      if (typeof state.startZipUpdate === "function") {
+        state.startZipUpdate({
+          jobId: response.jobId,
+          zipFilePath,
+          filePathInZip: newFileInZip,
+          originalZipSize: 0,
+          itemType: item.type === "folder" ? "folder" : "file",
+          title: "Renaming item in zip...",
+        });
+      }
+
+      if (typeof state.connectZipUpdateWebSocket === "function") {
+        await new Promise((resolve) => {
+          state.connectZipUpdateWebSocket(response.jobId, "rename-in-zip", {
+            onComplete: () => resolve(),
+            onError: () => resolve(),
+            onCancel: () => resolve(),
+          });
+        });
+      }
+    }
+
+    // Refresh panel
+    if (typeof state.handleRefreshPanel === "function") {
+      await state.handleRefreshPanel(panelId);
+    }
+
+    // Update selection to the new name
+    if (typeof state.setFocusedItem === "function") {
+      state.setFocusedItem((prev) => ({ ...prev, [panelId]: newValue }));
+    }
+    if (typeof state.setSelectionAnchor === "function") {
+      state.setSelectionAnchor((prev) => ({ ...prev, [panelId]: newValue }));
+    }
+    if (typeof state.setSelections === "function") {
+      state.setSelections((prev) => ({
+        ...prev,
+        [panelId]: new Set([newValue]),
+      }));
+    }
+
+    return {
+      success: true,
+      message: `Renamed "${itemName}" to "${newValue}"`,
+    };
+  } catch (e) {
+    console.error(
+      `[FM.singleRename] Failed to rename ${itemName} to ${newValue}:`,
+      e
+    );
+    return {
+      success: false,
+      error: e.message,
+    };
+  }
+}
+
+/**
+ * Helper function to display rename preview in console with colors
+ * @param {Array} previewItems - Array of preview items with diff data
+ */
+function displayRenamePreview(previewItems) {
+  console.log("\n\x1b[1m--- Rename Preview ---\x1b[0m");
+  
+  previewItems.forEach((item, idx) => {
+    // Helper to format diff segments with ANSI colors
+    const formatDiff = (segments, isNew) => {
+      return segments
+        .map((seg) => {
+          if (seg.type === "removed" && !isNew) {
+            // Red with strikethrough
+            return `\x1b[31m\x1b[9m${seg.text}\x1b[0m`;
+          } else if (seg.type === "added" && isNew) {
+            // Green
+            return `\x1b[32m${seg.text}\x1b[0m`;
+          } else if (seg.type === "unchanged") {
+            // Gray for unchanged parts
+            return `\x1b[90m${seg.text}\x1b[0m`;
+          }
+          return seg.text;
+        })
+        .join("");
+    };
+
+    const originalFormatted = formatDiff(item.diff.original, false);
+    const newFormatted = formatDiff(item.diff.new, true);
+    const statusIcon = item.changed ? "\x1b[32m✓\x1b[0m" : "\x1b[90m-\x1b[0m";
+    const statusText = item.changed ? "Changed" : "No change";
+
+    console.log(`\x1b[36m${idx}\x1b[0m ${statusIcon} ${statusText}`);
+    console.log(`  Old: ${originalFormatted}`);
+    console.log(`  New: ${newFormatted}`);
+    if (idx < previewItems.length - 1) {
+      console.log(""); // blank line between items
+    }
+  });
+
+  console.log(
+    `\n\x1b[90mLegend: \x1b[32mGreen\x1b[90m = Added, \x1b[31m\x1b[9mRed strikethrough\x1b[0m\x1b[90m = Removed, \x1b[90mGray\x1b[0m\x1b[90m = Unchanged\x1b[0m\n`
+  );
 }
 
 export {
@@ -515,4 +1030,6 @@ export {
   matchZipPath,
   waitForZipJobCompletion,
   applySelectionAnchorAndFocus,
+  performMultiRename,
+  performSingleRename,
 };

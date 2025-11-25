@@ -248,6 +248,9 @@ export default function App() {
         connectZipUpdateWebSocket,
         handleTerminal,
         handleTerminalOtherPanel,
+        setMultiRenameProgress,
+        setFocusedItem,
+        setSelectionAnchor,
       };
     }
     return () => {
@@ -834,6 +837,13 @@ export default function App() {
           let failureCount = 0;
           const errors = [];
 
+          // Console header when verbose mode is enabled
+          if (isVerboseLogging()) {
+            console.log(
+              `\n\x1b[1m--- Renaming ${itemsToChange.length} items (Modal) ---\x1b[0m\n`
+            );
+          }
+
           for (let idx = 0; idx < itemsToChange.length; idx++) {
             // Respect cancellation (set by the modal's Cancel button)
             if (multiRenameCancelRef.current) break;
@@ -916,6 +926,34 @@ export default function App() {
                 successCount,
                 processed: idx + 1,
               }));
+
+              if (isVerboseLogging()) {
+                // Helper to format diff segments with ANSI colors
+                const formatDiff = (segments, isNew) => {
+                  return segments
+                    .map((seg) => {
+                      if (seg.type === "removed" && !isNew) {
+                        return `\x1b[31m\x1b[9m${seg.text}\x1b[0m`; // Red strikethrough
+                      } else if (seg.type === "added" && isNew) {
+                        return `\x1b[32m${seg.text}\x1b[0m`; // Green
+                      } else if (seg.type === "unchanged") {
+                        return `\x1b[90m${seg.text}\x1b[0m`; // Gray
+                      }
+                      return seg.text;
+                    })
+                    .join("");
+                };
+
+                const originalFormatted = formatDiff(item.diff.original, false);
+                const newFormatted = formatDiff(item.diff.new, true);
+                console.log(
+                  `\x1b[36m${idx + 1}/${
+                    itemsToChange.length
+                  }\x1b[0m \x1b[32m✓\x1b[0m Renamed`
+                );
+                console.log(`  Old: ${originalFormatted}`);
+                console.log(`  New: ${newFormatted}`);
+              }
             } catch (e) {
               console.error(
                 "[Multi-Rename] Failed to rename",
@@ -944,6 +982,13 @@ export default function App() {
             await handleRefreshPanel(panelId);
           } catch (e) {
             console.error("[Multi-Rename] Failed to refresh panel:", e);
+          }
+
+          // Console summary when verbose mode is enabled
+          if (isVerboseLogging()) {
+            console.log(
+              `\n\x1b[1m--- Complete: ${successCount} succeeded, ${failureCount} failed ---\x1b[0m\n`
+            );
           }
 
           // Hide/finish progress modal — if there were failures, keep modal open and mark finished so user can Close

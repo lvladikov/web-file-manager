@@ -1,4 +1,4 @@
-import { startSizeCalculation } from "./api";
+import { startSizeCalculation } from "./api.js";
 
 const buildFullPath = (basePath, fileName) => {
   const sep = basePath && basePath.includes("\\") ? "\\" : "/";

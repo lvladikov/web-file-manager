@@ -1,4 +1,4 @@
-import { isVerboseLogging } from "./utils";
+import { isVerboseLogging } from "./utils.js";
 
 const post = async (
   url,
