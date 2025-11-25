@@ -34,6 +34,7 @@ import ZipUpdateProgressModal from "./components/modals/ZipUpdateProgressModal";
 import SearchModal from "./components/modals/SearchModal";
 import TerminalModal from "./components/modals/TerminalModal";
 import MultiRenameModal from "./components/modals/MultiRenameModal";
+import MultiRenameProgressModal from "./components/modals/MultiRenameProgressModal";
 
 export default function App() {
   const {
@@ -189,8 +190,11 @@ export default function App() {
     handleTerminalOtherPanel,
     multiRenameModal,
     setMultiRenameModal,
+    multiRenameProgress,
+    setMultiRenameProgress,
   } = appState();
   const mainRef = useRef(null);
+  const multiRenameCancelRef = useRef(false);
 
   // Expose app state to window for FM console methods
   useEffect(() => {
@@ -357,24 +361,24 @@ export default function App() {
     try {
       const { exportSettings } = await import("./lib/api");
       const config = await exportSettings();
-      
+
       // Create filename with timestamp
       const now = new Date();
       const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+
       const filename = `${year}${month}${day}-${hours}${minutes}${seconds}-settings-backup.json`;
-      
+
       // Create and download the file
       const dataStr = JSON.stringify(config, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const dataBlob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(dataBlob);
-      
-      const link = document.createElement('a');
+
+      const link = document.createElement("a");
       link.href = url;
       link.download = filename;
       document.body.appendChild(link);
@@ -389,10 +393,10 @@ export default function App() {
   const handleImportSettings = async () => {
     try {
       // Create a file input element
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.json';
-      
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = ".json";
+
       fileInput.onchange = async (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -400,17 +404,17 @@ export default function App() {
         try {
           const text = await file.text();
           const importedConfig = JSON.parse(text);
-          
+
           const { importSettings } = await import("./lib/api");
           await importSettings(importedConfig);
-          
+
           // Reload the page to apply all imported settings
           window.location.reload();
         } catch (error) {
           setError(`Failed to import settings: ${error.message}`);
         }
       };
-      
+
       fileInput.click();
     } catch (error) {
       setError(`Failed to import settings: ${error.message}`);
@@ -472,14 +476,17 @@ export default function App() {
           onRename={() => {
             // handleStartRename wrapper will handle single vs multi-rename
             let name = focusedItem[activePanel];
-            
+
             // If no focused item or it's not in selection, use first selected item
-            if (selections[activePanel].size > 0 && (!name || !selections[activePanel].has(name))) {
-                name = [...selections[activePanel]][0];
+            if (
+              selections[activePanel].size > 0 &&
+              (!name || !selections[activePanel].has(name))
+            ) {
+              name = [...selections[activePanel]][0];
             }
 
             if (name && name !== "..") {
-               handleStartRename(activePanel, name);
+              handleStartRename(activePanel, name);
             }
           }}
           onEdit={handleEdit}
@@ -796,43 +803,203 @@ export default function App() {
         onApply={async (previewItems) => {
           const panelId = multiRenameModal.panelId;
           const panel = panels[panelId];
-          
-          // Close modal first
+
+          // Build list of items that need change
+          const itemsToChange = (previewItems || []).filter((i) => i.changed);
+          if (!itemsToChange || itemsToChange.length === 0) {
+            setMultiRenameModal({ isVisible: false, panelId: null, items: [] });
+            return;
+          }
+
+          // Close the MultiRename modal and start the progress modal (modal controlled by app state)
           setMultiRenameModal({ isVisible: false, panelId: null, items: [] });
+          multiRenameCancelRef.current = false;
+          setMultiRenameProgress({
+            isVisible: true,
+            total: itemsToChange.length,
+            processed: 0,
+            currentOld: null,
+            currentNew: null,
+            successCount: 0,
+            failureCount: 0,
+            errors: [],
+            cancelRequested: false,
+            finished: false,
+          });
+
+          // Give modal a tiny moment to render and become visible before we begin updates
+          await new Promise((r) => setTimeout(r, 20));
 
           let successCount = 0;
           let failureCount = 0;
           const errors = [];
 
-          for (const item of previewItems) {
-             if (!item.changed) continue;
-             
-             try {
-                 const oldPath = buildFullPath(panel.path, item.original);
-                 if (isVerboseLogging()) {
-                   console.log("[Multi-Rename] Renaming:", oldPath, "->", item.newName);
-                 }
-                 await renameItem(oldPath, item.newName);
-                 successCount++;
-             } catch (e) {
-                 console.error("[Multi-Rename] Failed to rename", item.original, "to", item.newName, "Error:", e);
-                 failureCount++;
-                 errors.push(`${item.original}: ${e.message}`);
-             }
+          for (let idx = 0; idx < itemsToChange.length; idx++) {
+            // Respect cancellation (set by the modal's Cancel button)
+            if (multiRenameCancelRef.current) break;
+
+            const item = itemsToChange[idx];
+            setMultiRenameProgress((prev) => ({
+              ...prev,
+              processed: idx,
+              currentOld: item.original,
+              currentNew: item.newName,
+            }));
+
+            try {
+              const oldPath = buildFullPath(panel.path, item.original);
+
+              if (isVerboseLogging())
+                console.log(
+                  "[Multi-Rename] Renaming:",
+                  oldPath,
+                  "->",
+                  item.newName
+                );
+
+              const response = await renameItem(oldPath, item.newName);
+
+              // Handle zip-internal rename flows which return a jobId
+              try {
+                const zipMatch =
+                  oldPath &&
+                  typeof oldPath === "string" &&
+                  oldPath.match(/^(.*\.zip)(\/.*)?$/i);
+                const isInnerZipPath =
+                  !!zipMatch && zipMatch[2] && zipMatch[2] !== "/";
+                if (isInnerZipPath && response && response.jobId) {
+                  const zipFilePath = zipMatch[1];
+                  const oldFileInZip = zipMatch[2].startsWith("/")
+                    ? zipMatch[2].substring(1)
+                    : zipMatch[2];
+                  const lastSlash = oldFileInZip.lastIndexOf("/");
+                  const dir =
+                    lastSlash === -1
+                      ? ""
+                      : oldFileInZip.substring(0, lastSlash);
+                  const newFileInZip = dir
+                    ? `${dir}/${item.newName}`
+                    : item.newName;
+
+                  startZipUpdate({
+                    jobId: response.jobId,
+                    zipFilePath,
+                    filePathInZip: newFileInZip,
+                    originalZipSize: 0,
+                    itemType:
+                      (panel.items.find((i) => i.name === item.original)
+                        ?.type === "folder"
+                        ? "folder"
+                        : "file") || "file",
+                    title: "Renaming item in zip...",
+                  });
+
+                  await new Promise((resolve) => {
+                    connectZipUpdateWebSocket(response.jobId, "rename-in-zip", {
+                      onComplete: () => resolve(),
+                      onError: () => resolve(),
+                      onCancel: () => resolve(),
+                    });
+                  });
+                }
+              } catch (err) {
+                console.error(
+                  "[Multi-Rename] zip-progress handling error",
+                  err
+                );
+              }
+
+              // Mark success
+              successCount++;
+              setMultiRenameProgress((prev) => ({
+                ...prev,
+                successCount,
+                processed: idx + 1,
+              }));
+            } catch (e) {
+              console.error(
+                "[Multi-Rename] Failed to rename",
+                item.original,
+                "to",
+                item.newName,
+                "Error:",
+                e
+              );
+              failureCount++;
+              errors.push(`${item.original}: ${e.message}`);
+              setMultiRenameProgress((prev) => ({
+                ...prev,
+                failureCount,
+                errors: [
+                  ...(prev.errors || []),
+                  `${item.original}: ${e.message}`,
+                ],
+                processed: idx + 1,
+              }));
+            }
           }
-          
-          // Refresh panel after all done
+
+          // Done (or cancelled) — refresh panel and close the modals
           try {
             await handleRefreshPanel(panelId);
           } catch (e) {
             console.error("[Multi-Rename] Failed to refresh panel:", e);
           }
-          
-          // Show summary
+
+          // Hide/finish progress modal — if there were failures, keep modal open and mark finished so user can Close
           if (failureCount > 0) {
-            const errorDetails = errors.slice(0, 3).join(", ");
-            const moreErrors = errors.length > 3 ? ` (and ${errors.length - 3} more)` : "";
-            setError(`Renamed ${successCount} items successfully, ${failureCount} failed. ${errorDetails}${moreErrors}`);
+            setMultiRenameProgress((prev) => ({
+              ...prev,
+              processed: prev.total,
+              finished: true,
+              isVisible: true,
+            }));
+          } else {
+            setMultiRenameProgress((prev) => ({
+              ...prev,
+              processed: prev.total,
+              finished: true,
+              isVisible: false,
+            }));
+          }
+
+          // Show summary on errors using the local counters (also seen in modal details)
+          if (failureCount > 0) {
+            // Do not open the global Application Error modal here —
+            // the MultiRenameProgressModal already surface per-item errors
+            // and the progress dialogs remain open with a Close button.
+            if (isVerboseLogging())
+              console.warn("Multi-rename completed with failures:", errors);
+          }
+        }}
+      />
+      <MultiRenameProgressModal
+        isVisible={multiRenameProgress.isVisible}
+        total={multiRenameProgress.total}
+        processed={multiRenameProgress.processed}
+        currentOld={multiRenameProgress.currentOld}
+        currentNew={multiRenameProgress.currentNew}
+        successCount={multiRenameProgress.successCount}
+        failureCount={multiRenameProgress.failureCount}
+        errors={multiRenameProgress.errors}
+        onCancel={() => {
+          // if modal is finished and had failures, treat this as "Close": hide the modal and reset finished flag
+          if (
+            multiRenameProgress.finished &&
+            multiRenameProgress.failureCount > 0
+          ) {
+            setMultiRenameProgress((prev) => ({
+              ...prev,
+              isVisible: false,
+              finished: false,
+            }));
+          } else {
+            setMultiRenameProgress((prev) => ({
+              ...prev,
+              cancelRequested: true,
+              isVisible: false,
+            }));
+            multiRenameCancelRef.current = true;
           }
         }}
       />

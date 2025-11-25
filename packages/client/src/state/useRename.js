@@ -21,6 +21,20 @@ export default function useRename({
     value: "",
   });
 
+  // Progress state for multi-rename operations
+  const [multiRenameProgress, setMultiRenameProgress] = useState({
+    isVisible: false,
+    total: 0,
+    processed: 0,
+    currentOld: null,
+    currentNew: null,
+    successCount: 0,
+    failureCount: 0,
+    errors: [],
+    cancelRequested: false,
+    finished: false,
+  });
+
   const handleStartRename = (panelId, name) => {
     if (name === "..") return;
     setRenamingItem({ panelId, name, value: name });
@@ -228,5 +242,7 @@ export default function useRename({
     handleStartRename,
     handleCancelRename,
     handleConfirmRename,
+    multiRenameProgress,
+    setMultiRenameProgress,
   };
 }

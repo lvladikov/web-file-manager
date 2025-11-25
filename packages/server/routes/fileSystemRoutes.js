@@ -28,6 +28,9 @@ export default function createFileSystemRoutes(
   activeZipOperations,
   activeDuplicateJobs
 ) {
+  const serverVerbose = () =>
+    (process.env.VERBOSE_LOGGING || "").toLowerCase() === "true" ||
+    (process.env.VERBOSE_LOGGING || "") === "1";
   const router = express.Router();
 
   // Endpoint to get disk space information
@@ -100,8 +103,9 @@ export default function createFileSystemRoutes(
       const files = await fse.readdir(currentPath, { withFileTypes: true });
       const items = await Promise.all(
         files.map(async (file) => {
+          // compute fullFilePath in an outer scope so it's available in catch
+          const fullFilePath = path.join(currentPath, file.name);
           try {
-            const fullFilePath = path.join(currentPath, file.name);
             const stats = await fse.stat(fullFilePath);
             const type = getFileType(file.name, stats.isDirectory());
             return {
@@ -112,7 +116,11 @@ export default function createFileSystemRoutes(
               fullPath: fullFilePath,
             };
           } catch (err) {
-            console.warn(`Could not stat ${fullFilePath}, skipping.`);
+            // fullFilePath is defined above so we can safely reference it in catch
+            console.warn(
+              `Could not stat ${fullFilePath}, skipping.`,
+              err.message || err
+            );
             return {
               name: file.name,
               type: "file",
@@ -787,8 +795,24 @@ export default function createFileSystemRoutes(
         }
 
         renameInZip(zipFilePath, oldPathInZip, newPathInZip, job)
-          .then(() => job.resolveCompletion())
-          .catch((err) => job.rejectCompletion(err));
+          .then(() => {
+            if (job && job.verboseLogging)
+              console.log(
+                `[rename] renameInZip job ${jobId} completed: ${oldPathInZip} -> ${newPathInZip} in ${zipFilePath}`
+              );
+            job.resolveCompletion();
+          })
+          .catch((err) => {
+            console.error(
+              `[rename] renameInZip job ${jobId} failed: ${oldPathInZip} -> ${newPathInZip} in ${zipFilePath}:`,
+              err && err.stack ? err.stack : err
+            );
+            job.rejectCompletion(err);
+          });
+        if (job && job.verboseLogging)
+          console.log(
+            `[rename] Started renameInZip job ${jobId}: ${oldPathInZip} -> ${newPathInZip} in ${zipFilePath}`
+          );
 
         return res.status(202).json({ message: "Rename job started.", jobId });
       } else {
@@ -802,7 +826,13 @@ export default function createFileSystemRoutes(
           // Remove existing entry before rename
           await fse.remove(newPath);
         }
+        if (serverVerbose())
+          console.log(
+            `[rename] Attempting rename: ${oldPath} -> ${newPath} overwrite=${overwrite}`
+          );
         await fse.rename(oldPath, newPath);
+        if (serverVerbose())
+          console.log(`[rename] Rename succeeded: ${oldPath} -> ${newPath}`);
         res.status(200).json({ message: "Item renamed successfully." });
       }
     } catch (error) {

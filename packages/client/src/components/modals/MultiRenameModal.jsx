@@ -536,12 +536,29 @@ export default function MultiRenameModal({
               >
                 Cancel
               </button>
-              <button
-                onClick={() => onApply(previewItems)}
-                className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded transition-colors text-sm"
-              >
-                Rename All
-              </button>
+                {
+                  // If no items changed as a result of the operations, disable Rename All
+                }
+                {(() => {
+                  const anyChanged = previewItems.some((p) => p.changed);
+                  const title = anyChanged
+                    ? "Rename all items"
+                    : "No changes to apply — adjust operations to modify at least one name";
+                  return (
+                    <button
+                      onClick={() => anyChanged && onApply(previewItems)}
+                      disabled={!anyChanged}
+                      title={title}
+                      className={`px-6 py-2 ${
+                        anyChanged
+                          ? "bg-sky-600 hover:bg-sky-500 text-white"
+                          : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                      } font-medium rounded transition-colors text-sm`}
+                    >
+                      Rename All
+                    </button>
+                  );
+                })()}
             </div>
           </div>
         </div>

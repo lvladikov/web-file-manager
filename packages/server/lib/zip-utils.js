@@ -1125,6 +1125,10 @@ const renameInZip = async (
   newPathInZip,
   job = null
 ) => {
+  if (job && job.verboseLogging)
+    console.log(
+      `[renameInZip] job=${job?.id ?? "n/a"} starting: ${zipFilePath} :: ${oldPathInZip} -> ${newPathInZip}`
+    );
   const zipEndIndexOld = oldPathInZip.toLowerCase().lastIndexOf(".zip/");
   const zipEndIndexNew = newPathInZip.toLowerCase().lastIndexOf(".zip/");
   // If the path refers to a nested zip entry, recurse into the inner zip.
@@ -1235,10 +1239,11 @@ const renameInZip = async (
 
         if (isFileConflict || isFolderConflict) {
           if (job && job.overwriteDecision === "overwrite") {
-            console.log(
-              `[renameInZip] Overwrite enabled: skipping existing target entry ${entry.filename}`
-            );
-            continue; // Skip this entry, it's being overwritten.
+              if (job && job.verboseLogging)
+                console.log(
+                  `[renameInZip] Overwrite enabled: skipping existing target entry ${entry.filename}`
+                );
+              continue; // Skip this entry, it's being overwritten.
           } else {
             // If overwrite is not enabled, it's a conflict.
             throw new Error("Rename conflict: destination already exists.");
@@ -1268,8 +1273,16 @@ const renameInZip = async (
     await archiveFinishedPromise;
     if (signal && signal.aborted) throw new Error("Zip update cancelled.");
     await fse.move(tempZipPath, zipFilePath, { overwrite: true });
+    if (job && job.verboseLogging)
+      console.log(
+        `[renameInZip] job=${job?.id ?? "n/a"} completed: ${zipFilePath} :: ${oldPathInZip} -> ${newPathInZip}`
+      );
   } catch (error) {
     await fse.remove(tempZipPath).catch(() => {});
+    console.error(
+      `[renameInZip] job=${job?.id ?? "n/a"} error while renaming ${oldPathInZip} -> ${newPathInZip} in ${zipFilePath}:`,
+      error && error.stack ? error.stack : error
+    );
     throw error;
   } finally {
     await zipfile.close();
