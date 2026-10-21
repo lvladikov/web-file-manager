@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   savePaths,
-  fetchDirectory,
+  fetchDirectoryWithFallback,
   post,
   exitApp,
   fetchFileInfo,
@@ -1161,28 +1161,42 @@ export default function appState() {
 
   useEffect(() => {
     if (settings.settingsLoading) return;
-    const loadPanelData = async () => {
-      setLoading({ left: true, right: true });
-      try {
-        const [leftData, rightData] = await Promise.all([
-          fetchDirectory(settings.initialPaths.left || ""),
-          fetchDirectory(settings.initialPaths.right || ""),
-        ]);
-        setPanels({ left: leftData, right: rightData });
 
-        const initialRecents = [];
-        if (leftData.path) {
-          initialRecents.push(leftData.path);
-        }
-        if (rightData.path && rightData.path !== leftData.path) {
-          initialRecents.push(rightData.path);
-        }
-        setRecentPaths(initialRecents);
+    // Each panel loads independently, so a problem with one remembered
+    // folder never leaves both panels empty and unusable. If a remembered
+    // folder can no longer be listed (it was deleted, or the volume it lives
+    // on is not mounted), fetchDirectoryWithFallback opens the first of
+    // /Volumes, /media, /mnt and / that works instead.
+    const loadPanel = async (panelId) => {
+      try {
+        const data = await fetchDirectoryWithFallback(
+          settings.initialPaths[panelId] || ""
+        );
+        setPanels((prev) => ({ ...prev, [panelId]: data }));
+        return data;
       } catch (err) {
         setError(err.message);
+        return null;
       } finally {
-        setLoading({ left: false, right: false });
+        setLoading((prev) => ({ ...prev, [panelId]: false }));
       }
+    };
+
+    const loadPanelData = async () => {
+      setLoading({ left: true, right: true });
+      const [leftData, rightData] = await Promise.all([
+        loadPanel("left"),
+        loadPanel("right"),
+      ]);
+
+      const initialRecents = [];
+      if (leftData?.path) {
+        initialRecents.push(leftData.path);
+      }
+      if (rightData?.path && rightData.path !== leftData?.path) {
+        initialRecents.push(rightData.path);
+      }
+      setRecentPaths(initialRecents);
     };
     loadPanelData();
   }, [

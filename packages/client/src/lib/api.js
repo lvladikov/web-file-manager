@@ -108,6 +108,31 @@ const fetchDirectory = async (basePath, target = "") => {
   return response.json();
 };
 
+// Folders tried, in order, when a panel's remembered folder can no longer be
+// listed (it was deleted, or the volume it lives on is not mounted).
+const PANEL_FALLBACK_PATHS = ["/Volumes", "/media", "/mnt", "/"];
+
+// Fetch the listing for preferredPath, falling back through
+// PANEL_FALLBACK_PATHS when it cannot be listed. Resolves with the listing of
+// the first candidate that works and rejects only if every candidate fails.
+const fetchDirectoryWithFallback = async (preferredPath = "") => {
+  const candidates = [preferredPath, ...PANEL_FALLBACK_PATHS].filter(
+    (candidate, index, all) => all.indexOf(candidate) === index
+  );
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return await fetchDirectory(candidate);
+    } catch (err) {
+      lastError = err;
+      console.warn(
+        `Could not open "${candidate || "home folder"}": ${err.message}`
+      );
+    }
+  }
+  throw lastError;
+};
+
 const fetchDiskSpace = async (path) => {
   const response = await fetch(
     `/api/disk-space?path=${encodeURIComponent(path)}`
@@ -472,6 +497,7 @@ export {
   cancelSizeCalculation,
   fetchFavourites,
   fetchDirectory,
+  fetchDirectoryWithFallback,
   fetchDiskSpace,
   fetchFiles,
   searchFiles,

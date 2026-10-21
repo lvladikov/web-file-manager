@@ -428,6 +428,8 @@ During any long-running operation (like calculating folder size, copying, compre
 ### Path Bar and Breadcrumbs
 Displays the current directory path with clickable "breadcrumbs" for easy navigation. Right-clicking the path bar offers a "Select a folder..." option, which opens a folder selection dialog.
 
+The folder shown in each panel is remembered across restarts. If a remembered folder no longer exists when the app starts (for example it was deleted, or the drive it lives on is not mounted), that panel opens `/Volumes` instead, falling back to `/media`, then `/mnt`, and finally the filesystem root `/`.
+
   ![Path Breadcrumbs Screenshot](packages/client/screenshots/path-breadcrumbs.png)
 
 
