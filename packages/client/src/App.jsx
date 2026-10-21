@@ -36,6 +36,7 @@ import TerminalModal from "./components/modals/TerminalModal";
 import MultiRenameModal from "./components/modals/MultiRenameModal";
 import MultiRenameProgressModal from "./components/modals/MultiRenameProgressModal";
 
+
 export default function App() {
   const {
     // State & Refs

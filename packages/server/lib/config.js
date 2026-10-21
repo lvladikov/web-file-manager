@@ -54,11 +54,11 @@ const writeConfig = async (config, options = {}) => {
         (!config.favourites || config.favourites.length === 0)
       ) {
         console.warn(
-          "[Config] Prevented overwriting existing favourites with empty array"
+          "[Config] Prevented overwriting existing favourites with empty array",
         );
         console.warn(
           "[Config] Existing favourites count:",
-          existingConfig.favourites.length
+          existingConfig.favourites.length,
         );
         console.warn("[Config] Merging favourites from existing config");
         // Preserve existing favourites

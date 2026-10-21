@@ -33,7 +33,7 @@ function runShellCommand(cmd, opts = {}) {
       try {
         spawnSync(
           `${userShell} -lc 'node -v && npm -v && which npm && which hdiutil && hdiutil --version'`,
-          { stdio: "inherit", shell: true, ...opts }
+          { stdio: "inherit", shell: true, ...opts },
         );
       } catch (e) {
         /* ignore */
@@ -130,7 +130,7 @@ if (require.main === module) {
 
   console.log("\n=== web-file-manager starter helper ===");
   console.log(
-    "This helper can launch common project tasks from the repo root."
+    "This helper can launch common project tasks from the repo root.",
   );
 
   // Respect an override typed to the script to automatically select an
@@ -141,7 +141,7 @@ if (require.main === module) {
 
   if (!isTTY() && !autoSelect) {
     console.log(
-      "\nNot running in an interactive terminal. Available next steps:"
+      "\nNot running in an interactive terminal. Available next steps:",
     );
     printOptions(options);
     console.log("\nTo run one interactively, re-run: node ./misc/starter.js");
@@ -151,7 +151,7 @@ if (require.main === module) {
   printOptions(options);
 
   process.stdout.write(
-    "\nSelect an option number and press Enter (or press Enter to exit): "
+    "\nSelect an option number and press Enter (or press Enter to exit): ",
   );
   process.stdin.setEncoding("utf8");
   if (autoSelect) {
